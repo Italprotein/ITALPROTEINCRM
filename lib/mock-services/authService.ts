@@ -1,5 +1,5 @@
-import type { DemoAccount, DemoSession, Role } from '@/lib/types';
-import { DEMO_ACCOUNTS } from '@/fixtures/users';
+import type { UserAccount, UserSession, Role } from '@/lib/types';
+import { TEAM_ACCOUNTS } from '@/fixtures/users';
 import { workspaceOf } from '@/lib/permissions';
 import { readStore, writeStore, clearStore } from './storage';
 
@@ -12,36 +12,36 @@ const SESSION_KEY = 'session';
  * server-side sessions (see docs/BACKEND_HANDOFF.md).
  */
 export const authService = {
-  listAccounts(): DemoAccount[] {
-    return DEMO_ACCOUNTS;
+  listAccounts(): UserAccount[] {
+    return TEAM_ACCOUNTS;
   },
 
-  listInternalAccounts(): DemoAccount[] {
-    return DEMO_ACCOUNTS.filter((a) => a.workspace === 'internal');
+  listInternalAccounts(): UserAccount[] {
+    return TEAM_ACCOUNTS.filter((a) => a.workspace === 'internal');
   },
 
-  listExternalAccounts(): DemoAccount[] {
-    return DEMO_ACCOUNTS.filter((a) => a.workspace === 'external');
+  listExternalAccounts(): UserAccount[] {
+    return TEAM_ACCOUNTS.filter((a) => a.workspace === 'external');
   },
 
-  getAccount(id: string): DemoAccount | undefined {
-    return DEMO_ACCOUNTS.find((a) => a.id === id);
+  getAccount(id: string): UserAccount | undefined {
+    return TEAM_ACCOUNTS.find((a) => a.id === id);
   },
 
-  getSession(): DemoSession | null {
-    return readStore<DemoSession | null>(SESSION_KEY, null);
+  getSession(): UserSession | null {
+    return readStore<UserSession | null>(SESSION_KEY, null);
   },
 
-  getCurrentAccount(): DemoAccount | null {
+  getCurrentAccount(): UserAccount | null {
     const session = this.getSession();
     if (!session) return null;
     return this.getAccount(session.accountId) ?? null;
   },
 
-  signInAs(accountId: string): DemoSession | null {
+  signInAs(accountId: string): UserSession | null {
     const account = this.getAccount(accountId);
     if (!account) return null;
-    const session: DemoSession = {
+    const session: UserSession = {
       accountId: account.id,
       role: account.role,
       workspace: account.workspace,
@@ -52,11 +52,11 @@ export const authService = {
     return session;
   },
 
-  switchRole(role: Role): DemoSession | null {
+  switchRole(role: Role): UserSession | null {
     // Convenience for the in-app role switcher: jump to the first demo account
     // with the requested role (same company for external roles).
     const current = this.getSession();
-    const candidates = DEMO_ACCOUNTS.filter((a) => a.role === role);
+    const candidates = TEAM_ACCOUNTS.filter((a) => a.role === role);
     const match =
       current?.companyId && workspaceOf(role) === 'external'
         ? candidates.find((a) => a.companyId === current.companyId) ?? candidates[0]
@@ -64,12 +64,12 @@ export const authService = {
     return match ? this.signInAs(match.id) : null;
   },
 
-  getAccountByEmail(email: string): DemoAccount | undefined {
+  getAccountByEmail(email: string): UserAccount | undefined {
     const e = email.trim().toLowerCase();
-    return DEMO_ACCOUNTS.find((a) => a.email.toLowerCase() === e);
+    return TEAM_ACCOUNTS.find((a) => a.email.toLowerCase() === e);
   },
 
-  signInByEmail(email: string): DemoSession | null {
+  signInByEmail(email: string): UserSession | null {
     const account = this.getAccountByEmail(email);
     return account ? this.signInAs(account.id) : null;
   },

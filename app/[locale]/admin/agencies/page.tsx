@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Handshake,
   CheckCircle2,
@@ -44,16 +45,16 @@ const AGREEMENT_TONE: Record<AgreementStatus, Parameters<typeof Badge>[0]['varia
   expired: 'danger',
 };
 
-const AGREEMENT_LABEL: Record<AgreementStatus, string> = {
-  none: 'No agreement',
-  draft: 'Draft',
-  active: 'Active',
-  expired: 'Expired',
+const AGREEMENT_LABEL_KEY: Record<AgreementStatus, string> = {
+  none: 'agreementNone',
+  draft: 'agreementDraft',
+  active: 'agreementActive',
+  expired: 'agreementExpired',
 };
 
-function ownerName(id: string): string {
+function ownerName(id: string, unassignedLabel: string): string {
   const a = authService.getAccount(id);
-  return a ? `${a.firstName} ${a.lastName}` : 'Unassigned';
+  return a ? `${a.firstName} ${a.lastName}` : unassignedLabel;
 }
 
 function pct(value: number): string {
@@ -61,6 +62,7 @@ function pct(value: number): string {
 }
 
 export default function AgenciesPage() {
+  const t = useTranslations('AdminAgencies');
   const router = useRouter();
   const [rows, setRows] = useState<Agency[] | null>(null);
   const [stats, setStats] = useState<Awaited<ReturnType<typeof agencyService.getStatistics>> | null>(null);
@@ -97,7 +99,7 @@ export default function AgenciesPage() {
   const columns: Column<Agency>[] = [
     {
       key: 'agency',
-      header: 'Agency',
+      header: t('colAgency'),
       sortValue: (a) => a.tradingName ?? a.legalName,
       cell: (a) => (
         <div className="flex items-center gap-3">
@@ -116,7 +118,7 @@ export default function AgenciesPage() {
     },
     {
       key: 'territory',
-      header: 'Territory',
+      header: t('colTerritory'),
       sortValue: (a) => a.meta.territory,
       cell: (a) => (
         <span className="inline-flex items-center gap-1.5 text-sm">
@@ -127,7 +129,7 @@ export default function AgenciesPage() {
     },
     {
       key: 'countries',
-      header: 'Countries covered',
+      header: t('colCountriesCovered'),
       hideable: true,
       sortValue: (a) => a.meta.countriesCovered.length,
       cell: (a) => (
@@ -143,50 +145,50 @@ export default function AgenciesPage() {
     },
     {
       key: 'type',
-      header: 'Type',
+      header: t('colType'),
       sortValue: (a) => a.meta.agencyType,
       cell: (a) => <Badge variant="secondary">{humanize(a.meta.agencyType)}</Badge>,
     },
     {
       key: 'owner',
-      header: 'Owner',
+      header: t('colOwner'),
       hideable: true,
-      sortValue: (a) => ownerName(a.accountOwnerId),
-      cell: (a) => <span className="text-sm">{ownerName(a.accountOwnerId)}</span>,
+      sortValue: (a) => ownerName(a.accountOwnerId, t('unassigned')),
+      cell: (a) => <span className="text-sm">{ownerName(a.accountOwnerId, t('unassigned'))}</span>,
     },
     {
       key: 'nda',
-      header: 'NDA',
+      header: t('colNda'),
       sortValue: (a) => a.ndaStatus,
       cell: (a) => <StatusBadge kind="ndaStatus" value={a.ndaStatus} />,
     },
     {
       key: 'agreement',
-      header: 'Agreement',
+      header: t('colAgreement'),
       sortValue: (a) => a.meta.agreementStatus,
       cell: (a) => (
         <Badge variant={AGREEMENT_TONE[a.meta.agreementStatus]}>
-          {AGREEMENT_LABEL[a.meta.agreementStatus]}
+          {t(AGREEMENT_LABEL_KEY[a.meta.agreementStatus])}
         </Badge>
       ),
     },
     {
       key: 'introduced',
-      header: 'Introduced',
+      header: t('colIntroduced'),
       align: 'right',
       sortValue: (a) => a.meta.companiesIntroducedIds.length,
       cell: (a) => <span className="tabular font-medium">{a.meta.companiesIntroducedIds.length}</span>,
     },
     {
       key: 'leads',
-      header: 'Active leads',
+      header: t('colActiveLeads'),
       align: 'right',
       sortValue: (a) => a.meta.activeLeads,
       cell: (a) => <span className="tabular">{a.meta.activeLeads}</span>,
     },
     {
       key: 'conversion',
-      header: 'Conversion',
+      header: t('colConversion'),
       sortValue: (a) => a.meta.conversionRate,
       cell: (a) => (
         <div className="flex items-center gap-2">
@@ -197,14 +199,14 @@ export default function AgenciesPage() {
     },
     {
       key: 'lastInteraction',
-      header: 'Last interaction',
+      header: t('colLastInteraction'),
       hideable: true,
       sortValue: (a) => a.meta.lastInteractionAt,
       cell: (a) => <span className="text-sm text-muted-foreground">{formatRelative(a.meta.lastInteractionAt)}</span>,
     },
     {
       key: 'nextAction',
-      header: 'Next action',
+      header: t('colNextAction'),
       hideable: true,
       sortValue: (a) => a.meta.nextAction?.label ?? '',
       cell: (a) =>
@@ -219,45 +221,45 @@ export default function AgenciesPage() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
-        title="Agencies & Distributors"
-        subtitle="Partner network introducing Proamina® to manufacturers and brands across regions."
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <Button
             variant="gold"
             onClick={() =>
               toast({
-                title: 'Invite partner',
-                description: 'Partner onboarding link generated and copied to clipboard.',
+                title: t('invitePartnerToastTitle'),
+                description: t('invitePartnerToastDescription'),
                 variant: 'success',
               })
             }
           >
             <Handshake className="h-4 w-4" />
-            Invite partner
+            {t('invitePartner')}
           </Button>
         }
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total partners" value={stats?.total ?? 0} icon={Handshake} tone="gold" delay={0} />
+        <StatCard label={t('statTotalPartners')} value={stats?.total ?? 0} icon={Handshake} tone="gold" delay={0} />
         <StatCard
-          label="Active agreements"
+          label={t('statActiveAgreements')}
           value={stats?.active ?? 0}
           icon={CheckCircle2}
           tone="success"
-          hint="Signed distribution / agency deals"
+          hint={t('statActiveAgreementsHint')}
           delay={0.05}
         />
         <StatCard
-          label="Companies introduced"
+          label={t('statCompaniesIntroduced')}
           value={stats?.totalCompaniesIntroduced ?? 0}
           icon={Building2}
           tone="info"
-          hint={`${stats?.totalLeads ?? 0} active leads in play`}
+          hint={t('statActiveLeadsHint', { count: stats?.totalLeads ?? 0 })}
           delay={0.1}
         />
         <StatCard
-          label="Avg conversion rate"
+          label={t('statAvgConversionRate')}
           value={stats?.avgConversionRate ?? 0}
           icon={TrendingUp}
           tone="warning"
@@ -268,24 +270,24 @@ export default function AgenciesPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
-          title="Partners by type"
-          description="Distribution of the partner network by relationship model"
+          title={t('partnersByTypeTitle')}
+          description={t('partnersByTypeDescription')}
           loading={rows === null}
           isEmpty={donutData.length === 0}
           height={280}
         >
-          <DonutChart data={donutData} centerLabel="partners" />
+          <DonutChart data={donutData} centerLabel={t('partnersCenterLabel')} />
         </ChartCard>
 
         <ChartCard
-          title="Companies introduced"
-          description="Top partners by number of companies brought into the pipeline"
+          title={t('companiesIntroducedTitle')}
+          description={t('companiesIntroducedDescription')}
           loading={rows === null}
           isEmpty={introducedData.length === 0}
-          emptyMessage="No introductions recorded yet"
+          emptyMessage={t('companiesIntroducedEmpty')}
           height={280}
         >
-          <CategoryBar data={introducedData} xKey="name" barKey="companies" horizontal name="Companies" />
+          <CategoryBar data={introducedData} xKey="name" barKey="companies" horizontal name={t('companiesSeriesName')} />
         </ChartCard>
       </div>
 
@@ -295,7 +297,7 @@ export default function AgenciesPage() {
         getRowId={(a) => a.id}
         loading={rows === null}
         searchable
-        searchPlaceholder="Search partners, territory, country…"
+        searchPlaceholder={t('searchPlaceholder')}
         searchValue={(a) =>
           [a.legalName, a.tradingName, a.meta.territory, a.meta.agencyType, ...a.meta.countriesCovered]
             .filter(Boolean)
@@ -307,7 +309,7 @@ export default function AgenciesPage() {
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Quick view"
+              aria-label={t('quickView')}
               onClick={() => setPreview(a)}
             >
               <Eye className="h-4 w-4" />
@@ -315,7 +317,7 @@ export default function AgenciesPage() {
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Open profile"
+              aria-label={t('openProfile')}
               onClick={() => router.push('/admin/agencies/' + a.id)}
             >
               <ArrowUpRight className="h-4 w-4" />
@@ -326,8 +328,8 @@ export default function AgenciesPage() {
         enableDensityToggle
         exportFilename="agencies"
         storageKey="agencies"
-        emptyTitle="No partners yet"
-        emptyDescription="Agencies and distributors will appear here as they join the network."
+        emptyTitle={t('emptyTitle')}
+        emptyDescription={t('emptyDescription')}
       />
 
       <Sheet open={preview !== null} onOpenChange={(o) => !o && setPreview(null)}>
@@ -350,7 +352,7 @@ export default function AgenciesPage() {
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary">{humanize(preview.meta.agencyType)}</Badge>
                 <Badge variant={AGREEMENT_TONE[preview.meta.agreementStatus]}>
-                  {AGREEMENT_LABEL[preview.meta.agreementStatus]}
+                  {t(AGREEMENT_LABEL_KEY[preview.meta.agreementStatus])}
                 </Badge>
                 <StatusBadge kind="ndaStatus" value={preview.ndaStatus} />
               </div>
@@ -359,21 +361,21 @@ export default function AgenciesPage() {
                 <div className="flex items-start gap-2">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div>
-                    <dt className="text-xs text-muted-foreground">Territory</dt>
+                    <dt className="text-xs text-muted-foreground">{t('colTerritory')}</dt>
                     <dd className="font-medium">{preview.meta.territory}</dd>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
                   <Globe2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div>
-                    <dt className="text-xs text-muted-foreground">Countries covered</dt>
+                    <dt className="text-xs text-muted-foreground">{t('colCountriesCovered')}</dt>
                     <dd className="font-medium">{preview.meta.countriesCovered.join(', ')}</dd>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
                   <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div>
-                    <dt className="text-xs text-muted-foreground">Last interaction</dt>
+                    <dt className="text-xs text-muted-foreground">{t('colLastInteraction')}</dt>
                     <dd className="font-medium">{formatRelative(preview.meta.lastInteractionAt)}</dd>
                   </div>
                 </div>
@@ -382,25 +384,25 @@ export default function AgenciesPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-lg border bg-muted/30 p-3 text-center">
                   <p className="text-lg font-bold tabular">{preview.meta.companiesIntroducedIds.length}</p>
-                  <p className="text-2xs text-muted-foreground">Introduced</p>
+                  <p className="text-2xs text-muted-foreground">{t('colIntroduced')}</p>
                 </div>
                 <div className="rounded-lg border bg-muted/30 p-3 text-center">
                   <p className="text-lg font-bold tabular">{preview.meta.activeLeads}</p>
-                  <p className="text-2xs text-muted-foreground">Leads</p>
+                  <p className="text-2xs text-muted-foreground">{t('leads')}</p>
                 </div>
                 <div className="rounded-lg border bg-muted/30 p-3 text-center">
                   <p className="text-lg font-bold tabular">{pct(preview.meta.conversionRate)}</p>
-                  <p className="text-2xs text-muted-foreground">Conversion</p>
+                  <p className="text-2xs text-muted-foreground">{t('colConversion')}</p>
                 </div>
               </div>
 
               {preview.meta.nextAction && (
                 <div className="rounded-lg border border-dashed bg-muted/40 p-3">
-                  <p className="text-xs font-medium text-muted-foreground">Next action</p>
+                  <p className="text-xs font-medium text-muted-foreground">{t('colNextAction')}</p>
                   <p className="mt-0.5 text-sm font-medium">{preview.meta.nextAction.label}</p>
                   {preview.meta.nextAction.dueDate && (
                     <p className="text-xs text-muted-foreground">
-                      Due {formatRelative(preview.meta.nextAction.dueDate)}
+                      {t('due', { date: formatRelative(preview.meta.nextAction.dueDate) })}
                     </p>
                   )}
                 </div>
@@ -408,7 +410,7 @@ export default function AgenciesPage() {
 
               <SheetFooter>
                 <SheetClose asChild>
-                  <Button variant="outline">Close</Button>
+                  <Button variant="outline">{t('close')}</Button>
                 </SheetClose>
                 <Button
                   variant="gold"
@@ -418,7 +420,7 @@ export default function AgenciesPage() {
                     router.push('/admin/agencies/' + id);
                   }}
                 >
-                  Open profile
+                  {t('openProfile')}
                 </Button>
               </SheetFooter>
             </>

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Target,
@@ -111,6 +112,7 @@ function ownerColor(ownerId: string): string | undefined {
  * Page
  * ──────────────────────────────────────────────────────────────────────── */
 export default function PipelinePage() {
+  const t = useTranslations('AdminPipeline');
   const router = useRouter();
   const [opps, setOpps] = React.useState<Opportunity[] | null>(null);
   const [companies, setCompanies] = React.useState<Map<string, Company>>(new Map());
@@ -191,11 +193,11 @@ export default function PipelinePage() {
       });
       toast({
         variant: 'success',
-        title: 'Stage updated',
+        title: t('toastStageUpdatedTitle'),
         description: `${opp.title} → ${getLabel('pipelineStage', next)}`,
       });
     },
-    [],
+    [t],
   );
 
   const handleCreated = React.useCallback(

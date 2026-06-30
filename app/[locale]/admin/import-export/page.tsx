@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileSpreadsheet, Database, Upload, Download, UploadCloud, ArrowRight, ArrowLeft, CheckCircle2, FileDown,
@@ -19,14 +20,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from '@/components/ui/use-toast';
 
 type Loader = () => Promise<Record<string, unknown>[]>;
-const ENTITIES: { key: string; label: string; load: Loader }[] = [
-  { key: 'companies', label: 'Companies', load: () => companyService.list() as unknown as Promise<Record<string, unknown>[]> },
-  { key: 'contacts', label: 'Contacts', load: () => contactService.list() as unknown as Promise<Record<string, unknown>[]> },
-  { key: 'samples', label: 'Sample requests', load: () => sampleService.list() as unknown as Promise<Record<string, unknown>[]> },
-  { key: 'shipments', label: 'Shipments', load: () => shipmentService.list() as unknown as Promise<Record<string, unknown>[]> },
-  { key: 'ndas', label: 'NDAs', load: () => ndaService.list() as unknown as Promise<Record<string, unknown>[]> },
-  { key: 'documents', label: 'Documents', load: () => documentService.list() as unknown as Promise<Record<string, unknown>[]> },
-  { key: 'tasks', label: 'Tasks', load: () => taskService.list() as unknown as Promise<Record<string, unknown>[]> },
+const ENTITIES = (t: ReturnType<typeof useTranslations>): { key: string; label: string; load: Loader }[] => [
+  { key: 'companies', label: t('entityCompanies'), load: () => companyService.list() as unknown as Promise<Record<string, unknown>[]> },
+  { key: 'contacts', label: t('entityContacts'), load: () => contactService.list() as unknown as Promise<Record<string, unknown>[]> },
+  { key: 'samples', label: t('entitySamples'), load: () => sampleService.list() as unknown as Promise<Record<string, unknown>[]> },
+  { key: 'shipments', label: t('entityShipments'), load: () => shipmentService.list() as unknown as Promise<Record<string, unknown>[]> },
+  { key: 'ndas', label: t('entityNdas'), load: () => ndaService.list() as unknown as Promise<Record<string, unknown>[]> },
+  { key: 'documents', label: t('entityDocuments'), load: () => documentService.list() as unknown as Promise<Record<string, unknown>[]> },
+  { key: 'tasks', label: t('entityTasks'), load: () => taskService.list() as unknown as Promise<Record<string, unknown>[]> },
 ];
 
 function toCsv(rows: Record<string, unknown>[]): string {
@@ -57,6 +58,8 @@ const SAMPLE_ROWS = [
 ];
 
 export default function ImportExportPage() {
+  const t = useTranslations('AdminImportExport');
+  const entities = React.useMemo(() => ENTITIES(t), [t]);
   const [counts, setCounts] = React.useState<number | null>(null);
   const [exporting, setExporting] = React.useState<string | null>(null);
 
@@ -67,16 +70,16 @@ export default function ImportExportPage() {
   const [progress, setProgress] = React.useState(0);
 
   React.useEffect(() => {
-    Promise.all(ENTITIES.map((e) => e.load())).then((all) => setCounts(all.reduce((s, a) => s + a.length, 0)));
-  }, []);
+    Promise.all(entities.map((e) => e.load())).then((all) => setCounts(all.reduce((s, a) => s + a.length, 0)));
+  }, [entities]);
 
-  async function exportEntity(e: typeof ENTITIES[number]) {
+  async function exportEntity(e: ReturnType<typeof ENTITIES>[number]) {
     setExporting(e.key);
     const rows = await e.load();
     await new Promise((r) => setTimeout(r, 300));
     downloadCsv(e.key, toCsv(rows));
     setExporting(null);
-    toast({ variant: 'success', title: 'Export ready', description: `${rows.length} ${e.label.toLowerCase()} exported to CSV.` });
+    toast({ variant: 'success', title: t('exportReadyTitle'), description: t('exportReadyDescription', { count: rows.length, label: e.label.toLowerCase() }) });
   }
 
   function runImport() {
@@ -87,7 +90,7 @@ export default function ImportExportPage() {
         if (p >= 100) {
           clearInterval(timer);
           setImporting(false);
-          toast({ variant: 'success', title: 'Import complete', description: '42 records imported (demo simulation).' });
+          toast({ variant: 'success', title: t('importCompleteTitle'), description: t('importCompleteDescription') });
           setStep(0);
           return 100;
         }
@@ -96,22 +99,22 @@ export default function ImportExportPage() {
     }, 120);
   }
 
-  const steps = ['Source', 'Upload', 'Map columns', 'Confirm'];
+  const steps = [t('stepSource'), t('stepUpload'), t('stepMapColumns'), t('stepConfirm')];
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <PageHeader title="Import / Export" subtitle="Bring data in from CSV or export any dataset for analysis." />
+      <PageHeader title={t('title')} subtitle={t('subtitle')} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Total records" value={counts ?? 0} icon={Database} tone="gold" />
-        <StatCard label="Last import" value="14 Jun 2026" icon={Upload} tone="info" delay={0.05} />
-        <StatCard label="Last export" value="16 Jun 2026" icon={Download} tone="success" delay={0.1} />
+        <StatCard label={t('statTotalRecords')} value={counts ?? 0} icon={Database} tone="gold" />
+        <StatCard label={t('statLastImport')} value={t('lastImportDate')} icon={Upload} tone="info" delay={0.05} />
+        <StatCard label={t('statLastExport')} value={t('lastExportDate')} icon={Download} tone="success" delay={0.1} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Import wizard */}
         <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2"><Upload className="h-4 w-4" /> Import data</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="flex items-center gap-2"><Upload className="h-4 w-4" /> {t('importCardTitle')}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             {/* Stepper */}
             <div className="flex items-center gap-1">
@@ -133,20 +136,20 @@ export default function ImportExportPage() {
                 <motion.div key={step} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.2 }}>
                   {step === 0 && (
                     <div className="space-y-2">
-                      <Label>Entity to import</Label>
+                      <Label>{t('entityToImport')}</Label>
                       <Select value={entity} onValueChange={setEntity}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>{ENTITIES.map((e) => <SelectItem key={e.key} value={e.key}>{e.label}</SelectItem>)}</SelectContent>
+                        <SelectContent>{entities.map((e) => <SelectItem key={e.key} value={e.key}>{e.label}</SelectItem>)}</SelectContent>
                       </Select>
-                      <p className="text-xs text-muted-foreground">Choose which dataset the uploaded CSV maps to.</p>
+                      <p className="text-xs text-muted-foreground">{t('entityToImportHelp')}</p>
                     </div>
                   )}
                   {step === 1 && (
                     <label className="surface-quiet flex h-40 cursor-pointer flex-col items-center justify-center gap-2 text-center">
                       <UploadCloud className="h-8 w-8 text-muted-foreground/60" />
-                      <span className="text-sm font-medium">Drag & drop a .csv file</span>
-                      <span className="text-xs text-muted-foreground">or click to browse (demo — no file is uploaded)</span>
-                      <input type="file" accept=".csv" className="hidden" onChange={() => toast({ title: 'File attached', description: 'sample-companies.csv (demo)' })} />
+                      <span className="text-sm font-medium">{t('dragDrop')}</span>
+                      <span className="text-xs text-muted-foreground">{t('dragDropHelp')}</span>
+                      <input type="file" accept=".csv" className="hidden" onChange={() => toast({ title: t('fileAttachedTitle'), description: t('fileAttachedDescription') })} />
                     </label>
                   )}
                   {step === 2 && (
@@ -159,22 +162,22 @@ export default function ImportExportPage() {
                           ))}
                         </TableBody>
                       </Table>
-                      <p className="p-2 text-2xs text-muted-foreground">Preview of detected columns mapped to {ENTITIES.find((e) => e.key === entity)?.label} fields.</p>
+                      <p className="p-2 text-2xs text-muted-foreground">{t('mapPreview', { entity: entities.find((e) => e.key === entity)?.label ?? '' })}</p>
                     </div>
                   )}
                   {step === 3 && (
                     <div className="space-y-3">
                       {importing ? (
                         <div className="space-y-2 py-6">
-                          <p className="text-center text-sm font-medium">Importing…</p>
+                          <p className="text-center text-sm font-medium">{t('importing')}</p>
                           <Progress value={progress} />
                           <p className="text-center text-2xs tabular text-muted-foreground">{progress}%</p>
                         </div>
                       ) : (
                         <div className="surface-quiet flex flex-col items-center gap-2 p-6 text-center">
                           <CheckCircle2 className="h-8 w-8 text-success" />
-                          <p className="text-sm font-medium">Ready to import 42 rows</p>
-                          <p className="text-xs text-muted-foreground">into {ENTITIES.find((e) => e.key === entity)?.label}</p>
+                          <p className="text-sm font-medium">{t('readyToImport')}</p>
+                          <p className="text-xs text-muted-foreground">{t('intoEntity', { entity: entities.find((e) => e.key === entity)?.label ?? '' })}</p>
                         </div>
                       )}
                     </div>
@@ -184,11 +187,11 @@ export default function ImportExportPage() {
             </div>
 
             <div className="flex justify-between">
-              <Button variant="ghost" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || importing}><ArrowLeft /> Back</Button>
+              <Button variant="ghost" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || importing}><ArrowLeft /> {t('back')}</Button>
               {step < 3 ? (
-                <Button variant="gold" onClick={() => setStep((s) => s + 1)}>Next <ArrowRight /></Button>
+                <Button variant="gold" onClick={() => setStep((s) => s + 1)}>{t('next')} <ArrowRight /></Button>
               ) : (
-                <Button variant="success" onClick={runImport} disabled={importing}><CheckCircle2 /> {importing ? 'Importing…' : 'Run import'}</Button>
+                <Button variant="success" onClick={runImport} disabled={importing}><CheckCircle2 /> {importing ? t('importing') : t('runImport')}</Button>
               )}
             </div>
           </CardContent>
@@ -196,17 +199,17 @@ export default function ImportExportPage() {
 
         {/* Export */}
         <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2"><Download className="h-4 w-4" /> Export data</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="flex items-center gap-2"><Download className="h-4 w-4" /> {t('exportCardTitle')}</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            <p className="mb-1 text-sm text-muted-foreground">Download any dataset as CSV for spreadsheets or BI tools.</p>
-            {ENTITIES.map((e) => (
+            <p className="mb-1 text-sm text-muted-foreground">{t('exportHelp')}</p>
+            {entities.map((e) => (
               <div key={e.key} className="flex items-center justify-between rounded-lg border p-3">
                 <div className="flex items-center gap-3">
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-navy/5 text-brand-navy"><FileSpreadsheet className="h-4 w-4" /></span>
                   <span className="text-sm font-medium">{e.label}</span>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => exportEntity(e)} disabled={exporting === e.key}>
-                  <FileDown /> {exporting === e.key ? 'Exporting…' : 'Export CSV'}
+                  <FileDown /> {exporting === e.key ? t('exporting') : t('exportCsv')}
                 </Button>
               </div>
             ))}

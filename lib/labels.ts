@@ -932,6 +932,148 @@ const TONES: Partial<Record<LabelKind, ToneMap>> = {
   // `quantityUnit` and `incoterm` are neutral codes with no meaningful tone → fall back to 'muted'.
 };
 
+/* ────────────────────────────── Italian label maps ────────────────────────────── */
+
+const LABELS_IT: Record<LabelKind, LabelMap> = {
+  companyType: {
+    distributor: 'Distributore', fb_manufacturer: 'Produttore F&B', horeca: 'HoReCa',
+    bakery_manufacturer: 'Produttore da forno', dairy_manufacturer: 'Produttore lattiero-caseario',
+    confectionery_manufacturer: 'Produttore dolciario', ingredient_company: 'Azienda di ingredienti',
+    retailer: 'Rivenditore', agency: 'Agenzia', laboratory: 'Laboratorio', consultant: 'Consulente', other: 'Altro',
+  },
+  relationshipStage: {
+    lead: 'Lead', contacted: 'Contattato', interested: 'Interessato', qualified: 'Qualificato',
+    nda_in_progress: 'NDA in corso', nda_signed: 'NDA firmato', sampling: 'Campionatura', testing: 'Test',
+    commercial_discussion: 'Trattativa commerciale', customer: 'Cliente', repeat_customer: 'Cliente abituale',
+    dormant: 'Inattivo', lost: 'Perso',
+  },
+  pipelineStage: {
+    lead: 'Lead', contacted: 'Contattato', interested: 'Interessato', qualified: 'Qualificato',
+    nda_to_prepare: 'NDA da preparare', nda_sent: 'NDA inviato', nda_negotiation: 'Negoziazione NDA', nda_signed: 'NDA firmato',
+    introductory_call: 'Call introduttiva', technical_call: 'Call tecnica', sample_requested: 'Campione richiesto',
+    sample_approved: 'Campione approvato', sample_shipped: 'Campione spedito', sample_delivered: 'Campione consegnato',
+    application_testing: 'Test applicativo', feedback_received: 'Feedback ricevuto', commercial_discussion: 'Trattativa commerciale',
+    quotation: 'Preventivo', customer: 'Cliente', repeat_customer: 'Cliente abituale', on_hold: 'In sospeso',
+    inactive: 'Inattivo', lost: 'Perso', disqualified: 'Squalificato',
+  },
+  firstContactChannel: {
+    email: 'Email', gmail: 'Gmail', referral: 'Passaparola', event: 'Evento', inbound_web: 'Web inbound',
+    linkedin: 'LinkedIn', phone: 'Telefono', partner: 'Partner', other: 'Altro',
+  },
+  cooperationModel: {
+    direct: 'Diretto', distribution: 'Distribuzione', private_label: 'Private label',
+    co_development: 'Co-sviluppo', agency: 'Agenzia', undecided: 'Da definire',
+  },
+  companySize: { micro: 'Micro', small: 'Piccola', medium: 'Media', large: 'Grande', enterprise: 'Enterprise' },
+  decisionRole: {
+    decision_maker: 'Decision maker', influencer: 'Influencer', gatekeeper: 'Gatekeeper',
+    champion: 'Champion', user: 'Utente', unknown: 'Sconosciuto',
+  },
+  sampleStatus: {
+    draft: 'Bozza', submitted: 'Inviato', under_review: 'In revisione', more_info_required: 'Servono più info',
+    approved: 'Approvato', rejected: 'Rifiutato', preparing: 'In preparazione', ready_to_ship: 'Pronto per spedizione',
+    shipped: 'Spedito', in_transit: 'In transito', customs_hold: 'Fermo in dogana', delivery_attempted: 'Tentativo di consegna',
+    delivered: 'Consegnato', receipt_confirmed: 'Ricezione confermata', testing: 'In test', feedback_requested: 'Feedback richiesto',
+    feedback_received: 'Feedback ricevuto', closed: 'Chiuso', cancelled: 'Annullato',
+  },
+  quantityUnit: { g: 'g', kg: 'kg', units: 'unità', sachets: 'bustine', boxes: 'scatole', l: 'L', ml: 'mL' },
+  customsStatus: {
+    not_required: 'Non richiesta', pending: 'In attesa', in_clearance: 'In sdoganamento', hold: 'Bloccata', cleared: 'Sdoganata',
+  },
+  incoterm: { DAP: 'DAP', DDP: 'DDP', EXW: 'EXW', CPT: 'CPT', FCA: 'FCA', CIP: 'CIP' },
+  feedbackStatus: {
+    received: 'Ricevuto', under_review: 'In revisione', additional_info_requested: 'Info aggiuntive richieste',
+    technical_reply_sent: 'Risposta tecnica inviata', technical_call_needed: 'Call tecnica necessaria', resolved: 'Risolto',
+  },
+  feedbackResult: { positive: 'Positivo', mixed: 'Misto', negative: 'Negativo', inconclusive: 'Inconcludente' },
+  nextStep: {
+    new_sample: 'Nuovo campione', technical_call: 'Call tecnica', reformulate: 'Riformulare',
+    proceed_commercial: 'Procedere al commerciale', close: 'Chiudere', awaiting_decision: 'In attesa di decisione',
+  },
+  applicationCategory: {
+    dairy: 'Lattiero-caseario', yogurt: 'Yogurt', desserts: 'Dessert', flavoured_milk: 'Latte aromatizzato',
+    ice_cream: 'Gelato', bakery: 'Prodotti da forno', biscuits: 'Biscotti', cakes: 'Torte', croissants: 'Croissant',
+    chocolate: 'Cioccolato', protein_bars: 'Barrette proteiche', beverages: 'Bevande', functional_drinks: 'Bevande funzionali',
+    coffee: 'Caffè', spreads: 'Creme spalmabili', sauces: 'Salse', plant_based: 'Vegetale', sports_nutrition: 'Nutrizione sportiva', other: 'Altro',
+  },
+  developmentStage: {
+    concept: 'Concept', feasibility: 'Fattibilità', prototype: 'Prototipo', pilot: 'Pilota',
+    pre_industrial: 'Pre-industriale', industrial: 'Industriale', launched: 'Lanciato', on_hold: 'In sospeso',
+  },
+  testStage: {
+    not_started: 'Non iniziato', lab: 'Laboratorio', bench: 'Banco', pilot_line: 'Linea pilota',
+    shelf_life: 'Shelf life', sensory_panel: 'Panel sensoriale', completed: 'Completato',
+  },
+  ndaStatus: {
+    not_required: 'Non richiesto', to_prepare: 'Da preparare', draft: 'Bozza', sent: 'Inviato', under_review: 'In revisione',
+    changes_requested: 'Modifiche richieste', approved: 'Approvato', awaiting_italprotein_signature: 'In attesa firma ITALPROTEIN',
+    awaiting_counterparty_signature: 'In attesa firma controparte', partially_signed: 'Parzialmente firmato',
+    fully_signed: 'Firmato', expired: 'Scaduto', terminated: 'Terminato',
+  },
+  ndaType: { mutual: 'Reciproco', one_way_inbound: 'Unilaterale (in entrata)', one_way_outbound: 'Unilaterale (in uscita)' },
+  documentAccessLevel: {
+    public: 'Pubblico', portal_general: 'Portale — generale', pre_nda: 'Pre-NDA', post_nda: 'Post-NDA',
+    company_specific: 'Specifico azienda', internal: 'Interno',
+  },
+  documentCategory: {
+    technical_data_sheet: 'Scheda tecnica', safety_data_sheet: 'Scheda di sicurezza', presentation: 'Presentazione',
+    application_guide: 'Guida applicativa', price_list: 'Listino prezzi', nda: 'NDA', certificate: 'Certificato',
+    regulatory: 'Regolatorio', marketing: 'Marketing', photo: 'Foto', other: 'Altro',
+  },
+  paymentStatus: {
+    draft: 'Bozza', pending: 'In attesa', partially_paid: 'Parzialmente pagato', paid: 'Pagato',
+    overdue: 'Scaduto', cancelled: 'Annullato', refunded: 'Rimborsato',
+  },
+  financeDocKind: { quote: 'Preventivo', order: 'Ordine', invoice: 'Fattura', credit_note: 'Nota di credito' },
+  activityType: {
+    email: 'Email', call: 'Chiamata', meeting: 'Riunione', note: 'Nota', task: 'Task',
+    company_status_change: 'Cambio stato azienda', opportunity_change: 'Cambio opportunità', nda_event: 'Evento NDA',
+    sample_event: 'Evento campione', shipment_event: 'Evento spedizione', feedback: 'Feedback', technical_reply: 'Risposta tecnica',
+    document: 'Documento', quote: 'Preventivo', order: 'Ordine', invoice: 'Fattura', payment: 'Pagamento', registration: 'Registrazione',
+  },
+  taskType: {
+    follow_up: 'Follow-up', call: 'Chiamata', email: 'Email', prepare_nda: 'Preparare NDA', prepare_sample: 'Preparare campione',
+    rnd_review: 'Revisione R&S', logistics: 'Logistica', finance: 'Finanza', meeting: 'Riunione', other: 'Altro',
+  },
+  taskStatus: { open: 'Aperto', in_progress: 'In corso', blocked: 'Bloccato', done: 'Completato', cancelled: 'Annullato' },
+  meetingType: {
+    video_call: 'Videochiamata', phone_call: 'Telefonata', on_site: 'In sede', event: 'Evento', technical_call: 'Call tecnica',
+  },
+  supportCategory: {
+    technical_question: 'Domanda tecnica', sample_request: 'Richiesta campione', logistics_issue: 'Problema logistico',
+    commercial_request: 'Richiesta commerciale', documentation_request: 'Richiesta documentazione',
+    regulatory_request: 'Richiesta regolatoria', meeting_request: 'Richiesta riunione', account_issue: 'Problema account', other: 'Altro',
+  },
+  supportStatus: {
+    open: 'Aperto', in_progress: 'In corso', waiting_on_client: 'In attesa del cliente', resolved: 'Risolto', closed: 'Chiuso',
+  },
+  notificationType: {
+    new_registration: 'Nuova registrazione', registration_decision: 'Decisione registrazione', new_sample_request: 'Nuova richiesta campione',
+    sample_approved: 'Campione approvato', ready_to_ship: 'Pronto per spedizione', shipment_dispatched: 'Spedizione inviata',
+    customs_hold: 'Fermo in dogana', delivery_delay: 'Ritardo consegna', delivery_confirmed: 'Consegna confermata',
+    feedback_requested: 'Feedback richiesto', feedback_submitted: 'Feedback inviato', technical_reply: 'Risposta tecnica',
+    nda_sent: 'NDA inviato', nda_changes_requested: 'Modifiche NDA richieste', nda_signed: 'NDA firmato', nda_expiring: 'NDA in scadenza',
+    task_due: 'Task in scadenza', task_overdue: 'Task scaduto', support_request: 'Richiesta di supporto', invoice_overdue: 'Fattura scaduta',
+  },
+  registrationStatus: {
+    submitted: 'Inviata', email_verification: 'Verifica email', pending_approval: 'In attesa di approvazione',
+    more_info_requested: 'Info aggiuntive richieste', approved: 'Approvata', rejected: 'Rifiutata',
+  },
+  priority: { low: 'Bassa', medium: 'Media', high: 'Alta', urgent: 'Urgente' },
+  role: {
+    super_admin: 'Super admin', crm_admin: 'Admin CRM', business_dev: 'Sviluppo commerciale', rnd_technical: 'R&S / Tecnico',
+    logistics: 'Logistica', finance: 'Finanza', management_readonly: 'Direzione (sola lettura)', company_owner: 'Titolare azienda',
+    company_member: 'Membro azienda', company_technical: 'Referente tecnico', company_logistics: 'Referente logistica', company_finance: 'Referente finanza',
+  },
+  workspace: { internal: 'Interno', external: 'Esterno' },
+};
+
+/** Active locale for `getLabel`. Synced from next-intl by the app shells (client-side render). */
+let _labelLocale: 'en' | 'it' = 'en';
+export function setLabelLocale(loc?: string): void {
+  _labelLocale = loc === 'it' ? 'it' : 'en';
+}
+
 /* ────────────────────────────── Public API ────────────────────────────── */
 
 /**
@@ -940,8 +1082,11 @@ const TONES: Partial<Record<LabelKind, ToneMap>> = {
  */
 export function getLabel(kind: LabelKind, value: string | undefined | null): string {
   if (value == null || value === '') return '';
-  const map = LABELS[kind];
-  return map?.[value] ?? humanize(value);
+  if (_labelLocale === 'it') {
+    const it = LABELS_IT[kind]?.[value];
+    if (it != null) return it;
+  }
+  return LABELS[kind]?.[value] ?? humanize(value);
 }
 
 /**

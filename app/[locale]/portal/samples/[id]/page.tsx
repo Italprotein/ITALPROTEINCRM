@@ -41,7 +41,7 @@ import type {
   Feedback,
   DocumentRecord,
   Company,
-  DemoAccount,
+  UserAccount,
 } from '@/lib/types';
 import { can } from '@/lib/permissions';
 import { PageHeader } from '@/components/shared/page-header';
@@ -104,7 +104,7 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
   const [feedback, setFeedback] = React.useState<Feedback[]>([]);
   const [docs, setDocs] = React.useState<DocumentRecord[]>([]);
   const [company, setCompany] = React.useState<Company | null>(null);
-  const [owner, setOwner] = React.useState<DemoAccount | null>(null);
+  const [owner, setOwner] = React.useState<UserAccount | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [notFound, setNotFound] = React.useState(false);
   const [confirmReceipt, setConfirmReceipt] = React.useState(false);

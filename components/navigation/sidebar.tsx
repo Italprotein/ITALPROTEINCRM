@@ -92,7 +92,7 @@ export function Sidebar({ role, collapsed, onToggle, onNavigate }: SidebarProps)
       {!collapsed && (
         <div className="shrink-0 border-t border-sidebar-border p-3">
           <div className="rounded-lg bg-white/5 px-3 py-2 text-2xs text-sidebar-muted">
-            {tc('demoData')} · {tc('appName')}
+            {tc('appName')}
           </div>
         </div>
       )}

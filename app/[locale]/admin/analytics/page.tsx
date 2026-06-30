@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Activity,
   CalendarRange,
@@ -67,15 +68,16 @@ interface AnalyticsData {
   teamActivity: Await<ReturnType<typeof analyticsService.teamActivity>>;
 }
 
-const RANGE_OPTIONS = [
-  { value: '90d', label: 'Last 90 days' },
-  { value: '6m', label: 'Last 6 months' },
-  { value: 'ytd', label: 'Year to date' },
-  { value: '12m', label: 'Last 12 months' },
-  { value: 'all', label: 'All time' },
+const RANGE_OPTIONS = (t: ReturnType<typeof useTranslations>) => [
+  { value: '90d', label: t('rangeLast90Days') },
+  { value: '6m', label: t('rangeLast6Months') },
+  { value: 'ytd', label: t('rangeYearToDate') },
+  { value: '12m', label: t('rangeLast12Months') },
+  { value: 'all', label: t('rangeAllTime') },
 ];
 
 export default function AnalyticsPage() {
+  const t = useTranslations('AdminAnalytics');
   const [data, setData] = React.useState<AnalyticsData | null>(null);
   const [range, setRange] = React.useState('12m');
 
@@ -146,8 +148,8 @@ export default function AnalyticsPage() {
 
   const handleExport = () => {
     toast({
-      title: 'Export started',
-      description: 'Your analytics report is being prepared and will download shortly.',
+      title: t('exportStartedTitle'),
+      description: t('exportStartedDescription'),
       variant: 'success',
     });
   };
@@ -206,17 +208,17 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
-        title="Analytics & Reports"
-        subtitle="Pipeline, conversion and operational performance across the Proamina® business."
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           <>
             <Select value={range} onValueChange={setRange}>
               <SelectTrigger className="w-[180px]">
                 <CalendarRange className="h-4 w-4 text-muted-foreground" />
-                <SelectValue placeholder="Date range" />
+                <SelectValue placeholder={t('dateRangePlaceholder')} />
               </SelectTrigger>
               <SelectContent>
-                {RANGE_OPTIONS.map((o) => (
+                {RANGE_OPTIONS(t).map((o) => (
                   <SelectItem key={o.value} value={o.value}>
                     {o.label}
                   </SelectItem>
@@ -225,7 +227,7 @@ export default function AnalyticsPage() {
             </Select>
             <Button variant="gold" onClick={handleExport}>
               <Download className="h-4 w-4" />
-              Export
+              {t('export')}
             </Button>
           </>
         }
@@ -234,58 +236,61 @@ export default function AnalyticsPage() {
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-6">
         <StatCard
-          label="Avg first contact → NDA"
+          label={t('kpiAvgFirstContactToNdaLabel')}
           value={data?.avgFirstContactToNda ?? 0}
           icon={Timer}
           tone="info"
-          format={(n) => `${formatNumber(n)} d`}
-          hint="Days to a signed NDA"
+          format={(n) => t('daysUnit', { value: formatNumber(n) })}
+          hint={t('kpiAvgFirstContactToNdaHint')}
           delay={0}
         />
         <StatCard
-          label="Avg NDA → shipment"
+          label={t('kpiAvgNdaToShipmentLabel')}
           value={data?.avgNdaToShipment ?? 0}
           icon={TrendingUp}
           tone="info"
-          format={(n) => `${formatNumber(n)} d`}
-          hint="Days to first dispatch"
+          format={(n) => t('daysUnit', { value: formatNumber(n) })}
+          hint={t('kpiAvgNdaToShipmentHint')}
           delay={0.04}
         />
         <StatCard
-          label="Avg delivery time"
+          label={t('kpiAvgDeliveryTimeLabel')}
           value={data?.shipmentPerformance.avgDeliveryDays ?? 0}
           icon={ShipWheel}
           tone="gold"
-          format={(n) => `${formatNumber(n)} d`}
-          hint="Dispatch to delivery"
+          format={(n) => t('daysUnit', { value: formatNumber(n) })}
+          hint={t('kpiAvgDeliveryTimeHint')}
           delay={0.08}
         />
         <StatCard
-          label="On-time delivery"
+          label={t('kpiOnTimeDeliveryLabel')}
           value={data?.shipmentPerformance.onTimePct ?? 0}
           icon={Package}
           tone="success"
           format={(n) => `${n}%`}
-          hint={`${formatNumber(data?.shipmentPerformance.totalDelivered ?? 0)} delivered`}
+          hint={t('kpiOnTimeDeliveryHint', {
+            count: formatNumber(data?.shipmentPerformance.totalDelivered ?? 0),
+          })}
           delay={0.12}
         />
         <StatCard
-          label="Task completion"
+          label={t('kpiTaskCompletionLabel')}
           value={data?.taskCompletionRate.rate ?? 0}
           icon={Activity}
           tone="success"
           format={(n) => `${n}%`}
-          hint={`${formatNumber(data?.taskCompletionRate.done ?? 0)} of ${formatNumber(
-            data?.taskCompletionRate.total ?? 0,
-          )} done`}
+          hint={t('kpiTaskCompletionHint', {
+            done: formatNumber(data?.taskCompletionRate.done ?? 0),
+            total: formatNumber(data?.taskCompletionRate.total ?? 0),
+          })}
           delay={0.16}
         />
         <StatCard
-          label="Active markets"
+          label={t('kpiActiveMarketsLabel')}
           value={data?.topMarkets.length ?? 0}
           icon={Globe2}
           tone="default"
-          hint="Countries with accounts"
+          hint={t('kpiActiveMarketsHint')}
           delay={0.2}
         />
       </div>
@@ -293,8 +298,8 @@ export default function AnalyticsPage() {
       {/* Chart grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ChartCard
-          title="Companies over time"
-          description="New accounts added each month and cumulative growth."
+          title={t('companiesOverTimeTitle')}
+          description={t('companiesOverTimeDescription')}
           loading={loading}
           isEmpty={!loading && (data?.companiesOverTime.length ?? 0) === 0}
         >
@@ -302,42 +307,42 @@ export default function AnalyticsPage() {
             data={data?.companiesOverTime ?? []}
             xKey="label"
             series={[
-              { key: 'cumulative', name: 'Cumulative', type: 'area' },
-              { key: 'count', name: 'New', type: 'line', color: '#0eb89a' },
+              { key: 'cumulative', name: t('seriesCumulative'), type: 'area' },
+              { key: 'count', name: t('seriesNew'), type: 'line', color: '#0eb89a' },
             ]}
           />
         </ChartCard>
 
         <ChartCard
-          title="Companies by country"
-          description="Where accounts are concentrated across export markets."
+          title={t('companiesByCountryTitle')}
+          description={t('companiesByCountryDescription')}
           loading={loading}
           isEmpty={!loading && marketsData.length === 0}
         >
-          <CategoryBar data={marketsData} xKey="country" barKey="count" horizontal name="Companies" />
+          <CategoryBar data={marketsData} xKey="country" barKey="count" horizontal name={t('seriesCompanies')} />
         </ChartCard>
 
         <ChartCard
-          title="Companies by category"
-          description="Split of accounts by company type."
+          title={t('companiesByCategoryTitle')}
+          description={t('companiesByCategoryDescription')}
           loading={loading}
           isEmpty={!loading && categoryDonut.length === 0}
         >
-          <DonutChart data={categoryDonut} centerLabel="Companies" />
+          <DonutChart data={categoryDonut} centerLabel={t('centerLabelCompanies')} />
         </ChartCard>
 
         <ChartCard
-          title="Pipeline distribution"
-          description="Accounts grouped by current relationship stage."
+          title={t('pipelineDistributionTitle')}
+          description={t('pipelineDistributionDescription')}
           loading={loading}
           isEmpty={!loading && pipelineData.length === 0}
         >
-          <CategoryBar data={pipelineData} xKey="stage" barKey="count" name="Companies" />
+          <CategoryBar data={pipelineData} xKey="stage" barKey="count" name={t('seriesCompanies')} />
         </ChartCard>
 
         <ChartCard
-          title="NDA conversion"
-          description="Drop-off from NDA prepared through to fully signed."
+          title={t('ndaConversionTitle')}
+          description={t('ndaConversionDescription')}
           loading={loading}
           isEmpty={!loading && (data?.ndaFunnel.length ?? 0) === 0}
         >
@@ -345,8 +350,8 @@ export default function AnalyticsPage() {
         </ChartCard>
 
         <ChartCard
-          title="Sample conversion"
-          description="Sample journey from request to feedback received."
+          title={t('sampleConversionTitle')}
+          description={t('sampleConversionDescription')}
           loading={loading}
           isEmpty={!loading && (data?.sampleFunnel.length ?? 0) === 0}
         >
@@ -354,8 +359,8 @@ export default function AnalyticsPage() {
         </ChartCard>
 
         <ChartCard
-          title="NDA completion trend"
-          description="NDAs signed versus sent each month."
+          title={t('ndaCompletionTrendTitle')}
+          description={t('ndaCompletionTrendDescription')}
           loading={loading}
           isEmpty={!loading && (data?.ndaCompletionTrend.length ?? 0) === 0}
         >
@@ -363,55 +368,55 @@ export default function AnalyticsPage() {
             data={data?.ndaCompletionTrend ?? []}
             xKey="label"
             series={[
-              { key: 'sent', name: 'Sent', type: 'area', color: '#2563eb' },
-              { key: 'signed', name: 'Signed', type: 'area', color: '#0eb89a' },
+              { key: 'sent', name: t('seriesSent'), type: 'area', color: '#2563eb' },
+              { key: 'signed', name: t('seriesSigned'), type: 'area', color: '#0eb89a' },
             ]}
           />
         </ChartCard>
 
         <ChartCard
-          title="Sample requests over time"
-          description="Volume of sample requests created each month."
+          title={t('sampleRequestsOverTimeTitle')}
+          description={t('sampleRequestsOverTimeDescription')}
           loading={loading}
           isEmpty={!loading && (data?.samplesOverTime.length ?? 0) === 0}
         >
           <TrendChart
             data={data?.samplesOverTime ?? []}
             xKey="label"
-            series={[{ key: 'count', name: 'Requests', type: 'area', color: '#c9a227' }]}
+            series={[{ key: 'count', name: t('seriesRequests'), type: 'area', color: '#c9a227' }]}
           />
         </ChartCard>
 
         <ChartCard
-          title="Shipment status"
-          description="Current state of all tracked shipments."
+          title={t('shipmentStatusTitle')}
+          description={t('shipmentStatusDescription')}
           loading={loading}
           isEmpty={!loading && (data?.shipmentStatusBreakdown.length ?? 0) === 0}
         >
-          <DonutChart data={data?.shipmentStatusBreakdown ?? []} centerLabel="Shipments" />
+          <DonutChart data={data?.shipmentStatusBreakdown ?? []} centerLabel={t('centerLabelShipments')} />
         </ChartCard>
 
         <ChartCard
-          title="Feedback results"
-          description="Overall outcomes reported on returned samples."
+          title={t('feedbackResultsTitle')}
+          description={t('feedbackResultsDescription')}
           loading={loading}
           isEmpty={!loading && feedbackDonut.length === 0}
         >
-          <DonutChart data={feedbackDonut} centerLabel="Reports" />
+          <DonutChart data={feedbackDonut} centerLabel={t('centerLabelReports')} />
         </ChartCard>
 
         <ChartCard
-          title="Most active markets"
-          description="Top countries ranked by number of accounts."
+          title={t('mostActiveMarketsTitle')}
+          description={t('mostActiveMarketsDescription')}
           loading={loading}
           isEmpty={!loading && marketsData.length === 0}
         >
-          <CategoryBar data={marketsData} xKey="country" barKey="count" color="#0eb89a" name="Companies" />
+          <CategoryBar data={marketsData} xKey="country" barKey="count" color="#0eb89a" name={t('seriesCompanies')} />
         </ChartCard>
 
         <ChartCard
-          title="Most common applications"
-          description="Leading product applications across sample requests."
+          title={t('mostCommonApplicationsTitle')}
+          description={t('mostCommonApplicationsDescription')}
           loading={loading}
           isEmpty={!loading && applicationsData.length === 0}
         >
@@ -421,7 +426,7 @@ export default function AnalyticsPage() {
             barKey="count"
             horizontal
             color="#2563eb"
-            name="Samples"
+            name={t('seriesSamples')}
           />
         </ChartCard>
       </div>
@@ -430,8 +435,8 @@ export default function AnalyticsPage() {
       <Stagger>
         <StaggerItem>
           <ChartCard
-            title="Team activity & workload"
-            description="Logged activities, open tasks and assigned accounts per team member."
+            title={t('teamActivityTitle')}
+            description={t('teamActivityDescription')}
             loading={loading}
             isEmpty={!loading && (data?.teamActivity.length ?? 0) === 0}
             height={420}
@@ -440,11 +445,11 @@ export default function AnalyticsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Team member</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead className="min-w-[220px]">Activities</TableHead>
-                    <TableHead className="text-right">Open tasks</TableHead>
-                    <TableHead className="text-right">Companies</TableHead>
+                    <TableHead>{t('colTeamMember')}</TableHead>
+                    <TableHead>{t('colRole')}</TableHead>
+                    <TableHead className="min-w-[220px]">{t('colActivities')}</TableHead>
+                    <TableHead className="text-right">{t('colOpenTasks')}</TableHead>
+                    <TableHead className="text-right">{t('colCompanies')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

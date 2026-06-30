@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   Building2,
   Activity as ActivityIcon,
@@ -90,6 +90,7 @@ function ownerName(id: string): string {
 export default function CompaniesPage() {
   const locale = useLocale() as Locale;
   const router = useRouter();
+  const t = useTranslations('AdminCompanies');
 
   const [rows, setRows] = React.useState<Company[] | null>(null);
   const [stats, setStats] = React.useState<Awaited<ReturnType<typeof companyService.getStatistics>> | null>(null);
@@ -185,7 +186,7 @@ export default function CompaniesPage() {
   const columns: Column<Company>[] = [
     {
       key: 'company',
-      header: 'Company',
+      header: t('colCompany'),
       sortValue: (c) => c.tradingName || c.legalName,
       cell: (c) => (
         <div className="flex items-center gap-3">
@@ -207,14 +208,14 @@ export default function CompaniesPage() {
     },
     {
       key: 'type',
-      header: 'Type',
+      header: t('colType'),
       sortValue: (c) => getLabel('companyType', c.type),
       cell: (c) => <StatusBadge kind="companyType" value={c.type} />,
       hideable: true,
     },
     {
       key: 'country',
-      header: 'Country',
+      header: t('colCountry'),
       sortValue: (c) => c.country,
       cell: (c) => (
         <span className="flex items-center gap-1.5 whitespace-nowrap">
@@ -227,7 +228,7 @@ export default function CompaniesPage() {
     },
     {
       key: 'contact',
-      header: 'Main contact',
+      header: t('colMainContact'),
       sortValue: (c) => c.firstContact.personName ?? '',
       cell: (c) =>
         c.firstContact.personName ? (
@@ -239,7 +240,7 @@ export default function CompaniesPage() {
     },
     {
       key: 'owner',
-      header: 'Owner',
+      header: t('colOwner'),
       sortValue: (c) => ownerName(c.accountOwnerId),
       cell: (c) => {
         const name = ownerName(c.accountOwnerId);
@@ -256,21 +257,21 @@ export default function CompaniesPage() {
     },
     {
       key: 'stage',
-      header: 'Stage',
+      header: t('colStage'),
       sortValue: (c) => getLabel('relationshipStage', c.relationshipStage),
       cell: (c) => <StatusBadge kind="relationshipStage" value={c.relationshipStage} />,
       hideable: true,
     },
     {
       key: 'nda',
-      header: 'NDA',
+      header: t('colNda'),
       sortValue: (c) => getLabel('ndaStatus', c.ndaStatus),
       cell: (c) => <StatusBadge kind="ndaStatus" value={c.ndaStatus} />,
       hideable: true,
     },
     {
       key: 'sample',
-      header: 'Sample',
+      header: t('colSample'),
       sortValue: (c) => (c.latestSampleStatus ? getLabel('sampleStatus', c.latestSampleStatus) : ''),
       cell: (c) =>
         c.latestSampleStatus ? (
@@ -283,7 +284,7 @@ export default function CompaniesPage() {
     },
     {
       key: 'value',
-      header: 'Opportunity',
+      header: t('colOpportunity'),
       align: 'right',
       sortable: true,
       sortValue: (c) => c.opportunityValue ?? 0,
@@ -296,14 +297,14 @@ export default function CompaniesPage() {
     },
     {
       key: 'priority',
-      header: 'Priority',
+      header: t('colPriority'),
       sortValue: (c) => PRIORITIES.indexOf(c.priority),
       cell: (c) => <PriorityBadge value={c.priority} />,
       hideable: true,
     },
     {
       key: 'lastActivity',
-      header: 'Last activity',
+      header: t('colLastActivity'),
       align: 'right',
       sortable: true,
       sortValue: (c) => (c.lastActivityAt ? new Date(c.lastActivityAt).getTime() : 0),
@@ -316,7 +317,7 @@ export default function CompaniesPage() {
     },
     {
       key: 'tags',
-      header: 'Tags',
+      header: t('colTags'),
       cell: (c) =>
         c.tags && c.tags.length > 0 ? (
           <div className="flex flex-wrap gap-1">
@@ -344,10 +345,10 @@ export default function CompaniesPage() {
     <div className="flex flex-wrap items-center gap-2">
       <Select value={fType} onValueChange={setFType}>
         <SelectTrigger className="h-9 w-[150px]">
-          <SelectValue placeholder="Type" />
+          <SelectValue placeholder={t('colType')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All types</SelectItem>
+          <SelectItem value={ALL}>{t('allTypes')}</SelectItem>
           {typeOptions.map((t) => (
             <SelectItem key={t} value={t}>
               {getLabel('companyType', t)}
@@ -358,10 +359,10 @@ export default function CompaniesPage() {
 
       <Select value={fCountry} onValueChange={setFCountry}>
         <SelectTrigger className="h-9 w-[160px]">
-          <SelectValue placeholder="Country" />
+          <SelectValue placeholder={t('colCountry')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All countries</SelectItem>
+          <SelectItem value={ALL}>{t('allCountries')}</SelectItem>
           {countryOptions.map((c) => (
             <SelectItem key={c.country} value={c.country}>
               {flagEmoji(c.code)} {c.country}
@@ -372,10 +373,10 @@ export default function CompaniesPage() {
 
       <Select value={fStage} onValueChange={setFStage}>
         <SelectTrigger className="h-9 w-[170px]">
-          <SelectValue placeholder="Stage" />
+          <SelectValue placeholder={t('colStage')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All stages</SelectItem>
+          <SelectItem value={ALL}>{t('allStages')}</SelectItem>
           {RELATIONSHIP_STAGES.map((s) => (
             <SelectItem key={s} value={s}>
               {getLabel('relationshipStage', s)}
@@ -386,10 +387,10 @@ export default function CompaniesPage() {
 
       <Select value={fPriority} onValueChange={setFPriority}>
         <SelectTrigger className="h-9 w-[140px]">
-          <SelectValue placeholder="Priority" />
+          <SelectValue placeholder={t('colPriority')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All priorities</SelectItem>
+          <SelectItem value={ALL}>{t('allPriorities')}</SelectItem>
           {PRIORITIES.map((p) => (
             <SelectItem key={p} value={p}>
               {getLabel('priority', p)}
@@ -401,7 +402,7 @@ export default function CompaniesPage() {
       {activeFilterCount > 0 ? (
         <Button variant="ghost" size="sm" onClick={resetFilters}>
           <X />
-          Clear ({activeFilterCount})
+          {t('clearFilters', { count: activeFilterCount })}
         </Button>
       ) : null}
     </div>
@@ -415,11 +416,11 @@ export default function CompaniesPage() {
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm">
               <Flame />
-              Set priority
+              {t('setPriority')}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Set priority</DropdownMenuLabel>
+            <DropdownMenuLabel>{t('setPriority')}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {PRIORITIES.map((p) => (
               <DropdownMenuItem
@@ -428,8 +429,11 @@ export default function CompaniesPage() {
                   applyPatch(ids, { priority: p });
                   toast({
                     variant: 'success',
-                    title: 'Priority updated',
-                    description: `${ids.length} ${ids.length === 1 ? 'company' : 'companies'} set to ${getLabel('priority', p)}.`,
+                    title: t('toastPriorityUpdatedTitle'),
+                    description: t('toastPriorityUpdatedDescription', {
+                      count: ids.length,
+                      priority: getLabel('priority', p),
+                    }),
                   });
                   clear();
                 }}
@@ -457,14 +461,14 @@ export default function CompaniesPage() {
             );
             toast({
               variant: 'success',
-              title: 'Tag added',
-              description: `Tagged ${ids.length} ${ids.length === 1 ? 'company' : 'companies'} as “key-account”.`,
+              title: t('toastTagAddedTitle'),
+              description: t('toastTagAddedDescription', { count: ids.length, tag: 'key-account' }),
             });
             clear();
           }}
         >
           <TagIcon />
-          Add tag
+          {t('addTag')}
         </Button>
 
         <Button
@@ -473,14 +477,14 @@ export default function CompaniesPage() {
           onClick={() => {
             toast({
               variant: 'info',
-              title: 'Export started',
-              description: `Preparing CSV for ${ids.length} selected ${ids.length === 1 ? 'company' : 'companies'}…`,
+              title: t('toastExportStartedTitle'),
+              description: t('toastExportSelectedDescription', { count: ids.length }),
             });
             clear();
           }}
         >
           <Download />
-          Export selected
+          {t('exportSelected')}
         </Button>
       </>
     );
@@ -491,27 +495,27 @@ export default function CompaniesPage() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="Row actions">
+          <Button variant="ghost" size="icon-sm" aria-label={t('rowActions')}>
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => router.push('/admin/companies/' + c.id)}>
             <ExternalLink />
-            Open
+            {t('open')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => router.push('/admin/companies/' + c.id)}>
             <Pencil />
-            Edit
+            {t('edit')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => setNoteFor(c)}>
             <StickyNote />
-            Add note
+            {t('addNote')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setTaskFor(c)}>
             <ListTodo />
-            Create task
+            {t('createTask')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -554,8 +558,8 @@ export default function CompaniesPage() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
-        title="Companies"
-        subtitle="Every company in the Proamina® pipeline."
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <>
             <Button
@@ -563,17 +567,17 @@ export default function CompaniesPage() {
               onClick={() =>
                 toast({
                   variant: 'info',
-                  title: 'Export started',
-                  description: `Preparing CSV for ${filtered.length} ${filtered.length === 1 ? 'company' : 'companies'}…`,
+                  title: t('toastExportStartedTitle'),
+                  description: t('toastExportSelectedDescription', { count: filtered.length }),
                 })
               }
             >
               <Download />
-              Export
+              {t('export')}
             </Button>
             <Button variant="gold" onClick={() => setCreateOpen(true)}>
               <Plus />
-              Add company
+              {t('addCompany')}
             </Button>
           </>
         }
@@ -581,31 +585,31 @@ export default function CompaniesPage() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <StatCard label="Total companies" value={stats?.total ?? 0} icon={Building2} tone="gold" />
-        <StatCard label="Active" value={stats?.active ?? 0} icon={ActivityIcon} tone="info" delay={0.05} />
-        <StatCard label="Customers" value={stats?.customers ?? 0} icon={CheckCircle2} tone="success" delay={0.1} />
-        <StatCard label="NDAs signed" value={stats?.ndaSigned ?? 0} icon={FileSignature} tone="success" delay={0.15} />
-        <StatCard label="High priority" value={stats?.highPriority ?? 0} icon={Flame} tone="warning" delay={0.2} />
+        <StatCard label={t('statTotalCompanies')} value={stats?.total ?? 0} icon={Building2} tone="gold" />
+        <StatCard label={t('statActive')} value={stats?.active ?? 0} icon={ActivityIcon} tone="info" delay={0.05} />
+        <StatCard label={t('statCustomers')} value={stats?.customers ?? 0} icon={CheckCircle2} tone="success" delay={0.1} />
+        <StatCard label={t('statNdasSigned')} value={stats?.ndaSigned ?? 0} icon={FileSignature} tone="success" delay={0.15} />
+        <StatCard label={t('statHighPriority')} value={stats?.highPriority ?? 0} icon={Flame} tone="warning" delay={0.2} />
       </div>
 
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
-          title="Companies by type"
-          description="Distribution across business categories"
+          title={t('chartByTypeTitle')}
+          description={t('chartByTypeDescription')}
           loading={rows === null}
           isEmpty={typeChart.length === 0}
         >
-          <CategoryBar data={typeChart} xKey="label" barKey="count" horizontal color={CHART_COLORS[0]} name="Companies" />
+          <CategoryBar data={typeChart} xKey="label" barKey="count" horizontal color={CHART_COLORS[0]} name={t('pageTitle')} />
         </ChartCard>
 
         <ChartCard
-          title="Top markets"
-          description="Companies by country (top 7)"
+          title={t('chartTopMarketsTitle')}
+          description={t('chartTopMarketsDescription')}
           loading={rows === null}
           isEmpty={countryChart.length === 0}
         >
-          <DonutChart data={countryChart} centerLabel="companies" />
+          <DonutChart data={countryChart} centerLabel={t('donutCenterLabel')} />
         </ChartCard>
       </div>
 
@@ -616,7 +620,7 @@ export default function CompaniesPage() {
         getRowId={(c) => c.id}
         loading={rows === null}
         searchable
-        searchPlaceholder="Search companies, country, tags…"
+        searchPlaceholder={t('searchPlaceholder')}
         searchValue={(c) => [c.legalName, c.tradingName, c.country, c.city, ...(c.tags ?? [])].filter(Boolean).join(' ')}
         pageSize={12}
         selectable
@@ -627,8 +631,8 @@ export default function CompaniesPage() {
         enableColumnVisibility
         enableDensityToggle
         mobileCard={mobileCard}
-        emptyTitle="No companies match"
-        emptyDescription="Adjust the filters or add a new company."
+        emptyTitle={t('emptyTitle')}
+        emptyDescription={t('emptyDescription')}
         exportFilename="companies"
         storageKey="companies-table"
       />
@@ -654,6 +658,7 @@ function CreateCompanyDialog({
   onOpenChange: (open: boolean) => void;
   onCreated: (c: Company) => void;
 }) {
+  const t = useTranslations('AdminCompanies');
   const [legalName, setLegalName] = React.useState('');
   const [tradingName, setTradingName] = React.useState('');
   const [type, setType] = React.useState<CompanyType>('distributor');
@@ -720,8 +725,8 @@ function CreateCompanyDialog({
     onCreated(company);
     toast({
       variant: 'success',
-      title: 'Company created',
-      description: `${company.tradingName || company.legalName} added to the pipeline.`,
+      title: t('toastCompanyCreatedTitle'),
+      description: t('toastCompanyCreatedDescription', { name: company.tradingName || company.legalName }),
     });
     setSubmitting(false);
     reset();
@@ -738,23 +743,23 @@ function CreateCompanyDialog({
     >
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Add company</DialogTitle>
-          <DialogDescription>Create a new company record. It will be prepended to the list.</DialogDescription>
+          <DialogTitle>{t('addCompany')}</DialogTitle>
+          <DialogDescription>{t('createDialogDescription')}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="legalName">Legal name *</Label>
-            <Input id="legalName" value={legalName} onChange={(e) => setLegalName(e.target.value)} placeholder="Acme Foods S.p.A." />
+            <Label htmlFor="legalName">{t('fieldLegalName')}</Label>
+            <Input id="legalName" value={legalName} onChange={(e) => setLegalName(e.target.value)} placeholder={t('placeholderLegalName')} />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="tradingName">Trading name</Label>
-            <Input id="tradingName" value={tradingName} onChange={(e) => setTradingName(e.target.value)} placeholder="Acme" />
+            <Label htmlFor="tradingName">{t('fieldTradingName')}</Label>
+            <Input id="tradingName" value={tradingName} onChange={(e) => setTradingName(e.target.value)} placeholder={t('placeholderTradingName')} />
           </div>
 
           <div className="space-y-1.5">
-            <Label>Type</Label>
+            <Label>{t('colType')}</Label>
             <Select value={type} onValueChange={(v) => setType(v as CompanyType)}>
               <SelectTrigger>
                 <SelectValue />
@@ -770,33 +775,33 @@ function CreateCompanyDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="country">Country *</Label>
-            <Input id="country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Italy" />
+            <Label htmlFor="country">{t('fieldCountry')}</Label>
+            <Input id="country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder={t('placeholderCountry')} />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="countryCode">Country code</Label>
+            <Label htmlFor="countryCode">{t('fieldCountryCode')}</Label>
             <Input
               id="countryCode"
               value={countryCode}
               onChange={(e) => setCountryCode(e.target.value)}
               maxLength={2}
-              placeholder="IT"
+              placeholder={t('placeholderCountryCode')}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="city">City *</Label>
-            <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Milan" />
+            <Label htmlFor="city">{t('fieldCity')}</Label>
+            <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} placeholder={t('placeholderCity')} />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="website">Website</Label>
-            <Input id="website" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://…" />
+            <Label htmlFor="website">{t('fieldWebsite')}</Label>
+            <Input id="website" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder={t('placeholderWebsite')} />
           </div>
 
           <div className="space-y-1.5">
-            <Label>Relationship stage</Label>
+            <Label>{t('fieldRelationshipStage')}</Label>
             <Select value={stage} onValueChange={(v) => setStage(v as RelationshipStage)}>
               <SelectTrigger>
                 <SelectValue />
@@ -812,7 +817,7 @@ function CreateCompanyDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Priority</Label>
+            <Label>{t('colPriority')}</Label>
             <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
               <SelectTrigger>
                 <SelectValue />
@@ -830,10 +835,10 @@ function CreateCompanyDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button variant="gold" onClick={submit} disabled={!valid || submitting}>
-            {submitting ? 'Creating…' : 'Create company'}
+            {submitting ? t('creating') : t('createCompany')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -844,6 +849,7 @@ function CreateCompanyDialog({
 /* ────────────────────────────── Note dialog ────────────────────────────── */
 
 function NoteDialog({ company, onOpenChange }: { company: Company | null; onOpenChange: (open: boolean) => void }) {
+  const t = useTranslations('AdminCompanies');
   const [body, setBody] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -856,7 +862,7 @@ function NoteDialog({ company, onOpenChange }: { company: Company | null; onOpen
     setSubmitting(true);
     await new Promise((r) => setTimeout(r, 400));
     setSubmitting(false);
-    toast({ variant: 'success', title: 'Note added', description: `Logged against ${company.tradingName || company.legalName}.` });
+    toast({ variant: 'success', title: t('toastNoteAddedTitle'), description: t('toastNoteAddedDescription', { name: company.tradingName || company.legalName }) });
     onOpenChange(false);
   }
 
@@ -864,25 +870,25 @@ function NoteDialog({ company, onOpenChange }: { company: Company | null; onOpen
     <Dialog open={!!company} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add note</DialogTitle>
+          <DialogTitle>{t('addNote')}</DialogTitle>
           <DialogDescription>{company ? company.tradingName || company.legalName : ''}</DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5">
-          <Label htmlFor="noteBody">Note</Label>
+          <Label htmlFor="noteBody">{t('fieldNote')}</Label>
           <Textarea
             id="noteBody"
             rows={4}
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="What happened?"
+            placeholder={t('placeholderNote')}
           />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button onClick={submit} disabled={!body.trim() || submitting}>
-            {submitting ? 'Saving…' : 'Save note'}
+            {submitting ? t('saving') : t('saveNote')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -893,6 +899,7 @@ function NoteDialog({ company, onOpenChange }: { company: Company | null; onOpen
 /* ────────────────────────────── Task dialog ────────────────────────────── */
 
 function TaskDialog({ company, onOpenChange }: { company: Company | null; onOpenChange: (open: boolean) => void }) {
+  const t = useTranslations('AdminCompanies');
   const [title, setTitle] = React.useState('');
   const [due, setDue] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
@@ -911,8 +918,8 @@ function TaskDialog({ company, onOpenChange }: { company: Company | null; onOpen
     setSubmitting(false);
     toast({
       variant: 'success',
-      title: 'Task created',
-      description: `“${title.trim()}” for ${company.tradingName || company.legalName}.`,
+      title: t('toastTaskCreatedTitle'),
+      description: t('toastTaskCreatedDescription', { title: title.trim(), name: company.tradingName || company.legalName }),
     });
     onOpenChange(false);
   }
@@ -921,7 +928,7 @@ function TaskDialog({ company, onOpenChange }: { company: Company | null; onOpen
     <Dialog open={!!company} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create task</DialogTitle>
+          <DialogTitle>{t('createTask')}</DialogTitle>
           <DialogDescription>
             <span className="inline-flex items-center gap-1.5">
               <Globe className="h-3.5 w-3.5" />
@@ -931,20 +938,20 @@ function TaskDialog({ company, onOpenChange }: { company: Company | null; onOpen
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="taskTitle">Title</Label>
-            <Input id="taskTitle" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Follow up on samples" />
+            <Label htmlFor="taskTitle">{t('fieldTitle')}</Label>
+            <Input id="taskTitle" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('placeholderTaskTitle')} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="taskDue">Due date</Label>
+            <Label htmlFor="taskDue">{t('fieldDueDate')}</Label>
             <Input id="taskDue" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button onClick={submit} disabled={!title.trim() || submitting}>
-            {submitting ? 'Creating…' : 'Create task'}
+            {submitting ? t('creating') : t('createTask')}
           </Button>
         </DialogFooter>
       </DialogContent>

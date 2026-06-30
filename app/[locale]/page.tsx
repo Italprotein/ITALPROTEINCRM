@@ -6,7 +6,7 @@ import { motion, useInView, useScroll, useTransform } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import {
   ArrowRight, Building2, FlaskConical, Package, ClipboardCheck,
-  ChefHat, Bot, Users, Globe2, Star,
+  ChefHat, Bot, Users, Globe2, Star, Mail, Phone,
 } from 'lucide-react';
 import { Link } from '@/lib/i18n/navigation';
 import { Logo } from '@/components/brand/logo';
@@ -16,6 +16,7 @@ import { FeatureRadar } from '@/components/landing/feature-radar';
 import { PartnerMarquee } from '@/components/landing/partner-marquee';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { siteContact } from '@/lib/config/site';
 
 /* ─────────────────────────── Animation helpers ─────────────────────────── */
 
@@ -241,7 +242,7 @@ export default function LandingPage() {
             </motion.div>
 
             <motion.p className="mt-6 max-w-lg text-sm text-slate-400" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }}>
-              {t('demoNotice')}
+              {t('platformNote')}
             </motion.p>
           </div>
 
@@ -435,9 +436,39 @@ export default function LandingPage() {
 
       {/* ── Footer ────────────────────────────────────────────────── */}
       <footer className="border-t bg-brand-navy py-10 text-slate-400">
-        <div className="container flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <Logo tone="light" />
-          <p className="max-w-xl text-xs leading-relaxed">{t('footerNote')}</p>
+        <div className="container flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-3">
+            <Logo tone="light" />
+            <p className="max-w-xl text-xs leading-relaxed">{t('footerNote')}</p>
+          </div>
+          <div className="grid gap-2 text-xs sm:grid-cols-3 lg:min-w-[34rem]">
+            <a
+              href={siteContact.emailHref}
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-slate-300 transition-colors hover:border-brand-gold/50 hover:text-brand-gold"
+            >
+              <Mail className="h-3.5 w-3.5" />
+              <span className="min-w-0 truncate">{siteContact.email}</span>
+            </a>
+            {siteContact.phones.map((phone) => (
+              <a
+                key={phone.id}
+                href={phone.href}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-slate-300 transition-colors hover:border-brand-gold/50 hover:text-brand-gold"
+              >
+                <Phone className="h-3.5 w-3.5" />
+                <span>{phone.display}</span>
+              </a>
+            ))}
+            <a
+              href={siteContact.website}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-slate-300 transition-colors hover:border-brand-gold/50 hover:text-brand-gold"
+            >
+              <Globe2 className="h-3.5 w-3.5" />
+              <span>{t('contactWebsite')}</span>
+            </a>
+          </div>
         </div>
       </footer>
     </div>

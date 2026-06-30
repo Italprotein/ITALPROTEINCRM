@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Boxes, Rocket, FlaskConical, Sparkles, Plus, Search } from 'lucide-react';
 import { productService, companyService } from '@/lib/mock-services';
 import type { Product, Company, ApplicationCategory } from '@/lib/types';
@@ -32,6 +33,7 @@ const statusTone: Record<Product['status'], 'success' | 'info' | 'warning' | 'mu
 };
 
 export default function ProductsPage() {
+  const t = useTranslations('AdminProducts');
   const [rows, setRows] = React.useState<Product[] | null>(null);
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
   const [stats, setStats] = React.useState<Awaited<ReturnType<typeof productService.getStatistics>> | null>(null);
@@ -69,21 +71,21 @@ export default function ProductsPage() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
-        title="Products"
-        subtitle="Client products developed with Proamina® — from concept to launch."
-        actions={<Button variant="gold" onClick={() => setCreateOpen(true)}><Plus /> Add product</Button>}
+        title={t('title')}
+        subtitle={t('subtitle')}
+        actions={<Button variant="gold" onClick={() => setCreateOpen(true)}><Plus /> {t('addProduct')}</Button>}
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total products" value={stats?.total ?? 0} icon={Boxes} tone="gold" />
-        <StatCard label="Launched" value={stats?.launched ?? 0} icon={Rocket} tone="success" delay={0.05} />
-        <StatCard label="In development" value={stats?.inDevelopment ?? 0} icon={FlaskConical} tone="warning" delay={0.1} />
-        <StatCard label="Tested" value={(stats ? stats.total - stats.launched - stats.inDevelopment : 0)} icon={Sparkles} tone="info" delay={0.15} />
+        <StatCard label={t('totalProducts')} value={stats?.total ?? 0} icon={Boxes} tone="gold" />
+        <StatCard label={t('launched')} value={stats?.launched ?? 0} icon={Rocket} tone="success" delay={0.05} />
+        <StatCard label={t('inDevelopment')} value={stats?.inDevelopment ?? 0} icon={FlaskConical} tone="warning" delay={0.1} />
+        <StatCard label={t('tested')} value={(stats ? stats.total - stats.launched - stats.inDevelopment : 0)} icon={Sparkles} tone="info" delay={0.15} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <ChartCard title="Products by application" description="Where Proamina® is being applied" className="lg:col-span-1" loading={rows === null} isEmpty={catDonut.length === 0}>
-          <DonutChart data={catDonut} centerLabel="products" />
+        <ChartCard title={t('byApplicationTitle')} description={t('byApplicationDescription')} className="lg:col-span-1" loading={rows === null} isEmpty={catDonut.length === 0}>
+          <DonutChart data={catDonut} centerLabel={t('donutCenterLabel')} />
         </ChartCard>
 
         <Card className="lg:col-span-2">
@@ -91,19 +93,19 @@ export default function ProductsPage() {
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <div className="relative flex-1 min-w-[180px]">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products…" className="pl-8" />
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('searchPlaceholder')} className="pl-8" />
               </div>
               <Select value={fStatus} onValueChange={setFStatus}>
-                <SelectTrigger className="h-10 w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectTrigger className="h-10 w-[150px]"><SelectValue placeholder={t('statusPlaceholder')} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL}>All statuses</SelectItem>
+                  <SelectItem value={ALL}>{t('allStatuses')}</SelectItem>
                   {STATUSES.map((s) => <SelectItem key={s} value={s}>{humanize(s)}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={fCat} onValueChange={setFCat}>
-                <SelectTrigger className="h-10 w-[150px]"><SelectValue placeholder="Application" /></SelectTrigger>
+                <SelectTrigger className="h-10 w-[150px]"><SelectValue placeholder={t('applicationPlaceholder')} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL}>All applications</SelectItem>
+                  <SelectItem value={ALL}>{t('allApplications')}</SelectItem>
                   {APPLICATION_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{getLabel('applicationCategory', c)}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -112,7 +114,7 @@ export default function ProductsPage() {
             {rows === null ? (
               <div className="grid gap-3 sm:grid-cols-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-28" />)}</div>
             ) : filtered.length === 0 ? (
-              <EmptyState icon={Boxes} title="No products found" description="Adjust filters or add a new product." />
+              <EmptyState icon={Boxes} title={t('emptyTitle')} description={t('emptyDescription')} />
             ) : (
               <Stagger className="grid gap-3 sm:grid-cols-2">
                 {filtered.map((p) => {
@@ -130,7 +132,7 @@ export default function ProductsPage() {
                           <Badge variant="secondary">{getLabel('applicationCategory', p.category)}</Badge>
                           {p.market && <Badge variant="muted">{p.market}</Badge>}
                         </div>
-                        {p.proaminaDosage && <p className="mt-2 text-xs text-muted-foreground">Dosage: <span className="font-medium text-foreground">{p.proaminaDosage}</span></p>}
+                        {p.proaminaDosage && <p className="mt-2 text-xs text-muted-foreground">{t('dosageLabel')} <span className="font-medium text-foreground">{p.proaminaDosage}</span></p>}
                         <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                           {c ? <Link href={`/admin/companies/${c.id}`} className="font-medium text-foreground hover:text-brand-teal hover:underline">{c.tradingName || c.legalName}</Link> : <span>—</span>}
                           <span>{formatDate(p.createdAt)}</span>
@@ -153,6 +155,7 @@ export default function ProductsPage() {
 function AddProductDialog({ open, onOpenChange, companies, onCreated }: {
   open: boolean; onOpenChange: (o: boolean) => void; companies: Company[]; onCreated: (p: Product) => void;
 }) {
+  const t = useTranslations('AdminProducts');
   const [name, setName] = React.useState('');
   const [companyId, setCompanyId] = React.useState('');
   const [category, setCategory] = React.useState<ApplicationCategory>('protein_bars');
@@ -172,7 +175,7 @@ function AddProductDialog({ open, onOpenChange, companies, onCreated }: {
     };
     await productService.create(p);
     onCreated(p);
-    toast({ variant: 'success', title: 'Product added', description: `${p.name} created in development.` });
+    toast({ variant: 'success', title: t('toastTitle'), description: t('toastDescription', { name: p.name }) });
     setSubmitting(false);
     setName(''); setBrandName(''); setDosage(''); setCompanyId('');
     onOpenChange(false);
@@ -182,14 +185,14 @@ function AddProductDialog({ open, onOpenChange, companies, onCreated }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add product</DialogTitle>
-          <DialogDescription>Register a client product developed with Proamina®.</DialogDescription>
+          <DialogTitle>{t('dialogTitle')}</DialogTitle>
+          <DialogDescription>{t('dialogDescription')}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="pn">Product name *</Label><Input id="pn" value={name} onChange={(e) => setName(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label>Company</Label>
+          <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="pn">{t('productNameLabel')}</Label><Input id="pn" value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>{t('companyLabel')}</Label>
             <Select value={companyId} onValueChange={setCompanyId}>
-              <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t('selectCompany')} /></SelectTrigger>
               <SelectContent>
                 {companies.slice().sort((a, b) => (a.tradingName || a.legalName).localeCompare(b.tradingName || b.legalName)).map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.tradingName || c.legalName}</SelectItem>
@@ -197,18 +200,18 @@ function AddProductDialog({ open, onOpenChange, companies, onCreated }: {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5"><Label>Application</Label>
+          <div className="space-y-1.5"><Label>{t('applicationLabel')}</Label>
             <Select value={category} onValueChange={(v) => setCategory(v as ApplicationCategory)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{APPLICATION_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{getLabel('applicationCategory', c)}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5"><Label htmlFor="bn">Brand name</Label><Input id="bn" value={brandName} onChange={(e) => setBrandName(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label htmlFor="ds">Proamina® dosage</Label><Input id="ds" value={dosage} onChange={(e) => setDosage(e.target.value)} placeholder="e.g. 8%" /></div>
+          <div className="space-y-1.5"><Label htmlFor="bn">{t('brandNameLabel')}</Label><Input id="bn" value={brandName} onChange={(e) => setBrandName(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label htmlFor="ds">{t('dosageFieldLabel')}</Label><Input id="ds" value={dosage} onChange={(e) => setDosage(e.target.value)} placeholder={t('dosagePlaceholder')} /></div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>Cancel</Button>
-          <Button variant="gold" onClick={submit} disabled={!valid || submitting}>{submitting ? 'Adding…' : 'Add product'}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>{t('cancel')}</Button>
+          <Button variant="gold" onClick={submit} disabled={!valid || submitting}>{submitting ? t('adding') : t('addProduct')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

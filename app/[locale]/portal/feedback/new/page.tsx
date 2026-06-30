@@ -326,7 +326,7 @@ export default function NewFeedbackPage() {
     ]);
     toast({
       title: 'File attached',
-      description: 'Your document was added to this feedback (demo upload).',
+      description: 'Your document was added to this feedback (preview upload).',
       variant: 'success',
     });
   };

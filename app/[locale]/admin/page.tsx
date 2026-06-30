@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Building2,
   Target,
@@ -70,6 +71,8 @@ import {
 import { getLabel, humanize } from '@/lib/labels';
 import { formatRelative, formatDate, daysUntil } from '@/lib/formatting';
 import { cn, initials } from '@/lib/utils';
+import { useSession } from '@/components/providers/session-provider';
+import { AmineDashboard } from '@/components/dashboard/amine-dashboard';
 import type {
   Activity,
   ActivityType,
@@ -140,7 +143,8 @@ const RANGE_DAYS: Record<string, number | null> = {
 
 /* ───────────────────────────── page ───────────────────────────── */
 
-export default function OverviewPage() {
+function StandardOverview() {
+  const t = useTranslations('Overview');
   const [data, setData] = React.useState<DashboardData | null>(null);
   const [range, setRange] = React.useState<string>('180');
 
@@ -262,14 +266,14 @@ export default function OverviewPage() {
   const alerts = React.useMemo(() => {
     if (!data) return [];
     const rows: { id: string; tone: 'danger' | 'warning' | 'info'; icon: LucideIcon; title: string; meta: string; href: string }[] = [];
-    for (const t of data.overdueTasks.slice(0, 4)) {
-      const d = daysUntil(t.dueDate);
+    for (const task of data.overdueTasks.slice(0, 4)) {
+      const d = daysUntil(task.dueDate);
       rows.push({
-        id: `task-${t.id}`,
+        id: `task-${task.id}`,
         tone: 'danger',
         icon: Clock,
-        title: t.title,
-        meta: d != null ? `Overdue by ${Math.abs(d)} day${Math.abs(d) === 1 ? '' : 's'}` : 'Overdue',
+        title: task.title,
+        meta: d != null ? t('overdueByDays', { count: Math.abs(d) }) : t('overdue'),
         href: '/admin/tasks',
       });
     }
@@ -278,8 +282,8 @@ export default function OverviewPage() {
         id: `ship-${s.id}`,
         tone: 'warning',
         icon: PackageX,
-        title: `${s.reference} delayed`,
-        meta: `${s.courier ?? 'Courier'} · ${s.recipient}`,
+        title: t('shipmentDelayed', { reference: s.reference }),
+        meta: `${s.courier ?? t('courier')} · ${s.recipient}`,
         href: '/admin/shipments',
       });
     }
@@ -296,13 +300,13 @@ export default function OverviewPage() {
         id: `nda-${n.id}`,
         tone: 'info',
         icon: CalendarClock,
-        title: `${n.reference} expiring soon`,
-        meta: d != null ? `Expires in ${d} day${d === 1 ? '' : 's'}` : 'Expiring',
+        title: t('ndaExpiringSoon', { reference: n.reference }),
+        meta: d != null ? t('expiresInDays', { count: d }) : t('expiring'),
         href: '/admin/ndas',
       });
     }
     return rows.slice(0, 8);
-  }, [data]);
+  }, [data, t]);
 
   const maxTeamTasks = React.useMemo(
     () => (data ? Math.max(1, ...data.teamActivity.slice(0, 6).map((t) => t.tasks)) : 1),
@@ -314,18 +318,18 @@ export default function OverviewPage() {
     <div className="flex items-center gap-2">
       <Select value={range} onValueChange={setRange}>
         <SelectTrigger className="w-[150px]">
-          <SelectValue placeholder="Date range" />
+          <SelectValue placeholder={t('dateRange')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="30">Last 30 days</SelectItem>
-          <SelectItem value="90">Last 90 days</SelectItem>
-          <SelectItem value="180">Last 180 days</SelectItem>
-          <SelectItem value="all">All time</SelectItem>
+          <SelectItem value="30">{t('last30Days')}</SelectItem>
+          <SelectItem value="90">{t('last90Days')}</SelectItem>
+          <SelectItem value="180">{t('last180Days')}</SelectItem>
+          <SelectItem value="all">{t('allTime')}</SelectItem>
         </SelectContent>
       </Select>
-      <Button variant="gold" onClick={() => toast({ title: 'Report exported', description: 'Your overview snapshot has been generated.', variant: 'success' })}>
+      <Button variant="gold" onClick={() => toast({ title: t('reportExported'), description: t('reportExportedDescription'), variant: 'success' })}>
         <Download className="mr-2 h-4 w-4" />
-        Export
+        {t('export')}
       </Button>
     </div>
   );
@@ -333,8 +337,8 @@ export default function OverviewPage() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
-        title="Overview"
-        subtitle="Your operational snapshot across the Proamina® pipeline."
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={headerActions}
       />
 
@@ -348,28 +352,28 @@ export default function OverviewPage() {
       ) : (
         <Stagger className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StaggerItem>
-            <StatCard label="Total companies" value={data.companyStats.total} icon={Building2} tone="gold" trend={{ value: 8, label: 'vs last period' }} href="/admin/companies" />
+            <StatCard label={t('kpiTotalCompanies')} value={data.companyStats.total} icon={Building2} tone="gold" trend={{ value: 8, label: t('vsLastPeriod') }} href="/admin/companies" />
           </StaggerItem>
           <StaggerItem>
-            <StatCard label="Active opportunities" value={data.oppStats.open} icon={Target} tone="info" trend={{ value: 12, label: 'vs last period' }} href="/admin/pipeline" />
+            <StatCard label={t('kpiActiveOpportunities')} value={data.oppStats.open} icon={Target} tone="info" trend={{ value: 12, label: t('vsLastPeriod') }} href="/admin/pipeline" />
           </StaggerItem>
           <StaggerItem>
-            <StatCard label="NDAs awaiting signature" value={data.ndaStats.awaitingSignature} icon={FileSignature} tone="warning" trend={{ value: -4, label: 'vs last period' }} href="/admin/ndas" />
+            <StatCard label={t('kpiNdasAwaitingSignature')} value={data.ndaStats.awaitingSignature} icon={FileSignature} tone="warning" trend={{ value: -4, label: t('vsLastPeriod') }} href="/admin/ndas" />
           </StaggerItem>
           <StaggerItem>
-            <StatCard label="Samples to prepare" value={data.sampleStats.preparing} icon={FlaskConical} tone="default" trend={{ value: 6, label: 'vs last period' }} href="/admin/samples" />
+            <StatCard label={t('kpi_samples_to_prepare')} value={data.sampleStats.preparing} icon={FlaskConical} tone="default" trend={{ value: 6, label: t('vsLastPeriod') }} href="/admin/samples" />
           </StaggerItem>
           <StaggerItem>
-            <StatCard label="Samples shipped" value={data.sampleStats.shipped} icon={PackageCheck} tone="info" trend={{ value: 9, label: 'vs last period' }} href="/admin/samples" />
+            <StatCard label={t('kpi_samples_shipped')} value={data.sampleStats.shipped} icon={PackageCheck} tone="info" trend={{ value: 9, label: t('vsLastPeriod') }} href="/admin/samples" />
           </StaggerItem>
           <StaggerItem>
-            <StatCard label="Deliveries in transit" value={data.shipmentStats.inTransit} icon={Truck} tone="info" trend={{ value: 3, label: 'vs last period' }} href="/admin/shipments" />
+            <StatCard label={t('kpiDeliveriesInTransit')} value={data.shipmentStats.inTransit} icon={Truck} tone="info" trend={{ value: 3, label: t('vsLastPeriod') }} href="/admin/shipments" />
           </StaggerItem>
           <StaggerItem>
-            <StatCard label="Overdue tasks" value={data.taskStats.overdue} icon={AlertTriangle} tone="danger" trend={{ value: -7, label: 'vs last period' }} href="/admin/tasks" />
+            <StatCard label={t('kpiOverdueTasks')} value={data.taskStats.overdue} icon={AlertTriangle} tone="danger" trend={{ value: -7, label: t('vsLastPeriod') }} href="/admin/tasks" />
           </StaggerItem>
           <StaggerItem>
-            <StatCard label="New registrations" value={data.regStats.pending} icon={UserPlus} tone="success" trend={{ value: 15, label: 'vs last period' }} href="/admin/registrations" />
+            <StatCard label={t('kpiNewRegistrations')} value={data.regStats.pending} icon={UserPlus} tone="success" trend={{ value: 15, label: t('vsLastPeriod') }} href="/admin/registrations" />
           </StaggerItem>
         </Stagger>
       )}
@@ -377,43 +381,43 @@ export default function OverviewPage() {
       {/* ── CHARTS GRID ── */}
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
-          title="Company acquisition"
-          description="New vs cumulative companies over time"
+          title={t('companyAcquisition')}
+          description={t('companyAcquisitionDescription')}
           loading={loading}
           isEmpty={!loading && trendData.length === 0}
-          action={<Badge variant="muted">{range === 'all' ? 'All time' : `${range}d`}</Badge>}
+          action={<Badge variant="muted">{range === 'all' ? t('allTime') : t('rangeDays', { days: range })}</Badge>}
         >
           <TrendChart
             data={trendData}
             xKey="label"
             series={[
-              { key: 'cumulative', name: 'Cumulative', type: 'area', color: CHART_COLORS[0] },
-              { key: 'count', name: 'New', type: 'area', color: CHART_COLORS[1] },
+              { key: 'cumulative', name: t('seriesCumulative'), type: 'area', color: CHART_COLORS[0] },
+              { key: 'count', name: t('seriesNew'), type: 'area', color: CHART_COLORS[1] },
             ]}
           />
         </ChartCard>
 
         <ChartCard
-          title="Companies by type"
-          description="Distribution across business categories"
+          title={t('companiesByType')}
+          description={t('companiesByTypeDescription')}
           loading={loading}
           isEmpty={!loading && categoryData.length === 0}
         >
-          <CategoryBar data={categoryData} xKey="name" barKey="count" horizontal color={CHART_COLORS[2]} name="Companies" />
+          <CategoryBar data={categoryData} xKey="name" barKey="count" horizontal color={CHART_COLORS[2]} name={t('seriesCompanies')} />
         </ChartCard>
 
         <ChartCard
-          title="Pipeline distribution"
-          description="Companies by relationship stage"
+          title={t('pipelineDistribution')}
+          description={t('pipelineDistributionDescription')}
           loading={loading}
           isEmpty={!loading && pipelineDonut.length === 0}
         >
-          <DonutChart data={pipelineDonut} centerLabel="companies" />
+          <DonutChart data={pipelineDonut} centerLabel={t('centerLabelCompanies')} />
         </ChartCard>
 
         <ChartCard
-          title="Sample funnel"
-          description="From request through to feedback"
+          title={t('sampleFunnel')}
+          description={t('sampleFunnelDescription')}
           loading={loading}
           isEmpty={!loading && (data?.sampleFunnel.length ?? 0) === 0}
         >
@@ -424,8 +428,8 @@ export default function OverviewPage() {
       {/* ── CONVERSION + SHIPMENT BREAKDOWN ── */}
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
-          title="NDA conversion funnel"
-          description="Prepared → sent → signed"
+          title={t('ndaConversionFunnel')}
+          description={t('ndaConversionFunnelDescription')}
           loading={loading}
           isEmpty={!loading && (data?.ndaFunnel.length ?? 0) === 0}
         >
@@ -433,12 +437,12 @@ export default function OverviewPage() {
         </ChartCard>
 
         <ChartCard
-          title="Shipment status breakdown"
-          description="Current logistics pipeline"
+          title={t('shipmentStatusBreakdown')}
+          description={t('shipmentStatusBreakdownDescription')}
           loading={loading}
           isEmpty={!loading && shipmentDonut.length === 0}
         >
-          <DonutChart data={shipmentDonut} centerLabel="shipments" />
+          <DonutChart data={shipmentDonut} centerLabel={t('centerLabelShipments')} />
         </ChartCard>
       </div>
 
@@ -447,10 +451,10 @@ export default function OverviewPage() {
         {/* Recent activity */}
         <Card className="flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Recent activity</CardTitle>
+            <CardTitle className="text-base">{t('recentActivity')}</CardTitle>
             <Button asChild variant="ghost" size="sm">
               <Link href="/admin/activities">
-                View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                {t('viewAll')} <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </Link>
             </Button>
           </CardHeader>
@@ -468,7 +472,7 @@ export default function OverviewPage() {
                 ))}
               </div>
             ) : data.recentActivity.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">No recent activity.</p>
+              <p className="py-8 text-center text-sm text-muted-foreground">{t('noRecentActivity')}</p>
             ) : (
               <ol className="relative space-y-4 before:absolute before:left-4 before:top-1 before:h-[calc(100%-1rem)] before:w-px before:bg-border">
                 {data.recentActivity.map((a) => {
@@ -496,10 +500,10 @@ export default function OverviewPage() {
         {/* Upcoming tasks */}
         <Card className="flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Upcoming tasks</CardTitle>
+            <CardTitle className="text-base">{t('upcomingTasks')}</CardTitle>
             <Button asChild variant="ghost" size="sm">
               <Link href="/admin/tasks">
-                View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                {t('viewAll')} <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </Link>
             </Button>
           </CardHeader>
@@ -511,25 +515,25 @@ export default function OverviewPage() {
                 ))}
               </div>
             ) : data.upcomingTasks.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">No upcoming tasks.</p>
+              <p className="py-8 text-center text-sm text-muted-foreground">{t('noUpcomingTasks')}</p>
             ) : (
               <ul className="space-y-2">
-                {data.upcomingTasks.slice(0, 6).map((t) => {
-                  const company = data.companies.find((c) => c.id === t.companyId);
+                {data.upcomingTasks.slice(0, 6).map((task) => {
+                  const company = data.companies.find((c) => c.id === task.companyId);
                   return (
-                    <li key={t.id}>
+                    <li key={task.id}>
                       <Link
                         href="/admin/tasks"
                         className="flex items-start gap-3 rounded-md border bg-card p-2.5 transition-colors hover:bg-muted/60"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">{t.title}</p>
+                          <p className="truncate text-sm font-medium text-foreground">{task.title}</p>
                           <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                            {company ? company.tradingName ?? company.legalName : getLabel('taskType', t.type)}
-                            {t.dueDate && <span> · due {formatDate(t.dueDate)}</span>}
+                            {company ? company.tradingName ?? company.legalName : getLabel('taskType', task.type)}
+                            {task.dueDate && <span> · {t('dueDate', { date: formatDate(task.dueDate) })}</span>}
                           </p>
                         </div>
-                        <PriorityBadge value={t.priority} />
+                        <PriorityBadge value={task.priority} />
                       </Link>
                     </li>
                   );
@@ -542,7 +546,7 @@ export default function OverviewPage() {
         {/* Urgent alerts */}
         <Card className="flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Urgent alerts</CardTitle>
+            <CardTitle className="text-base">{t('urgentAlerts')}</CardTitle>
             {!loading && alerts.length > 0 && <Badge variant="danger">{alerts.length}</Badge>}
           </CardHeader>
           <CardContent className="flex-1">
@@ -555,7 +559,7 @@ export default function OverviewPage() {
             ) : alerts.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 py-8 text-center">
                 <ShieldCheck className="h-8 w-8 text-success" />
-                <p className="text-sm text-muted-foreground">All clear — nothing urgent.</p>
+                <p className="text-sm text-muted-foreground">{t('allClear')}</p>
               </div>
             ) : (
               <ul className="space-y-2">
@@ -599,10 +603,10 @@ export default function OverviewPage() {
         {/* Recently contacted companies */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Recently contacted companies</CardTitle>
+            <CardTitle className="text-base">{t('recentlyContactedCompanies')}</CardTitle>
             <Button asChild variant="ghost" size="sm">
               <Link href="/admin/companies">
-                View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                {t('viewAll')} <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </Link>
             </Button>
           </CardHeader>
@@ -614,15 +618,15 @@ export default function OverviewPage() {
                 ))}
               </div>
             ) : recentCompanies.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">No activity yet.</p>
+              <p className="py-8 text-center text-sm text-muted-foreground">{t('noActivityYet')}</p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Stage</TableHead>
-                    <TableHead className="hidden sm:table-cell">Owner</TableHead>
-                    <TableHead className="text-right">Last activity</TableHead>
+                    <TableHead>{t('columnCompany')}</TableHead>
+                    <TableHead>{t('columnStage')}</TableHead>
+                    <TableHead className="hidden sm:table-cell">{t('columnOwner')}</TableHead>
+                    <TableHead className="text-right">{t('columnLastActivity')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -661,10 +665,10 @@ export default function OverviewPage() {
         {/* Team workload */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Team workload</CardTitle>
+            <CardTitle className="text-base">{t('teamWorkload')}</CardTitle>
             <Button asChild variant="ghost" size="sm">
               <Link href="/admin/analytics">
-                Details <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                {t('details')} <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </Link>
             </Button>
           </CardHeader>
@@ -690,7 +694,7 @@ export default function OverviewPage() {
                         <span className="truncate text-sm font-medium text-foreground">{m.name}</span>
                       </div>
                       <span className="shrink-0 text-xs tabular text-muted-foreground">
-                        {m.tasks} task{m.tasks === 1 ? '' : 's'}
+                        {t('tasksCount', { count: m.tasks })}
                       </span>
                     </div>
                     <Progress value={(m.tasks / maxTeamTasks) * 100} />
@@ -703,4 +707,16 @@ export default function OverviewPage() {
       </div>
     </div>
   );
+}
+
+/* Amine Abidi gets a bespoke animated command center; everyone else the standard overview. */
+const AMINE_EMAIL = 'labidimedamine53@gmail.com';
+
+export default function OverviewPage() {
+  const { account, ready } = useSession();
+  if (!ready) return null;
+  if (account?.email?.toLowerCase() === AMINE_EMAIL) {
+    return <AmineDashboard />;
+  }
+  return <StandardOverview />;
 }

@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: italprotein-crm-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: italprotein_crm
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (gitignored)}"
+      POSTGRES_DB: italprotein_crm
+    ports:
+      - "5432:5432"
+    volumes:
+      - italprotein_crm_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U italprotein_crm -d italprotein_crm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  italprotein_crm_postgres_data:

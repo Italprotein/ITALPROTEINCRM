@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   MessageSquareQuote,
   CircleDot,
@@ -92,19 +92,21 @@ const RESULT_COLOR: Record<FeedbackResult, string> = {
   inconclusive: CHART_COLORS[6] ?? '#64748b',
 };
 
-function ownerName(id?: string): string {
-  if (!id) return 'Unassigned';
+type TFunc = ReturnType<typeof useTranslations>;
+
+function ownerName(id: string | undefined, t: TFunc): string {
+  if (!id) return t('unassigned');
   const acc = authService.getAccount(id);
   return acc ? `${acc.firstName} ${acc.lastName}` : id;
 }
 
 /* ────────────────────────────── Star rating ────────────────────────────── */
 
-function StarRating({ value, size = 'sm' }: { value?: number; size?: 'sm' | 'md' }) {
+function StarRating({ value, size = 'sm', t }: { value?: number; size?: 'sm' | 'md'; t: TFunc }) {
   if (!value) return <span className="text-sm text-muted-foreground">—</span>;
   const dim = size === 'md' ? 'h-4 w-4' : 'h-3.5 w-3.5';
   return (
-    <span className="inline-flex items-center gap-0.5" aria-label={`${value} out of 5`}>
+    <span className="inline-flex items-center gap-0.5" aria-label={t('starRatingAria', { value })}>
       {[1, 2, 3, 4, 5].map((i) => (
         <Star
           key={i}
@@ -122,6 +124,7 @@ function StarRating({ value, size = 'sm' }: { value?: number; size?: 'sm' | 'md'
 
 export default function FeedbackPage() {
   const locale = useLocale() as Locale;
+  const t = useTranslations('AdminFeedback');
   const router = useRouter();
 
   const [rows, setRows] = React.useState<Feedback[] | null>(null);
@@ -220,8 +223,11 @@ export default function FeedbackPage() {
     applyPatch(f.id, { status: 'technical_reply_sent' });
     toast({
       variant: 'success',
-      title: 'Technical reply sent',
-      description: `Reply delivered to ${companyMap.get(f.companyId)?.tradingName ?? 'client'} for ${f.reference}.`,
+      title: t('toastTechnicalReplySentTitle'),
+      description: t('toastTechnicalReplySentDescription', {
+        company: companyMap.get(f.companyId)?.tradingName ?? t('fallbackClient'),
+        reference: f.reference,
+      }),
     });
   }
 
@@ -230,8 +236,8 @@ export default function FeedbackPage() {
     applyPatch(f.id, { status: 'additional_info_requested' });
     toast({
       variant: 'info',
-      title: 'More info requested',
-      description: `Information request sent for ${f.reference}.`,
+      title: t('toastMoreInfoRequestedTitle'),
+      description: t('toastMoreInfoRequestedDescription', { reference: f.reference }),
     });
   }
 
@@ -241,8 +247,8 @@ export default function FeedbackPage() {
     setStats((prev) => (prev ? { ...prev, open: Math.max(0, prev.open - 1) } : prev));
     toast({
       variant: 'success',
-      title: 'Feedback resolved',
-      description: `${f.reference} marked as resolved.`,
+      title: t('toastFeedbackResolvedTitle'),
+      description: t('toastFeedbackResolvedDescription', { reference: f.reference }),
     });
   }
 
@@ -251,8 +257,8 @@ export default function FeedbackPage() {
     applyPatch(f.id, { status: 'technical_call_needed' });
     toast({
       variant: 'info',
-      title: 'Technical call scheduled',
-      description: `A technical call has been flagged for ${f.reference}.`,
+      title: t('toastTechnicalCallScheduledTitle'),
+      description: t('toastTechnicalCallScheduledDescription', { reference: f.reference }),
     });
   }
 
@@ -265,7 +271,7 @@ export default function FeedbackPage() {
   const columns: Column<Feedback>[] = [
     {
       key: 'reference',
-      header: 'Reference',
+      header: t('colReference'),
       sortValue: (f) => f.reference,
       cell: (f) => (
         <div className="min-w-0">
@@ -278,7 +284,7 @@ export default function FeedbackPage() {
     },
     {
       key: 'company',
-      header: 'Company',
+      header: t('colCompany'),
       sortValue: (f) => companyMap.get(f.companyId)?.legalName ?? '',
       cell: (f) => {
         const c = companyMap.get(f.companyId);
@@ -297,14 +303,14 @@ export default function FeedbackPage() {
     },
     {
       key: 'application',
-      header: 'Application',
+      header: t('colApplication'),
       sortValue: (f) => getLabel('applicationCategory', f.applicationCategory),
       cell: (f) => <StatusBadge kind="applicationCategory" value={f.applicationCategory} />,
       hideable: true,
     },
     {
       key: 'sample',
-      header: 'Related sample',
+      header: t('colRelatedSample'),
       sortValue: (f) => (f.sampleRequestId ? sampleMap.get(f.sampleRequestId)?.reference ?? '' : ''),
       cell: (f) => {
         const sample = f.sampleRequestId ? sampleMap.get(f.sampleRequestId) : undefined;
@@ -323,7 +329,7 @@ export default function FeedbackPage() {
     },
     {
       key: 'result',
-      header: 'Result',
+      header: t('colResult'),
       sortValue: (f) => f.overallResult ?? '',
       cell: (f) =>
         f.overallResult ? (
@@ -334,21 +340,21 @@ export default function FeedbackPage() {
     },
     {
       key: 'rating',
-      header: 'Rating',
+      header: t('colRating'),
       sortable: true,
       sortValue: (f) => f.overallRating ?? 0,
-      cell: (f) => <StarRating value={f.overallRating} />,
+      cell: (f) => <StarRating value={f.overallRating} t={t} />,
       hideable: true,
     },
     {
       key: 'status',
-      header: 'Status',
+      header: t('colStatus'),
       sortValue: (f) => f.status,
       cell: (f) => <StatusBadge kind="feedbackStatus" value={f.status} />,
     },
     {
       key: 'testDate',
-      header: 'Test date',
+      header: t('colTestDate'),
       align: 'right',
       sortable: true,
       sortValue: (f) => (f.testDate ? new Date(f.testDate).getTime() : 0),
@@ -357,11 +363,11 @@ export default function FeedbackPage() {
     },
     {
       key: 'owner',
-      header: 'Technical owner',
-      sortValue: (f) => ownerName(f.technicalOwnerId),
+      header: t('colTechnicalOwner'),
+      sortValue: (f) => ownerName(f.technicalOwnerId, t),
       cell: (f) => (
         <span className="whitespace-nowrap text-sm text-muted-foreground">
-          {ownerName(f.technicalOwnerId)}
+          {ownerName(f.technicalOwnerId, t)}
         </span>
       ),
       hideable: true,
@@ -374,10 +380,10 @@ export default function FeedbackPage() {
     <div className="flex flex-wrap items-center gap-2">
       <Select value={fStatus} onValueChange={setFStatus}>
         <SelectTrigger className="h-9 w-[170px]">
-          <SelectValue placeholder="Status" />
+          <SelectValue placeholder={t('filterStatusPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All statuses</SelectItem>
+          <SelectItem value={ALL}>{t('filterAllStatuses')}</SelectItem>
           {FEEDBACK_STATUS_FLOW.map((s) => (
             <SelectItem key={s} value={s}>
               {getLabel('feedbackStatus', s)}
@@ -388,10 +394,10 @@ export default function FeedbackPage() {
 
       <Select value={fResult} onValueChange={setFResult}>
         <SelectTrigger className="h-9 w-[150px]">
-          <SelectValue placeholder="Result" />
+          <SelectValue placeholder={t('filterResultPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All results</SelectItem>
+          <SelectItem value={ALL}>{t('filterAllResults')}</SelectItem>
           {RESULTS.map((r) => (
             <SelectItem key={r} value={r}>
               {getLabel('feedbackResult', r)}
@@ -402,10 +408,10 @@ export default function FeedbackPage() {
 
       <Select value={fApplication} onValueChange={setFApplication}>
         <SelectTrigger className="h-9 w-[170px]">
-          <SelectValue placeholder="Application" />
+          <SelectValue placeholder={t('filterApplicationPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All applications</SelectItem>
+          <SelectItem value={ALL}>{t('filterAllApplications')}</SelectItem>
           {applicationOptions.map((c) => (
             <SelectItem key={c} value={c}>
               {getLabel('applicationCategory', c)}
@@ -417,7 +423,7 @@ export default function FeedbackPage() {
       {activeFilterCount > 0 ? (
         <Button variant="ghost" size="sm" onClick={resetFilters}>
           <X />
-          Clear ({activeFilterCount})
+          {t('clearFilters', { count: activeFilterCount })}
         </Button>
       ) : null}
     </div>
@@ -428,27 +434,27 @@ export default function FeedbackPage() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="Row actions">
+          <Button variant="ghost" size="icon-sm" aria-label={t('rowActionsAria')}>
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => setReviewId(f.id)}>
             <Eye />
-            Review
+            {t('actionReview')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => void sendTechnicalReply(f)}>
             <Send />
-            Send technical reply
+            {t('actionSendTechnicalReply')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void requestMoreInfo(f)}>
             <HelpCircle />
-            Request more info
+            {t('actionRequestMoreInfo')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void scheduleTechnicalCall(f)}>
             <CalendarClock />
-            Schedule technical call
+            {t('actionScheduleTechnicalCall')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -456,7 +462,7 @@ export default function FeedbackPage() {
             onSelect={() => void markResolved(f)}
           >
             <CheckCircle2 />
-            Mark resolved
+            {t('actionMarkResolved')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -477,13 +483,13 @@ export default function FeedbackPage() {
         </div>
         <div className="mt-2 flex items-center justify-between">
           <StatusBadge kind="applicationCategory" value={f.applicationCategory} />
-          <StarRating value={f.overallRating} />
+          <StarRating value={f.overallRating} t={t} />
         </div>
         <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
           {f.overallResult ? (
             <StatusBadge kind="feedbackResult" value={f.overallResult} />
           ) : (
-            <span>No result</span>
+            <span>{t('noResult')}</span>
           )}
           <span>{formatDate(f.testDate, locale)}</span>
         </div>
@@ -494,34 +500,34 @@ export default function FeedbackPage() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
-        title="Feedback & R&D"
-        subtitle="Sensory and application test feedback from clients — triage, reply and close the loop."
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
       />
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <StatCard label="Total feedback" value={stats?.total ?? 0} icon={MessageSquareQuote} tone="gold" />
-        <StatCard label="Open" value={stats?.open ?? 0} icon={CircleDot} tone="warning" delay={0.05} />
+        <StatCard label={t('kpiTotalFeedback')} value={stats?.total ?? 0} icon={MessageSquareQuote} tone="gold" />
+        <StatCard label={t('kpiOpen')} value={stats?.open ?? 0} icon={CircleDot} tone="warning" delay={0.05} />
         <StatCard
-          label="Resolved"
+          label={t('kpiResolved')}
           value={(stats?.total ?? 0) - (stats?.open ?? 0)}
           icon={CheckCircle2}
           tone="success"
           delay={0.1}
         />
         <StatCard
-          label="Positive results"
+          label={t('kpiPositiveResults')}
           value={stats?.positive ?? 0}
           icon={ThumbsUp}
           tone="success"
           delay={0.15}
         />
         <StatCard
-          label="Avg rating"
-          value={stats ? `${stats.avgRating.toFixed(1)} / 5` : '—'}
+          label={t('kpiAvgRating')}
+          value={stats ? t('avgRatingValue', { value: stats.avgRating.toFixed(1) }) : '—'}
           icon={Star}
           tone="info"
-          hint="across rated tests"
+          hint={t('avgRatingHint')}
           delay={0.2}
         />
       </div>
@@ -529,17 +535,17 @@ export default function FeedbackPage() {
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
-          title="Result distribution"
-          description="Outcome of every test cycle"
+          title={t('chartResultTitle')}
+          description={t('chartResultDescription')}
           loading={rows === null}
           isEmpty={donutData.length === 0}
         >
-          <DonutChart data={donutData} centerLabel="results" />
+          <DonutChart data={donutData} centerLabel={t('donutCenterLabel')} />
         </ChartCard>
 
         <ChartCard
-          title="Feedback by application"
-          description="Where testing activity concentrates"
+          title={t('chartApplicationTitle')}
+          description={t('chartApplicationDescription')}
           loading={rows === null}
           isEmpty={applicationChart.length === 0}
         >
@@ -549,7 +555,7 @@ export default function FeedbackPage() {
             barKey="count"
             horizontal
             color={CHART_COLORS[2]}
-            name="Feedback"
+            name={t('chartApplicationSeriesName')}
           />
         </ChartCard>
       </div>
@@ -561,7 +567,7 @@ export default function FeedbackPage() {
         getRowId={(f) => f.id}
         loading={rows === null}
         searchable
-        searchPlaceholder="Search reference, company, application, project…"
+        searchPlaceholder={t('searchPlaceholder')}
         searchValue={(f) =>
           [
             f.reference,
@@ -570,7 +576,7 @@ export default function FeedbackPage() {
             companyMap.get(f.companyId)?.legalName,
             companyMap.get(f.companyId)?.tradingName,
             f.sampleRequestId ? sampleMap.get(f.sampleRequestId)?.reference : '',
-            ownerName(f.technicalOwnerId),
+            ownerName(f.technicalOwnerId, t),
           ]
             .filter(Boolean)
             .join(' ')
@@ -582,13 +588,14 @@ export default function FeedbackPage() {
         enableColumnVisibility
         enableDensityToggle
         mobileCard={mobileCard}
-        emptyTitle="No feedback matches"
-        emptyDescription="Adjust the filters to see more results."
+        emptyTitle={t('emptyTitle')}
+        emptyDescription={t('emptyDescription')}
         exportFilename="feedback"
         storageKey="feedback-table"
       />
 
       <ReviewSheet
+        t={t}
         feedback={reviewItem}
         company={reviewItem ? companyMap.get(reviewItem.companyId) ?? null : null}
         sample={
@@ -623,6 +630,7 @@ function SensoryField({ label, value }: { label: string; value?: string }) {
 }
 
 function ReviewSheet({
+  t,
   feedback,
   company,
   sample,
@@ -635,6 +643,7 @@ function ReviewSheet({
   onScheduleCall,
   onOpenSample,
 }: {
+  t: TFunc;
   feedback: Feedback | null;
   company: Company | null;
   sample: SampleRequest | null;
@@ -667,8 +676,8 @@ function ReviewSheet({
     setReply('');
     toast({
       variant: 'success',
-      title: visibility === 'client' ? 'Reply sent to client' : 'Internal note added',
-      description: `Posted to ${feedback.reference}.`,
+      title: visibility === 'client' ? t('toastReplySentToClientTitle') : t('toastInternalNoteAddedTitle'),
+      description: t('toastReplyPostedDescription', { reference: feedback.reference }),
     });
   }
 
@@ -697,7 +706,7 @@ function ReviewSheet({
                   <SheetTitle>{feedback.reference}</SheetTitle>
                   <SheetDescription className="flex items-center gap-1.5">
                     <Building2 className="h-3.5 w-3.5" />
-                    {company ? company.tradingName || company.legalName : 'Unknown company'}
+                    {company ? company.tradingName || company.legalName : t('unknownCompany')}
                   </SheetDescription>
                 </div>
               </div>
@@ -716,19 +725,19 @@ function ReviewSheet({
 
               <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg border bg-muted/40 p-3 text-sm">
                 <div className="space-y-0.5">
-                  <p className="text-xs text-muted-foreground">Overall rating</p>
-                  <StarRating value={feedback.overallRating} size="md" />
+                  <p className="text-xs text-muted-foreground">{t('summaryOverallRating')}</p>
+                  <StarRating value={feedback.overallRating} size="md" t={t} />
                 </div>
                 <div className="space-y-0.5">
-                  <p className="text-xs text-muted-foreground">Test date</p>
+                  <p className="text-xs text-muted-foreground">{t('summaryTestDate')}</p>
                   <p className="font-medium text-foreground">{formatDate(feedback.testDate, locale)}</p>
                 </div>
                 <div className="space-y-0.5">
-                  <p className="text-xs text-muted-foreground">Technical owner</p>
-                  <p className="font-medium text-foreground">{ownerName(feedback.technicalOwnerId)}</p>
+                  <p className="text-xs text-muted-foreground">{t('summaryTechnicalOwner')}</p>
+                  <p className="font-medium text-foreground">{ownerName(feedback.technicalOwnerId, t)}</p>
                 </div>
                 <div className="space-y-0.5">
-                  <p className="text-xs text-muted-foreground">Related sample</p>
+                  <p className="text-xs text-muted-foreground">{t('summaryRelatedSample')}</p>
                   {sample ? (
                     <button
                       type="button"
@@ -744,7 +753,7 @@ function ReviewSheet({
                 </div>
                 {feedback.preferredNextStep ? (
                   <div className="col-span-2 space-y-0.5">
-                    <p className="text-xs text-muted-foreground">Preferred next step</p>
+                    <p className="text-xs text-muted-foreground">{t('summaryPreferredNextStep')}</p>
                     <StatusBadge kind="nextStep" value={feedback.preferredNextStep} />
                   </div>
                 ) : null}
@@ -754,17 +763,17 @@ function ReviewSheet({
               {hasSensory ? (
                 <>
                   <Separator className="my-4" />
-                  <h3 className="mb-3 text-sm font-semibold text-foreground">Sensory & technical evaluation</h3>
+                  <h3 className="mb-3 text-sm font-semibold text-foreground">{t('sensoryHeading')}</h3>
                   <div className="space-y-3">
-                    <SensoryField label="Taste & aroma" value={feedback.tasteAroma} />
-                    <SensoryField label="Solubility" value={feedback.solubility} />
-                    <SensoryField label="Processing behaviour" value={feedback.processingBehaviour} />
-                    <SensoryField label="Texture" value={feedback.texture} />
-                    <SensoryField label="Appearance & colour" value={feedback.appearanceColour} />
-                    <SensoryField label="Comparison vs control" value={feedback.comparisonControl} />
-                    <SensoryField label="Issues encountered" value={feedback.issuesEncountered} />
-                    <SensoryField label="Open questions" value={feedback.questions} />
-                    <SensoryField label="Requested support" value={feedback.requestedSupport} />
+                    <SensoryField label={t('sensoryTasteAroma')} value={feedback.tasteAroma} />
+                    <SensoryField label={t('sensorySolubility')} value={feedback.solubility} />
+                    <SensoryField label={t('sensoryProcessingBehaviour')} value={feedback.processingBehaviour} />
+                    <SensoryField label={t('sensoryTexture')} value={feedback.texture} />
+                    <SensoryField label={t('sensoryAppearanceColour')} value={feedback.appearanceColour} />
+                    <SensoryField label={t('sensoryComparisonControl')} value={feedback.comparisonControl} />
+                    <SensoryField label={t('sensoryIssuesEncountered')} value={feedback.issuesEncountered} />
+                    <SensoryField label={t('sensoryOpenQuestions')} value={feedback.questions} />
+                    <SensoryField label={t('sensoryRequestedSupport')} value={feedback.requestedSupport} />
                   </div>
                 </>
               ) : null}
@@ -772,19 +781,19 @@ function ReviewSheet({
               {/* Comments thread */}
               <Separator className="my-4" />
               <h3 className="mb-3 text-sm font-semibold text-foreground">
-                Discussion ({feedback.comments.length})
+                {t('discussionHeading', { count: feedback.comments.length })}
               </h3>
               {feedback.comments.length === 0 ? (
                 <p className="rounded-lg border border-dashed bg-muted/30 p-4 text-center text-sm text-muted-foreground">
-                  No comments yet. Start the conversation below.
+                  {t('noCommentsYet')}
                 </p>
               ) : (
                 <ul className="space-y-3">
                   {feedback.comments.map((c) => {
                     const isClient = !!c.byContactId;
                     const author = isClient
-                      ? company?.tradingName || company?.legalName || 'Client'
-                      : ownerName(c.byUserId);
+                      ? company?.tradingName || company?.legalName || t('commentAuthorClient')
+                      : ownerName(c.byUserId, t);
                     return (
                       <li key={c.id} className="flex gap-3">
                         <Avatar className="h-7 w-7 shrink-0">
@@ -806,7 +815,7 @@ function ReviewSheet({
                                   : 'bg-muted text-muted-foreground',
                               )}
                             >
-                              {c.visibility === 'client' ? 'Client-visible' : 'Internal'}
+                              {c.visibility === 'client' ? t('commentVisibilityClient') : t('commentVisibilityInternal')}
                             </span>
                           </div>
                           <p className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">{c.body}</p>
@@ -821,7 +830,7 @@ function ReviewSheet({
               <div className="mt-4 space-y-2 rounded-lg border bg-card p-3">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="reply" className="text-sm font-medium">
-                    Add a reply
+                    {t('addReplyLabel')}
                   </Label>
                   <Select
                     value={visibility}
@@ -831,8 +840,8 @@ function ReviewSheet({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="client">Client-visible</SelectItem>
-                      <SelectItem value="internal">Internal note</SelectItem>
+                      <SelectItem value="client">{t('replyVisibilityClient')}</SelectItem>
+                      <SelectItem value="internal">{t('replyVisibilityInternal')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -841,12 +850,12 @@ function ReviewSheet({
                   rows={3}
                   value={reply}
                   onChange={(e) => setReply(e.target.value)}
-                  placeholder="Share a technical recommendation, ask a clarifying question…"
+                  placeholder={t('replyPlaceholder')}
                 />
                 <div className="flex justify-end">
                   <Button size="sm" onClick={postReply} disabled={!reply.trim() || posting}>
                     <Send />
-                    {posting ? 'Posting…' : 'Post reply'}
+                    {posting ? t('replyPosting') : t('replyPost')}
                   </Button>
                 </div>
               </div>
@@ -859,7 +868,7 @@ function ReviewSheet({
                 onClick={() => void onRequestInfo(feedback)}
               >
                 <HelpCircle />
-                Request info
+                {t('footerRequestInfo')}
               </Button>
               <Button
                 variant="outline"
@@ -867,7 +876,7 @@ function ReviewSheet({
                 onClick={() => void onScheduleCall(feedback)}
               >
                 <CalendarClock />
-                Technical call
+                {t('footerTechnicalCall')}
               </Button>
               <Button
                 variant="secondary"
@@ -875,7 +884,7 @@ function ReviewSheet({
                 onClick={() => void onSendReply(feedback)}
               >
                 <Send />
-                Send reply
+                {t('footerSendReply')}
               </Button>
               <Button
                 variant="success"
@@ -884,7 +893,7 @@ function ReviewSheet({
                 onClick={() => void onResolve(feedback)}
               >
                 <CheckCircle2 />
-                Resolve
+                {t('footerResolve')}
               </Button>
             </SheetFooter>
           </>
@@ -892,7 +901,7 @@ function ReviewSheet({
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <User2 className="h-4 w-4" />
-              Feedback
+              {t('sheetFallbackTitle')}
             </SheetTitle>
           </SheetHeader>
         )}

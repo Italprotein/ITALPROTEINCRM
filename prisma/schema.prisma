@@ -1,0 +1,2330 @@
+// ITALPROTEIN CRM — complete Prisma schema.
+// Assembled from six domain specs (Identity/Access, Core commercial, Operational,
+// Documents/NDA/Google, Finance, Engagement/AI). Canonical enum spellings come from
+// lib/types.ts. Money = Int minor units + Currency enum. Quantities = Decimal + QuantityUnit.
+// createdById/updatedById are PLAIN SCALAR audit columns (AuditEvent is the real trail).
+// Named actor/owner FKs are real relations to User/Contact with explicit @relation names.
+// Nullable historical actor FKs (AuditEvent.actorUser, EmailLog.recipientUser,
+// DocumentAccessEvent.actor, ShipmentEvent.actor, OpportunityStageHistory.byUser,
+// Activity.actor) use onDelete: SetNull so a User can be hard-deleted (Auth.js
+// adapter expectation) while the immutable history row survives with a null actor.
+
+// Prisma 7: the datasource connection URL lives in prisma.config.ts (DATABASE_URL),
+// not in the schema. The datasource block declares only the provider.
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+/**
+ * ────────────────────────────── Shared / primitive enums ──────────────────────────────
+ */
+
+enum Locale {
+  en
+  it
+}
+
+enum Currency {
+  EUR
+  USD
+  GBP
+  CHF
+}
+
+enum Priority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum Workspace {
+  internal
+  external
+}
+
+enum RoleKey {
+  super_admin
+  crm_admin
+  business_dev
+  rnd_technical
+  logistics
+  finance
+  management_readonly
+  company_owner
+  company_member
+  company_technical
+  company_logistics
+  company_finance
+}
+
+/**
+ * ────────────────────────────── Identity / access enums ──────────────────────────────
+ */
+
+enum UserKind {
+  internal
+  external
+}
+
+enum UserStatus {
+  invited
+  active
+  suspended
+  disabled
+}
+
+enum RoleKind {
+  internal
+  external
+}
+
+enum MfaFactorType {
+  totp
+  webauthn
+  recovery_code
+}
+
+enum MfaFactorStatus {
+  pending
+  active
+  revoked
+}
+
+enum AuditResult {
+  success
+  denied
+}
+
+enum EmailLogStatus {
+  queued
+  sent
+  failed
+  bounced
+  simulated_sent
+  skipped
+}
+
+enum RegistrationStatus {
+  submitted
+  email_verification
+  pending_approval
+  more_info_requested
+  approved
+  rejected
+}
+
+enum RegistrationDecisionType {
+  approve
+  reject
+  request_more_info
+}
+
+enum NotificationType {
+  new_registration
+  registration_decision
+  new_sample_request
+  sample_approved
+  ready_to_ship
+  shipment_dispatched
+  customs_hold
+  delivery_delay
+  delivery_confirmed
+  feedback_requested
+  feedback_submitted
+  technical_reply
+  nda_sent
+  nda_changes_requested
+  nda_signed
+  nda_expiring
+  task_due
+  task_overdue
+  support_request
+  invoice_overdue
+}
+
+/**
+ * ────────────────────────────── Core commercial enums ──────────────────────────────
+ */
+
+// DESIGN DECISION — no separate `Agency` table.
+// LAUNCH_READINESS_ROADMAP §4 lists `agencies` as a table and §5 says external
+// users are "scoped to one company or agency". The implemented design (see
+// lib/mock-services/agencyService.ts: `type Agency = Company & { meta }`) models
+// agencies as Company records of `type = agency`, joined with partner-network
+// metadata — NOT as a distinct entity. External users therefore scope to a
+// Company (which may be an agency) via User.companyId; no agencyId FK is needed.
+// Roadmap §4's `agencies` line should be read as "agency-typed companies".
+enum CompanyType {
+  distributor
+  fb_manufacturer
+  horeca
+  bakery_manufacturer
+  dairy_manufacturer
+  confectionery_manufacturer
+  ingredient_company
+  retailer
+  agency
+  laboratory
+  consultant
+  other
+}
+
+enum CommercialSegment {
+  bar_horeca
+  pasticcerie_bakeries
+  international_export
+  ecommerce_b2c
+  distributor
+}
+
+enum RelationshipStage {
+  lead
+  contacted
+  interested
+  qualified
+  nda_in_progress
+  nda_signed
+  sampling
+  testing
+  commercial_discussion
+  customer
+  repeat_customer
+  dormant
+  lost
+}
+
+enum FirstContactChannel {
+  email
+  gmail
+  referral
+  event
+  inbound_web
+  linkedin
+  phone
+  partner
+  other
+}
+
+enum CooperationModel {
+  direct
+  distribution
+  private_label
+  co_development
+  agency
+  undecided
+}
+
+enum CompanySize {
+  micro
+  small
+  medium
+  large
+  enterprise
+}
+
+enum DecisionRole {
+  decision_maker
+  influencer
+  gatekeeper
+  champion
+  user
+  unknown
+}
+
+enum PipelineStage {
+  lead
+  contacted
+  interested
+  qualified
+  nda_to_prepare
+  nda_sent
+  nda_negotiation
+  nda_signed
+  introductory_call
+  technical_call
+  sample_requested
+  sample_approved
+  sample_shipped
+  sample_delivered
+  application_testing
+  feedback_received
+  commercial_discussion
+  quotation
+  customer
+  repeat_customer
+  on_hold
+  inactive
+  lost
+  disqualified
+}
+
+enum ProductStatus {
+  in_development
+  tested
+  launched
+  archived
+}
+
+enum ApplicationCategory {
+  dairy
+  yogurt
+  desserts
+  flavoured_milk
+  ice_cream
+  bakery
+  biscuits
+  cakes
+  croissants
+  chocolate
+  protein_bars
+  beverages
+  functional_drinks
+  coffee
+  spreads
+  sauces
+  plant_based
+  sports_nutrition
+  other
+}
+
+/**
+ * ────────────────────────────── Operational enums ──────────────────────────────
+ */
+
+enum SampleStatus {
+  draft
+  submitted
+  under_review
+  more_info_required
+  approved
+  rejected
+  preparing
+  ready_to_ship
+  shipped
+  in_transit
+  customs_hold
+  delivery_attempted
+  delivered
+  receipt_confirmed
+  testing
+  feedback_requested
+  feedback_received
+  closed
+  cancelled
+}
+
+enum QuantityUnit {
+  g
+  kg
+  units
+  sachets
+  boxes
+  l
+  ml
+}
+
+enum CustomsStatus {
+  not_required
+  pending
+  in_clearance
+  hold
+  cleared
+}
+
+enum Incoterm {
+  DAP
+  DDP
+  EXW
+  CPT
+  FCA
+  CIP
+}
+
+enum ShipmentStatus {
+  pending
+  preparing
+  in_transit
+  delayed
+  customs_hold
+  delivered
+  delivery_confirmed
+  exception
+}
+
+enum FeedbackStatus {
+  received
+  under_review
+  additional_info_requested
+  technical_reply_sent
+  technical_call_needed
+  resolved
+}
+
+enum FeedbackResult {
+  positive
+  mixed
+  negative
+  inconclusive
+}
+
+enum NextStep {
+  new_sample
+  technical_call
+  reformulate
+  proceed_commercial
+  close
+  awaiting_decision
+}
+
+enum FeedbackCommentVisibility {
+  internal
+  client
+}
+
+enum DevelopmentStage {
+  concept
+  feasibility
+  prototype
+  pilot
+  pre_industrial
+  industrial
+  launched
+  on_hold
+}
+
+enum TestStage {
+  not_started
+  lab
+  bench
+  pilot_line
+  shelf_life
+  sensory_panel
+  completed
+}
+
+/**
+ * ────────────────────────────── Documents / NDA / Google enums ──────────────────────────────
+ */
+
+enum DocumentAccessLevel {
+  public
+  portal_general
+  pre_nda
+  post_nda
+  company_specific
+  internal
+}
+
+enum DocumentCategory {
+  technical_data_sheet
+  safety_data_sheet
+  presentation
+  application_guide
+  price_list
+  nda
+  certificate
+  regulatory
+  marketing
+  photo
+  other
+}
+
+enum NDAStatus {
+  not_required
+  to_prepare
+  draft
+  sent
+  under_review
+  changes_requested
+  approved
+  awaiting_italprotein_signature
+  awaiting_counterparty_signature
+  partially_signed
+  fully_signed
+  expired
+  terminated
+}
+
+enum NDAType {
+  mutual
+  one_way_inbound
+  one_way_outbound
+}
+
+enum DocumentAccessAction {
+  signed_url_issued
+  viewed
+  downloaded
+  denied
+}
+
+enum GoogleScope {
+  drive_file
+  drive_metadata_readonly
+  documents
+  gmail_send
+}
+
+enum GoogleTokenStatus {
+  active
+  expired
+  revoked
+}
+
+/**
+ * ────────────────────────────── Finance enums ──────────────────────────────
+ */
+
+enum PaymentStatus {
+  draft
+  pending
+  partially_paid
+  paid
+  overdue
+  cancelled
+  refunded
+}
+
+enum QuoteStatus {
+  draft
+  quoted
+  confirmed
+  invoiced
+  cancelled
+}
+
+enum OrderStatus {
+  draft
+  confirmed
+  invoiced
+  fulfilled
+  cancelled
+}
+
+enum InvoiceStatus {
+  draft
+  issued
+  partially_paid
+  paid
+  overdue
+  cancelled
+}
+
+enum PaymentMethod {
+  bank_transfer
+  card
+  cash
+  cheque
+  other
+}
+
+/**
+ * ────────────────────────────── Engagement / AI enums ──────────────────────────────
+ */
+
+enum TaskType {
+  follow_up
+  call
+  email
+  prepare_nda
+  prepare_sample
+  rnd_review
+  logistics
+  finance
+  meeting
+  other
+}
+
+enum TaskStatus {
+  open
+  in_progress
+  blocked
+  done
+  cancelled
+}
+
+enum TaskSource {
+  manual
+  rnd_generated
+  system
+}
+
+enum MeetingType {
+  video_call
+  phone_call
+  on_site
+  event
+  technical_call
+}
+
+enum MeetingStatus {
+  scheduled
+  completed
+  cancelled
+  no_show
+}
+
+enum ActivityType {
+  email
+  call
+  meeting
+  note
+  task
+  company_status_change
+  opportunity_change
+  nda_event
+  sample_event
+  shipment_event
+  feedback
+  technical_reply
+  document
+  quote
+  order
+  invoice
+  payment
+  registration
+}
+
+enum ActivityVisibility {
+  internal
+  client
+}
+
+enum SupportCategory {
+  technical_question
+  sample_request
+  logistics_issue
+  commercial_request
+  documentation_request
+  regulatory_request
+  meeting_request
+  account_issue
+  other
+}
+
+// Canonical request/support taxonomy from PRODUCT_SPEC §7.5:
+// Open → Acknowledged → In Progress → Awaiting Customer → Resolved → Closed.
+// `waiting_on_client` is the schema spelling of the spec's "Awaiting Customer".
+enum SupportStatus {
+  open
+  acknowledged
+  in_progress
+  waiting_on_client
+  resolved
+  closed
+}
+
+enum AssistantAudience {
+  public
+  portal
+  internal
+}
+
+enum AssistantMessageRole {
+  user
+  assistant
+  system
+  tool
+}
+
+enum AssistantToolCallStatus {
+  proposed
+  awaiting_confirmation
+  confirmed
+  executed
+  rejected
+  failed
+}
+
+enum AssistantCitationTargetType {
+  company
+  contact
+  opportunity
+  sample_request
+  shipment
+  feedback
+  application_project
+  product
+  nda
+  document
+  support_request
+  invoice
+  task
+  meeting
+  google_drive_file
+}
+
+/**
+ * ══════════════════════════════ Identity / access models ══════════════════════════════
+ */
+
+model User {
+  id              String     @id @default(cuid())
+  name            String?
+  email           String?    @unique
+  emailVerified   DateTime?
+  image           String?
+  roleId          String
+  kind            UserKind   @default(internal)
+  companyId       String?
+  contactId       String?    @unique
+  status          UserStatus @default(invited)
+  passwordHash    String?
+  mfaEnrolled     Boolean    @default(false)
+  language        Locale     @default(en)
+  lastLoginAt     DateTime?
+  invitedByUserId String?
+  createdById     String?
+  updatedById     String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // Identity-domain relations
+  role                   Role                   @relation("RoleUsers", fields: [roleId], references: [id])
+  company                Company?               @relation("CompanyExternalUsers", fields: [companyId], references: [id])
+  contact                Contact?               @relation("UserPortalContact", fields: [contactId], references: [id])
+  invitedBy              User?                  @relation("UserInvitations", fields: [invitedByUserId], references: [id])
+  invitedUsers           User[]                 @relation("UserInvitations")
+  accounts               Account[]              @relation("UserAccounts")
+  sessions               Session[]              @relation("UserSessions")
+  mfaFactors             MfaFactor[]            @relation("UserMfaFactors")
+  auditEvents            AuditEvent[]           @relation("AuditEventActor")
+  emailLogs              EmailLog[]             @relation("EmailLogRecipient")
+  registrationDecisions  RegistrationDecision[] @relation("RegistrationDecisionDecider")
+  reviewedRegistrations  Registration[]         @relation("RegistrationReviewer")
+  provisionedByDecisions RegistrationDecision[] @relation("RegistrationDecisionOwnerUser")
+
+  // Core commercial back-relations
+  ownedCompanies      Company[]                 @relation("CompanyOwner")
+  ownedContacts       Contact[]                 @relation("ContactOwner")
+  ownedOpportunities  Opportunity[]             @relation("OpportunityOwner")
+  stageHistoryEntries OpportunityStageHistory[] @relation("StageHistoryActor")
+
+  // Operational back-relations
+  assignedSampleRequests SampleRequest[]      @relation("SampleRequestLogistics")
+  ownedSampleRequests    SampleRequest[]      @relation("SampleRequestAccountOwner")
+  approvedSampleRequests SampleRequest[]      @relation("SampleRequestApprovedBy")
+  assignedShipments      Shipment[]           @relation("ShipmentLogistics")
+  shipmentEvents         ShipmentEvent[]      @relation("ShipmentEventActor")
+  ownedFeedbacks         Feedback[]           @relation("FeedbackTechnicalOwner")
+  feedbackComments       FeedbackComment[]    @relation("FeedbackCommentAuthorUser")
+  ownedProjectsInternal  ApplicationProject[] @relation("ProjectInternalOwner")
+  ownedProjectsTechnical ApplicationProject[] @relation("ProjectTechnicalOwner")
+
+  // Documents / NDA / Google back-relations
+  uploadedDocuments        Document[]            @relation("DocumentUploadedBy")
+  documentAccessEvents     DocumentAccessEvent[] @relation("DocumentAccessActor")
+  ndaApprovals             NDA[]                 @relation("NDAApprovedBy")
+  googleOAuthTokens        GoogleOAuthToken[]    @relation("GoogleTokenUser")
+  linkedDriveFiles         GoogleDriveFileLink[] @relation("DriveLinkLinkedBy")
+  uploadedAttachments      Attachment[]          @relation("AttachmentUploadedBy")
+  uploadedDocumentVersions DocumentVersion[]     @relation("DocumentVersionUploadedBy")
+
+  // Finance back-relations
+  approvedQuotes    Quote[]      @relation("QuoteApprovedBy")
+  confirmedOrders   Order[]      @relation("OrderConfirmedBy")
+  issuedInvoices    Invoice[]    @relation("InvoiceIssuedBy")
+  recordedPayments  Payment[]    @relation("PaymentRecordedBy")
+  issuedCreditNotes CreditNote[] @relation("CreditNoteIssuedBy")
+
+  // Engagement / AI back-relations
+  ownedTasks                Task[]             @relation("TaskOwner")
+  taskComments              TaskComment[]      @relation("TaskCommentAuthor")
+  collaboratingTasks        TaskCollaborator[] @relation("TaskCollaboratorUser")
+  ownedMeetings             Meeting[]          @relation("MeetingOwner")
+  meetingAttendances        MeetingAttendee[]  @relation("MeetingAttendeeUser")
+  activities                Activity[]         @relation("ActivityActor")
+  notifications             Notification[]     @relation("NotificationRecipient")
+  assignedSupportRequests   SupportRequest[]   @relation("SupportRequestOwner")
+  supportMessages           SupportMessage[]   @relation("SupportMessageAuthorUser")
+  assistantThreads          AssistantThread[]  @relation("AssistantThreadUser")
+  confirmedAssistantActions AssistantMessage[] @relation("AssistantMessageConfirmedBy")
+
+  @@index([roleId])
+  @@index([companyId])
+  @@index([status])
+  @@index([kind])
+  @@index([invitedByUserId])
+  @@map("users")
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation("UserAccounts", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation("UserSessions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// Auth.js adapter model — intentionally exempt from the id/createdAt/updatedAt
+// convention. Its shape (composite @@unique([identifier, token]), no id PK, no
+// updatedAt) is fixed by the NextAuth/Auth.js adapter contract.
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  createdAt  DateTime @default(now())
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model MfaFactor {
+  id           String          @id @default(cuid())
+  userId       String
+  type         MfaFactorType
+  status       MfaFactorStatus @default(pending)
+  label        String?
+  secret       String?
+  credentialId String?
+  lastUsedAt   DateTime?
+  verifiedAt   DateTime?
+  createdById  String?
+  updatedById  String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  user User @relation("UserMfaFactors", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("mfa_factors")
+}
+
+// The roles table — role.key holds the RoleKey enum value (super_admin, ...); mapped to "roles".
+model Role {
+  id          String   @id @default(cuid())
+  key         RoleKey  @unique
+  kind        RoleKind
+  name        String?
+  permissions Json?
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users User[] @relation("RoleUsers")
+
+  @@index([kind])
+  @@map("roles")
+}
+
+model Registration {
+  id                    String                @id @default(cuid())
+  reference             String                @unique
+  status                RegistrationStatus    @default(submitted)
+  legalName             String
+  tradingName           String?
+  companyType           CompanyType
+  companySubtype        String?
+  website               String?
+  country               String
+  countryCode           String
+  region                String?
+  city                  String
+  address               String?
+  postalCode            String?
+  vatNumber             String?
+  registrationNumber    String?
+  mainActivity          String?
+  companySize           CompanySize?
+  marketsServed         String[]
+  preferredLanguage     Locale                @default(en)
+  preferredCurrency     Currency              @default(EUR)
+  timezone              String?
+  contactFirstName      String
+  contactLastName       String
+  contactJobTitle       String?
+  contactDepartment     String?
+  contactEmail          String
+  contactPhone          String?
+  contactMobile         String?
+  contactLanguage       Locale?
+  reason                String?
+  existingContactPerson String?
+  intendedApplications  ApplicationCategory[]
+  productCategories     ApplicationCategory[]
+  samplesRequested      Boolean?
+  intendedTerritories   String[]
+  estimatedTimeline     String?
+  additionalMessage     String?
+  privacyAccepted       Boolean               @default(false)
+  termsAccepted         Boolean               @default(false)
+  marketingOptIn        Boolean?
+  linkedCompanyId       String?
+  adminNote             String?
+  decidedByUserId       String?
+  decidedAt             DateTime?
+  createdById           String?
+  updatedById           String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  decidedByUser User?                  @relation("RegistrationReviewer", fields: [decidedByUserId], references: [id])
+  linkedCompany Company?               @relation("RegistrationLinkedCompany", fields: [linkedCompanyId], references: [id])
+  decisions     RegistrationDecision[] @relation("RegistrationDecisions")
+
+  @@index([status])
+  @@index([contactEmail])
+  @@index([linkedCompanyId])
+  @@index([decidedByUserId])
+  @@index([companyType])
+  @@map("registrations")
+}
+
+model RegistrationDecision {
+  id                     String                   @id @default(cuid())
+  registrationId         String
+  decision               RegistrationDecisionType
+  reason                 String?
+  note                   String?
+  decidedByUserId        String
+  decidedAt              DateTime                 @default(now())
+  provisionedCompanyId   String?
+  provisionedContactId   String?
+  provisionedOwnerUserId String?
+  createdById            String?
+  updatedById            String?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+
+  registration         Registration @relation("RegistrationDecisions", fields: [registrationId], references: [id])
+  decidedByUser        User         @relation("RegistrationDecisionDecider", fields: [decidedByUserId], references: [id])
+  provisionedCompany   Company?     @relation("RegistrationDecisionCompany", fields: [provisionedCompanyId], references: [id])
+  provisionedContact   Contact?     @relation("RegistrationDecisionContact", fields: [provisionedContactId], references: [id])
+  provisionedOwnerUser User?        @relation("RegistrationDecisionOwnerUser", fields: [provisionedOwnerUserId], references: [id])
+
+  @@index([registrationId])
+  @@index([decidedByUserId])
+  @@index([provisionedCompanyId])
+  @@index([provisionedOwnerUserId])
+  @@index([decision])
+  @@map("registration_decisions")
+}
+
+model AuditEvent {
+  id          String      @id @default(cuid())
+  actorUserId String?
+  actorRole   RoleKey?
+  action      String
+  entityType  String
+  entityId    String?
+  summary     String
+  before      Json?
+  after       Json?
+  result      AuditResult @default(success)
+  ip          String?
+  userAgent   String?
+  companyId   String?
+  occurredAt  DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  actorUser User? @relation("AuditEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([companyId])
+  @@index([result])
+  @@index([occurredAt])
+  @@map("audit_events")
+}
+
+model EmailLog {
+  id                String           @id @default(cuid())
+  trigger           NotificationType
+  templateKey       String?
+  to                String
+  toAddresses       String[]
+  cc                String[]
+  subject           String
+  preview           String?
+  locale            Locale           @default(en)
+  status            EmailLogStatus   @default(queued)
+  providerMessageId String?
+  error             String?
+  attemptCount      Int              @default(0)
+  recipientUserId   String?
+  companyId         String?
+  relatedEntityType String?
+  relatedEntityId   String?
+  sentAt            DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  recipientUser User? @relation("EmailLogRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
+
+  @@index([trigger])
+  @@index([status])
+  @@index([recipientUserId])
+  @@index([companyId])
+  @@index([relatedEntityType, relatedEntityId])
+  @@map("email_logs")
+}
+
+/**
+ * ══════════════════════════════ Core commercial models ══════════════════════════════
+ */
+
+model Company {
+  id                            String                @id @default(cuid())
+  legalName                     String
+  tradingName                   String?
+  aliases                       String[]
+  type                          CompanyType
+  subtype                       String?
+  segment                       CommercialSegment?
+  description                   String?
+  website                       String?
+  linkedin                      String?
+  vatNumber                     String?
+  registrationNumber            String?
+  logoUrl                       String?
+  initials                      String
+  accentColor                   String?
+  headquarters                  Json
+  additionalLocations           Json?
+  billingAddress                Json?
+  shippingAddresses             Json?
+  country                       String
+  countryCode                   String
+  city                          String
+  region                        String?
+  timezone                      String?
+  preferredLanguage             Locale                @default(en)
+  preferredCurrency             Currency              @default(EUR)
+  size                          CompanySize?
+  marketsServed                 String[]
+  mainActivity                  String?
+  leadSource                    FirstContactChannel?
+  firstContact                  Json
+  territory                     String?
+  distributionMarkets           String[]
+  cooperationModel              CooperationModel?
+  relationshipStage             RelationshipStage     @default(lead)
+  leadScore                     Int?
+  probability                   Int?
+  priority                      Priority              @default(medium)
+  ndaStatus                     NDAStatus?
+  latestSampleStatus            SampleStatus?
+  productCategories             ApplicationCategory[]
+  applicationInterests          String[]
+  estimatedAnnualPotentialMinor Int?
+  opportunityValueMinor         Int?
+  commercialNotes               String?
+  logisticsRequirements         String?
+  preferredCourier              String?
+  deliveryInstructions          String?
+  customsInfo                   String?
+  paymentTerms                  String?
+  tags                          String[]
+  lastActivityAt                DateTime?
+  nextAction                    Json?
+  ownerUserId                   String
+  supportingTeamUserIds         String[]
+  createdById                   String?
+  updatedById                   String?
+  createdAt                     DateTime              @default(now())
+  updatedAt                     DateTime              @updatedAt
+
+  owner User @relation("CompanyOwner", fields: [ownerUserId], references: [id])
+
+  contacts               Contact[]
+  opportunities          Opportunity[]
+  clientProducts         Product[]
+  externalUsers          User[]                 @relation("CompanyExternalUsers")
+  linkedRegistrations    Registration[]         @relation("RegistrationLinkedCompany")
+  provisionedByDecisions RegistrationDecision[] @relation("RegistrationDecisionCompany")
+
+  // Operational
+  sampleRequests      SampleRequest[]
+  shipments           Shipment[]
+  feedbacks           Feedback[]
+  applicationProjects ApplicationProject[]
+
+  // Documents / NDA / Google
+  ndas                 NDA[]
+  documents            Document[]
+  googleDriveFileLinks GoogleDriveFileLink[]
+
+  // Finance
+  quotes      Quote[]      @relation("CompanyQuotes")
+  orders      Order[]      @relation("CompanyOrders")
+  invoices    Invoice[]    @relation("CompanyInvoices")
+  creditNotes CreditNote[] @relation("CompanyCreditNotes")
+
+  // Engagement / AI
+  tasks                 Task[]            @relation("CompanyTasks")
+  meetings              Meeting[]         @relation("CompanyMeetings")
+  activities            Activity[]        @relation("CompanyActivities")
+  notifications         Notification[]    @relation("NotificationSubjectCompany")
+  audienceNotifications Notification[]    @relation("NotificationAudienceCompany")
+  supportRequests       SupportRequest[]  @relation("CompanySupportRequests")
+  assistantThreads      AssistantThread[] @relation("AssistantThreadCompany")
+
+  @@index([type])
+  @@index([segment])
+  @@index([country])
+  @@index([relationshipStage])
+  @@index([ownerUserId])
+  @@index([priority])
+  @@map("companies")
+}
+
+model Contact {
+  id                       String        @id @default(cuid())
+  companyId                String
+  firstName                String
+  lastName                 String
+  jobTitle                 String?
+  department               String?
+  businessRole             String?
+  decisionRole             DecisionRole?
+  email                    String
+  secondaryEmail           String?
+  phone                    String?
+  mobile                   String?
+  whatsapp                 String?
+  linkedin                 String?
+  country                  String?
+  countryCode              String?
+  timezone                 String?
+  preferredLanguage        Locale?
+  isPrimary                Boolean       @default(false)
+  isTechnical              Boolean       @default(false)
+  isCommercial             Boolean       @default(false)
+  isLegal                  Boolean       @default(false)
+  isLogistics              Boolean       @default(false)
+  isFinance                Boolean       @default(false)
+  communicationPreferences String[]
+  lastContactAt            DateTime?
+  nextAction               Json?
+  ownerUserId              String?
+  notes                    String?
+  createdById              String?
+  updatedById              String?
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+  owner   User?   @relation("ContactOwner", fields: [ownerUserId], references: [id])
+
+  // External portal user backed by this contact (User.contactId, distinct from ContactOwner)
+  portalUser User? @relation("UserPortalContact")
+
+  // Operational
+  sampleRequests     SampleRequest[]
+  feedbacks          Feedback[]
+  confirmedShipments Shipment[]        @relation("ShipmentConfirmedBy")
+  feedbackComments   FeedbackComment[] @relation("FeedbackCommentAuthorContact")
+
+  // Identity provisioning
+  provisioningDecisions RegistrationDecision[] @relation("RegistrationDecisionContact")
+
+  // Engagement / AI
+  tasks                 Task[]           @relation("ContactTasks")
+  meetingParticipations MeetingContact[] @relation("MeetingContactContact")
+  activities            Activity[]       @relation("ContactActivities")
+  originatedActivities  Activity[]       @relation("ActivityActorContact")
+  supportRequests       SupportRequest[] @relation("ContactSupportRequests")
+  supportMessages       SupportMessage[] @relation("SupportMessageAuthorContact")
+
+  @@index([companyId])
+  @@index([email])
+  @@index([ownerUserId])
+  @@index([isPrimary])
+  @@map("contacts")
+}
+
+model Opportunity {
+  id                  String               @id @default(cuid())
+  companyId           String
+  title               String
+  stage               PipelineStage        @default(lead)
+  segment             CommercialSegment?
+  expectedValueMinor  Int?
+  currency            Currency             @default(EUR)
+  probability         Int?
+  expectedCloseDate   DateTime?
+  nextAction          Json?
+  ownerUserId         String
+  applicationCategory ApplicationCategory?
+  productInterest     String?
+  lossReason          String?
+  competitorNotes     String?
+  createdById         String?
+  updatedById         String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  company        Company                   @relation(fields: [companyId], references: [id])
+  owner          User                      @relation("OpportunityOwner", fields: [ownerUserId], references: [id])
+  stageHistory   OpportunityStageHistory[]
+  quotes         Quote[]                   @relation("OpportunityQuotes")
+  sampleRequests SampleRequest[]
+
+  @@index([companyId])
+  @@index([stage])
+  @@index([ownerUserId])
+  @@index([segment])
+  @@map("opportunities")
+}
+
+model OpportunityStageHistory {
+  id            String        @id @default(cuid())
+  opportunityId String
+  stage         PipelineStage
+  enteredAt     DateTime      @default(now())
+  byUserId      String?
+  note          String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+  byUser      User?       @relation("StageHistoryActor", fields: [byUserId], references: [id], onDelete: SetNull)
+
+  @@index([opportunityId])
+  @@index([stage])
+  @@map("opportunity_stage_history")
+}
+
+model Product {
+  id                   String              @id @default(cuid())
+  name                 String
+  category             ApplicationCategory
+  sku                  String?
+  format               String?
+  segment              CommercialSegment?
+  companyId            String?
+  brandName            String?
+  market               String?
+  proaminaDosage       String?
+  attributes           Json?
+  specs                Json?
+  indicativePriceMinor Int?
+  currency             Currency?
+  status               ProductStatus       @default(in_development)
+  description          String?
+  imageUrl             String?
+  relatedProjectId     String?
+  createdById          String?
+  updatedById          String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  company        Company?            @relation(fields: [companyId], references: [id])
+  relatedProject ApplicationProject? @relation("ProductRelatedProject", fields: [relatedProjectId], references: [id])
+
+  sampleRequests      SampleRequest[]
+  applicationProjects ApplicationProject[] @relation("ApplicationProjectProduct")
+
+  // Finance line item back-relations
+  quoteLineItems   QuoteLineItem[]   @relation("ProductQuoteLineItems")
+  orderLineItems   OrderLineItem[]   @relation("ProductOrderLineItems")
+  invoiceLineItems InvoiceLineItem[] @relation("ProductInvoiceLineItems")
+
+  @@index([category])
+  @@index([companyId])
+  @@index([status])
+  @@index([segment])
+  @@map("products")
+}
+
+/**
+ * ══════════════════════════════ Operational models ══════════════════════════════
+ */
+
+model SampleRequest {
+  id                      String              @id @default(cuid())
+  reference               String              @unique
+  companyId               String
+  contactId               String?
+  opportunityId           String?
+  projectId               String?
+  productId               String?
+  applicationCategory     ApplicationCategory
+  requestedProduct        String
+  testObjective           String?
+  requestedQuantity       Decimal
+  approvedQuantity        Decimal?
+  unit                    QuantityUnit
+  lotBatch                String?
+  packagingType           String?
+  requestDate             DateTime
+  approvalDate            DateTime?
+  requestedDeliveryDate   DateTime?
+  priority                Priority
+  assignedLogisticsUserId String?
+  accountOwnerUserId      String?
+  approvedByUserId        String?
+  internalInstructions    String?
+  clientVisibleNotes      String?
+  customsNotes            String?
+  requiredDocuments       String[]
+  attachments             Json?
+  deliveryAddress         Json?
+  recipient               String?
+  recipientPhone          String?
+  recipientEmail          String?
+  status                  SampleStatus        @default(draft)
+  statusHistory           Json?
+  createdById             String?
+  updatedById             String?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  company           Company             @relation(fields: [companyId], references: [id])
+  contact           Contact?            @relation(fields: [contactId], references: [id])
+  opportunity       Opportunity?        @relation(fields: [opportunityId], references: [id])
+  project           ApplicationProject? @relation("ProjectSampleRequests", fields: [projectId], references: [id])
+  product           Product?            @relation(fields: [productId], references: [id])
+  assignedLogistics User?               @relation("SampleRequestLogistics", fields: [assignedLogisticsUserId], references: [id])
+  accountOwner      User?               @relation("SampleRequestAccountOwner", fields: [accountOwnerUserId], references: [id])
+  approvedBy        User?               @relation("SampleRequestApprovedBy", fields: [approvedByUserId], references: [id])
+
+  shipments Shipment[] @relation("SampleRequestShipments")
+  feedbacks Feedback[] @relation("SampleRequestFeedbacks")
+
+  @@index([companyId])
+  @@index([contactId])
+  @@index([opportunityId])
+  @@index([projectId])
+  @@index([status])
+  @@index([assignedLogisticsUserId])
+  @@index([accountOwnerUserId])
+  @@map("sample_requests")
+}
+
+model Shipment {
+  id                      String         @id @default(cuid())
+  reference               String         @unique
+  sampleRequestId         String
+  companyId               String
+  senderLocation          String
+  recipient               String
+  address                 Json
+  phone                   String?
+  email                   String?
+  courier                 String?
+  service                 String?
+  trackingNumber          String?
+  trackingUrl             String?
+  shipmentDate            DateTime?
+  estimatedDelivery       DateTime?
+  actualDelivery          DateTime?
+  packageCount            Int?
+  weightKg                Decimal?
+  dimensions              String?
+  shippingCost            Int?
+  currency                Currency       @default(EUR)
+  customsStatus           CustomsStatus?
+  incoterm                Incoterm?
+  isExtraEU               Boolean        @default(false)
+  originCountry           String?
+  destinationCountry      String?
+  eoriImportInfo          String?
+  customsDocuments        Json?
+  proofOfDelivery         Json?
+  lineItems               Json?
+  status                  ShipmentStatus @default(pending)
+  deliveryIssue           String?
+  isDelayed               Boolean        @default(false)
+  confirmedByContactId    String?
+  assignedLogisticsUserId String?
+  internalNotes           String?
+  clientVisibleNotes      String?
+  createdById             String?
+  updatedById             String?
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+
+  sampleRequest      SampleRequest @relation("SampleRequestShipments", fields: [sampleRequestId], references: [id])
+  company            Company       @relation(fields: [companyId], references: [id])
+  confirmedByContact Contact?      @relation("ShipmentConfirmedBy", fields: [confirmedByContactId], references: [id])
+  assignedLogistics  User?         @relation("ShipmentLogistics", fields: [assignedLogisticsUserId], references: [id])
+
+  events    ShipmentEvent[] @relation("ShipmentEvents")
+  feedbacks Feedback[]      @relation("ShipmentFeedbacks")
+
+  @@index([companyId])
+  @@index([sampleRequestId])
+  @@index([status])
+  @@index([customsStatus])
+  @@index([assignedLogisticsUserId])
+  @@index([estimatedDelivery])
+  @@map("shipments")
+}
+
+model ShipmentEvent {
+  id          String         @id @default(cuid())
+  shipmentId  String
+  status      ShipmentStatus
+  description String?
+  location    String?
+  occurredAt  DateTime
+  source      String?
+  rawPayload  Json?
+  actorUserId String?
+  createdById String?
+  updatedById String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  shipment Shipment @relation("ShipmentEvents", fields: [shipmentId], references: [id], onDelete: Cascade)
+  actor    User?    @relation("ShipmentEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([shipmentId])
+  @@index([status])
+  @@index([occurredAt])
+  @@map("shipment_events")
+}
+
+model Feedback {
+  id                   String              @id @default(cuid())
+  reference            String              @unique
+  companyId            String
+  contactId            String?
+  sampleRequestId      String?
+  shipmentId           String?
+  projectId            String?
+  lotBatch             String?
+  applicationCategory  ApplicationCategory
+  productProjectName   String?
+  testDate             DateTime?
+  overallResult        FeedbackResult?
+  overallRating        Int?
+  tasteAroma           String?
+  solubility           String?
+  processingBehaviour  String?
+  texture              String?
+  appearanceColour     String?
+  comparisonControl    String?
+  issuesEncountered    String?
+  questions            String?
+  requestedSupport     String?
+  preferredNextStep    NextStep?
+  availabilityForCall  String?
+  requiresRnDAction    Boolean             @default(false)
+  technicalReply       String?
+  attachments          Json?
+  priority             Priority
+  status               FeedbackStatus      @default(received)
+  technicalOwnerUserId String?
+  createdById          String?
+  updatedById          String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  company        Company             @relation(fields: [companyId], references: [id])
+  contact        Contact?            @relation(fields: [contactId], references: [id])
+  sampleRequest  SampleRequest?      @relation("SampleRequestFeedbacks", fields: [sampleRequestId], references: [id])
+  shipment       Shipment?           @relation("ShipmentFeedbacks", fields: [shipmentId], references: [id])
+  project        ApplicationProject? @relation("ProjectFeedbacks", fields: [projectId], references: [id])
+  technicalOwner User?               @relation("FeedbackTechnicalOwner", fields: [technicalOwnerUserId], references: [id])
+
+  comments FeedbackComment[] @relation("FeedbackComments")
+
+  @@index([companyId])
+  @@index([contactId])
+  @@index([sampleRequestId])
+  @@index([shipmentId])
+  @@index([projectId])
+  @@index([status])
+  @@index([technicalOwnerUserId])
+  @@map("feedbacks")
+}
+
+model FeedbackComment {
+  id          String                    @id @default(cuid())
+  feedbackId  String
+  byUserId    String?
+  byContactId String?
+  visibility  FeedbackCommentVisibility @default(internal)
+  body        String
+  at          DateTime                  @default(now())
+  createdById String?
+  updatedById String?
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+
+  feedback  Feedback @relation("FeedbackComments", fields: [feedbackId], references: [id], onDelete: Cascade)
+  byUser    User?    @relation("FeedbackCommentAuthorUser", fields: [byUserId], references: [id])
+  byContact Contact? @relation("FeedbackCommentAuthorContact", fields: [byContactId], references: [id])
+
+  @@index([feedbackId])
+  @@index([byUserId])
+  @@index([byContactId])
+  @@index([visibility])
+  @@map("feedback_comments")
+}
+
+model ApplicationProject {
+  id                    String              @id @default(cuid())
+  companyId             String
+  name                  String
+  clientProjectCode     String?
+  productName           String?
+  brandName             String?
+  category              ApplicationCategory
+  subcategory           String?
+  market                String?
+  objective             String?
+  developmentStage      DevelopmentStage    @default(concept)
+  testStage             TestStage?
+  lotBatch              String?
+  testRounds            Int?
+  currentResult         FeedbackResult?
+  estimatedLaunch       DateTime?
+  estimatedAnnualVolume Decimal?
+  commercialPotential   Int?
+  contactIds            String[]
+  internalOwnerUserId   String?
+  technicalOwnerUserId  String?
+  productId             String?
+  nextAction            Json?
+  attachments           Json?
+  createdById           String?
+  updatedById           String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  company        Company  @relation(fields: [companyId], references: [id])
+  internalOwner  User?    @relation("ProjectInternalOwner", fields: [internalOwnerUserId], references: [id])
+  technicalOwner User?    @relation("ProjectTechnicalOwner", fields: [technicalOwnerUserId], references: [id])
+  product        Product? @relation("ApplicationProjectProduct", fields: [productId], references: [id])
+
+  relatedProducts Product[]       @relation("ProductRelatedProject")
+  sampleRequests  SampleRequest[] @relation("ProjectSampleRequests")
+  feedbacks       Feedback[]      @relation("ProjectFeedbacks")
+
+  @@index([companyId])
+  @@index([developmentStage])
+  @@index([category])
+  @@index([internalOwnerUserId])
+  @@index([technicalOwnerUserId])
+  @@map("application_projects")
+}
+
+/**
+ * ══════════════════════════════ Documents / NDA / Google models ══════════════════════════════
+ */
+
+model NDA {
+  id                       String               @id @default(cuid())
+  reference                String               @unique
+  companyId                String
+  type                     NDAType              @default(mutual)
+  status                   NDAStatus            @default(to_prepare)
+  templateVersion          String?
+  datePrepared             DateTime?
+  dateSent                 DateTime?
+  sentAt                   DateTime?
+  signedAt                 DateTime?
+  effectiveDate            DateTime?
+  expiryDate               DateTime?
+  internalSignatory        String?
+  externalSignatory        String?
+  counterpartySignerName   String?
+  requestedModifications   String?
+  governingLaw             String?
+  jurisdiction             String?
+  permittedAffiliates      String?
+  permittedSubDistributors String?
+  reminderDates            DateTime[]
+  accessLevelUnlocked      DocumentAccessLevel?
+  signedFileId             String?
+  approvedByUserId         String?
+  createdById              String?
+  updatedById              String?
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+
+  company    Company           @relation(fields: [companyId], references: [id])
+  signedFile Document?         @relation("NDASignedFile", fields: [signedFileId], references: [id])
+  approvedBy User?             @relation("NDAApprovedBy", fields: [approvedByUserId], references: [id])
+  versions   DocumentVersion[] @relation("NDAVersions")
+
+  @@index([companyId])
+  @@index([status])
+  @@index([signedFileId])
+  @@index([approvedByUserId])
+  @@index([expiryDate])
+  @@map("ndas")
+}
+
+model Document {
+  id                   String              @id @default(cuid())
+  title                String
+  category             DocumentCategory    @default(other)
+  confidentialityClass DocumentAccessLevel @default(internal)
+  companyId            String?
+  version              String?
+  storageKey           String?
+  mimeType             String?
+  fileType             String?
+  sizeBytes            Int?
+  description          String?
+  downloadCount        Int                 @default(0)
+  currentVersionId     String?             @unique
+  uploadedByUserId     String?
+  uploadedAt           DateTime?
+  createdById          String?
+  updatedById          String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  company        Company?         @relation(fields: [companyId], references: [id])
+  uploadedBy     User?            @relation("DocumentUploadedBy", fields: [uploadedByUserId], references: [id])
+  currentVersion DocumentVersion? @relation("DocumentCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+
+  versions           DocumentVersion[]     @relation("DocumentVersions")
+  accessEvents       DocumentAccessEvent[]
+  attachments        Attachment[]
+  driveLinks         GoogleDriveFileLink[]
+  signedForNdas      NDA[]                 @relation("NDASignedFile")
+  assistantCitations AssistantCitation[]   @relation("DocumentAssistantCitations")
+
+  @@index([companyId])
+  @@index([confidentialityClass])
+  @@index([category])
+  @@index([uploadedByUserId])
+  @@index([currentVersionId])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id               String    @id @default(cuid())
+  documentId       String?
+  ndaId            String?
+  version          String
+  versionDate      DateTime?
+  note             String?
+  storageKey       String?
+  mimeType         String?
+  sizeBytes        Int?
+  googleRevisionId String?
+  uploadedByUserId String?
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  document   Document? @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  nda        NDA?      @relation("NDAVersions", fields: [ndaId], references: [id])
+  uploadedBy User?     @relation("DocumentVersionUploadedBy", fields: [uploadedByUserId], references: [id])
+
+  currentForDocument Document? @relation("DocumentCurrentVersion")
+
+  @@unique([documentId, version])
+  @@index([documentId])
+  @@index([ndaId])
+  @@index([uploadedByUserId])
+  @@map("document_versions")
+}
+
+model DocumentAccessEvent {
+  id                           String               @id @default(cuid())
+  documentId                   String
+  action                       DocumentAccessAction
+  confidentialityClassAtAccess DocumentAccessLevel?
+  actorUserId                  String?
+  companyScopeId               String?
+  result                       String?
+  reason                       String?
+  signedUrlExpiresAt           DateTime?
+  ip                           String?
+  userAgent                    String?
+  occurredAt                   DateTime             @default(now())
+  createdById                  String?
+  updatedById                  String?
+  createdAt                    DateTime             @default(now())
+  updatedAt                    DateTime             @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id])
+  actor    User?    @relation("DocumentAccessActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([documentId])
+  @@index([actorUserId])
+  @@index([action])
+  @@index([occurredAt])
+  @@map("document_access_events")
+}
+
+model Attachment {
+  id               String    @id @default(cuid())
+  name             String
+  fileType         String
+  sizeKb           Int?
+  sizeBytes        Int?
+  mimeType         String?
+  storageKey       String?
+  documentId       String?
+  uploadedByUserId String?
+  uploadedAt       DateTime?
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  document   Document? @relation(fields: [documentId], references: [id])
+  uploadedBy User?     @relation("AttachmentUploadedBy", fields: [uploadedByUserId], references: [id])
+
+  @@index([documentId])
+  @@index([uploadedByUserId])
+  @@map("attachments")
+}
+
+model GoogleOAuthToken {
+  id                    String            @id @default(cuid())
+  userId                String?
+  googleAccountEmail    String
+  googleSub             String?
+  isServiceAccount      Boolean           @default(false)
+  accessTokenEncrypted  String?
+  refreshTokenEncrypted String?
+  scopes                GoogleScope[]
+  status                GoogleTokenStatus @default(active)
+  accessTokenExpiresAt  DateTime?
+  lastRefreshedAt       DateTime?
+  revokedAt             DateTime?
+  createdById           String?
+  updatedById           String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  user User? @relation("GoogleTokenUser", fields: [userId], references: [id])
+
+  @@unique([googleAccountEmail, isServiceAccount])
+  @@index([userId])
+  @@index([status])
+  @@map("google_oauth_tokens")
+}
+
+model GoogleDriveFileLink {
+  id                String              @id @default(cuid())
+  googleFileId      String
+  documentId        String?
+  companyId         String?
+  name              String?
+  mimeType          String?
+  webViewLink       String?
+  accessLevel       DocumentAccessLevel @default(internal)
+  version           String?
+  latestRevisionId  String?
+  driveModifiedTime DateTime?
+  linkedByUserId    String?
+  createdById       String?
+  updatedById       String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  document Document? @relation(fields: [documentId], references: [id])
+  company  Company?  @relation(fields: [companyId], references: [id])
+  linkedBy User?     @relation("DriveLinkLinkedBy", fields: [linkedByUserId], references: [id])
+
+  @@unique([googleFileId])
+  @@index([documentId])
+  @@index([companyId])
+  @@index([accessLevel])
+  @@index([linkedByUserId])
+  @@map("google_drive_file_links")
+}
+
+/**
+ * ══════════════════════════════ Finance models ══════════════════════════════
+ */
+
+model Quote {
+  id               String      @id @default(cuid())
+  reference        String      @unique
+  companyId        String
+  opportunityId    String?
+  status           QuoteStatus @default(draft)
+  currency         Currency    @default(EUR)
+  issueDate        DateTime
+  validUntil       DateTime?
+  subtotal         Int         @default(0)
+  discountTotal    Int?
+  vatTotal         Int?
+  shippingCost     Int?
+  total            Int         @default(0)
+  paymentTerms     String?
+  notes            String?
+  approvedByUserId String?
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  company        Company      @relation("CompanyQuotes", fields: [companyId], references: [id])
+  opportunity    Opportunity? @relation("OpportunityQuotes", fields: [opportunityId], references: [id])
+  approvedByUser User?        @relation("QuoteApprovedBy", fields: [approvedByUserId], references: [id])
+
+  lineItems QuoteLineItem[] @relation("QuoteLineItems")
+  orders    Order[]         @relation("QuoteOrders")
+
+  @@index([companyId])
+  @@index([opportunityId])
+  @@index([status])
+  @@index([approvedByUserId])
+  @@map("quotes")
+}
+
+model QuoteLineItem {
+  id           String       @id @default(cuid())
+  quoteId      String
+  productId    String?
+  productName  String
+  quantity     Decimal
+  unit         QuantityUnit
+  pricePerUnit Int
+  pricePerKg   Int?
+  discountPct  Decimal?
+  vatPct       Decimal?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  quote   Quote    @relation("QuoteLineItems", fields: [quoteId], references: [id], onDelete: Cascade)
+  product Product? @relation("ProductQuoteLineItems", fields: [productId], references: [id])
+
+  @@index([quoteId])
+  @@index([productId])
+  @@map("quote_line_items")
+}
+
+model Order {
+  id                String      @id @default(cuid())
+  reference         String      @unique
+  companyId         String
+  quoteId           String?
+  status            OrderStatus @default(draft)
+  currency          Currency    @default(EUR)
+  issueDate         DateTime
+  orderedAt         DateTime?
+  dueDate           DateTime?
+  fulfillmentRef    String?
+  subtotal          Int         @default(0)
+  discountTotal     Int?
+  vatTotal          Int?
+  shippingCost      Int?
+  total             Int         @default(0)
+  paymentTerms      String?
+  notes             String?
+  confirmedByUserId String?
+  createdById       String?
+  updatedById       String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  company         Company @relation("CompanyOrders", fields: [companyId], references: [id])
+  quote           Quote?  @relation("QuoteOrders", fields: [quoteId], references: [id])
+  confirmedByUser User?   @relation("OrderConfirmedBy", fields: [confirmedByUserId], references: [id])
+
+  lineItems OrderLineItem[] @relation("OrderLineItems")
+  invoices  Invoice[]       @relation("OrderInvoices")
+
+  @@index([companyId])
+  @@index([quoteId])
+  @@index([status])
+  @@index([confirmedByUserId])
+  @@map("orders")
+}
+
+model OrderLineItem {
+  id           String       @id @default(cuid())
+  orderId      String
+  productId    String?
+  productName  String
+  quantity     Decimal
+  unit         QuantityUnit
+  pricePerUnit Int
+  pricePerKg   Int?
+  discountPct  Decimal?
+  vatPct       Decimal?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  order   Order    @relation("OrderLineItems", fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation("ProductOrderLineItems", fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_line_items")
+}
+
+model Invoice {
+  id                String        @id @default(cuid())
+  reference         String        @unique
+  number            String?
+  companyId         String
+  orderId           String?
+  status            InvoiceStatus @default(draft)
+  paymentStatus     PaymentStatus @default(draft)
+  currency          Currency      @default(EUR)
+  issueDate         DateTime
+  dueDate           DateTime?
+  subtotal          Int           @default(0)
+  discountTotal     Int?
+  vatTotal          Int?
+  shippingCost      Int?
+  total             Int           @default(0)
+  paidAmount        Int           @default(0)
+  outstandingAmount Int?
+  overdueAmount     Int?
+  paymentTerms      String?
+  notes             String?
+  issuedByUserId    String?
+  createdById       String?
+  updatedById       String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  company      Company @relation("CompanyInvoices", fields: [companyId], references: [id])
+  order        Order?  @relation("OrderInvoices", fields: [orderId], references: [id])
+  issuedByUser User?   @relation("InvoiceIssuedBy", fields: [issuedByUserId], references: [id])
+
+  lineItems   InvoiceLineItem[] @relation("InvoiceLineItems")
+  payments    Payment[]         @relation("InvoicePayments")
+  creditNotes CreditNote[]      @relation("InvoiceCreditNotes")
+
+  @@index([companyId])
+  @@index([orderId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([dueDate])
+  @@index([issuedByUserId])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id           String       @id @default(cuid())
+  invoiceId    String
+  productId    String?
+  productName  String
+  quantity     Decimal
+  unit         QuantityUnit
+  pricePerUnit Int
+  pricePerKg   Int?
+  discountPct  Decimal?
+  vatPct       Decimal?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  invoice Invoice  @relation("InvoiceLineItems", fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product? @relation("ProductInvoiceLineItems", fields: [productId], references: [id])
+
+  @@index([invoiceId])
+  @@index([productId])
+  @@map("invoice_line_items")
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  reference        String?
+  invoiceId        String
+  amount           Int
+  currency         Currency      @default(EUR)
+  method           PaymentMethod @default(bank_transfer)
+  receivedAt       DateTime?
+  notes            String?
+  recordedByUserId String?
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  invoice        Invoice @relation("InvoicePayments", fields: [invoiceId], references: [id], onDelete: Cascade)
+  recordedByUser User?   @relation("PaymentRecordedBy", fields: [recordedByUserId], references: [id])
+
+  @@index([invoiceId])
+  @@index([recordedByUserId])
+  @@index([receivedAt])
+  @@map("payments")
+}
+
+model CreditNote {
+  id             String    @id @default(cuid())
+  reference      String    @unique
+  number         String?
+  invoiceId      String
+  companyId      String?
+  amount         Int
+  currency       Currency  @default(EUR)
+  reason         String?
+  issuedAt       DateTime?
+  notes          String?
+  issuedByUserId String?
+  createdById    String?
+  updatedById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  invoice      Invoice  @relation("InvoiceCreditNotes", fields: [invoiceId], references: [id], onDelete: Cascade)
+  company      Company? @relation("CompanyCreditNotes", fields: [companyId], references: [id])
+  issuedByUser User?    @relation("CreditNoteIssuedBy", fields: [issuedByUserId], references: [id])
+
+  @@index([invoiceId])
+  @@index([companyId])
+  @@index([issuedByUserId])
+  @@map("credit_notes")
+}
+
+/**
+ * ══════════════════════════════ Engagement / scheduling / AI models ══════════════════════════════
+ */
+
+model Task {
+  id           String     @id @default(cuid())
+  title        String
+  description  String?
+  type         TaskType   @default(other)
+  status       TaskStatus @default(open)
+  priority     Priority   @default(medium)
+  source       TaskSource @default(manual)
+  companyId    String?
+  contactId    String?
+  relatedType  String?
+  relatedId    String?
+  ownerUserId  String
+  dueDate      DateTime?
+  reminderDate DateTime?
+  completedAt  DateTime?
+  createdById  String?
+  updatedById  String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  company Company? @relation("CompanyTasks", fields: [companyId], references: [id])
+  contact Contact? @relation("ContactTasks", fields: [contactId], references: [id])
+  owner   User     @relation("TaskOwner", fields: [ownerUserId], references: [id])
+
+  collaborators TaskCollaborator[] @relation("TaskCollaborators")
+  comments      TaskComment[]      @relation("TaskComments")
+
+  @@index([companyId])
+  @@index([contactId])
+  @@index([ownerUserId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([relatedType, relatedId])
+  @@map("tasks")
+}
+
+model TaskComment {
+  id           String   @id @default(cuid())
+  taskId       String
+  authorUserId String
+  body         String
+  createdById  String?
+  updatedById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  task   Task @relation("TaskComments", fields: [taskId], references: [id], onDelete: Cascade)
+  author User @relation("TaskCommentAuthor", fields: [authorUserId], references: [id])
+
+  @@index([taskId])
+  @@index([authorUserId])
+  @@map("task_comments")
+}
+
+model TaskCollaborator {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task Task @relation("TaskCollaborators", fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation("TaskCollaboratorUser", fields: [userId], references: [id])
+
+  @@unique([taskId, userId])
+  @@index([userId])
+  @@map("task_collaborators")
+}
+
+model Meeting {
+  id          String        @id @default(cuid())
+  title       String
+  type        MeetingType   @default(video_call)
+  status      MeetingStatus @default(scheduled)
+  companyId   String?
+  ownerUserId String
+  start       DateTime
+  end         DateTime?
+  durationMin Int?
+  location    String?
+  agenda      String?
+  notes       String?
+  outcome     String?
+  createdById String?
+  updatedById String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  company Company? @relation("CompanyMeetings", fields: [companyId], references: [id])
+  owner   User     @relation("MeetingOwner", fields: [ownerUserId], references: [id])
+
+  attendees    MeetingAttendee[] @relation("MeetingAttendees")
+  participants MeetingContact[]  @relation("MeetingContacts")
+
+  @@index([companyId])
+  @@index([ownerUserId])
+  @@index([status])
+  @@index([start])
+  @@map("meetings")
+}
+
+model MeetingAttendee {
+  id        String   @id @default(cuid())
+  meetingId String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meeting Meeting @relation("MeetingAttendees", fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User    @relation("MeetingAttendeeUser", fields: [userId], references: [id])
+
+  @@unique([meetingId, userId])
+  @@index([userId])
+  @@map("meeting_attendees")
+}
+
+model MeetingContact {
+  id        String   @id @default(cuid())
+  meetingId String
+  contactId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meeting Meeting @relation("MeetingContacts", fields: [meetingId], references: [id], onDelete: Cascade)
+  contact Contact @relation("MeetingContactContact", fields: [contactId], references: [id])
+
+  @@unique([meetingId, contactId])
+  @@index([contactId])
+  @@map("meeting_contacts")
+}
+
+model Activity {
+  id             String              @id @default(cuid())
+  type           ActivityType
+  title          String
+  body           String?
+  companyId      String?
+  contactId      String?
+  relatedType    String?
+  relatedId      String?
+  actorUserId    String?
+  actorContactId String?
+  visibility     ActivityVisibility?
+  occurredAt     DateTime            @default(now())
+  metadata       Json?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  company      Company? @relation("CompanyActivities", fields: [companyId], references: [id])
+  contact      Contact? @relation("ContactActivities", fields: [contactId], references: [id])
+  actor        User?    @relation("ActivityActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorContact Contact? @relation("ActivityActorContact", fields: [actorContactId], references: [id])
+
+  @@index([companyId])
+  @@index([contactId])
+  @@index([actorUserId])
+  @@index([type])
+  @@index([relatedType, relatedId])
+  @@index([occurredAt])
+  @@map("activities")
+}
+
+model Notification {
+  id                String           @id @default(cuid())
+  type              NotificationType
+  workspace         Workspace
+  scope             Workspace?
+  title             String
+  body              String?
+  priority          Priority         @default(medium)
+  recipientUserId   String?
+  audienceRoles     RoleKey[]
+  audienceCompanyId String?
+  companyId         String?
+  relatedType       String?
+  relatedId         String?
+  href              String?
+  read              Boolean          @default(false)
+  readAt            DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  recipient       User?    @relation("NotificationRecipient", fields: [recipientUserId], references: [id])
+  audienceCompany Company? @relation("NotificationAudienceCompany", fields: [audienceCompanyId], references: [id])
+  company         Company? @relation("NotificationSubjectCompany", fields: [companyId], references: [id])
+
+  @@index([recipientUserId])
+  @@index([audienceCompanyId])
+  @@index([companyId])
+  @@index([type])
+  @@index([read])
+  @@index([relatedType, relatedId])
+  @@map("notifications")
+}
+
+model SupportRequest {
+  id                  String          @id @default(cuid())
+  reference           String          @unique
+  companyId           String
+  contactId           String?
+  subject             String
+  category            SupportCategory
+  description         String
+  priority            Priority        @default(medium)
+  status              SupportStatus   @default(open)
+  assignedOwnerUserId String?
+  dueDate             DateTime?
+  resolvedDate        DateTime?
+  createdById         String?
+  updatedById         String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  company       Company  @relation("CompanySupportRequests", fields: [companyId], references: [id])
+  contact       Contact? @relation("ContactSupportRequests", fields: [contactId], references: [id])
+  assignedOwner User?    @relation("SupportRequestOwner", fields: [assignedOwnerUserId], references: [id])
+
+  messages SupportMessage[] @relation("SupportRequestMessages")
+
+  @@index([companyId])
+  @@index([contactId])
+  @@index([assignedOwnerUserId])
+  @@index([status])
+  @@index([category])
+  @@map("support_requests")
+}
+
+model SupportMessage {
+  id               String              @id @default(cuid())
+  supportRequestId String
+  authorUserId     String?
+  authorContactId  String?
+  visibility       ActivityVisibility?
+  body             String
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  supportRequest SupportRequest @relation("SupportRequestMessages", fields: [supportRequestId], references: [id], onDelete: Cascade)
+  authorUser     User?          @relation("SupportMessageAuthorUser", fields: [authorUserId], references: [id])
+  authorContact  Contact?       @relation("SupportMessageAuthorContact", fields: [authorContactId], references: [id])
+
+  @@index([supportRequestId])
+  @@index([authorUserId])
+  @@index([authorContactId])
+  @@map("support_messages")
+}
+
+model AssistantThread {
+  id            String            @id @default(cuid())
+  audience      AssistantAudience
+  title         String?
+  userId        String?
+  companyId     String?
+  actorRole     RoleKey?
+  lastMessageAt DateTime?
+  createdById   String?
+  updatedById   String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  user    User?    @relation("AssistantThreadUser", fields: [userId], references: [id])
+  company Company? @relation("AssistantThreadCompany", fields: [companyId], references: [id])
+
+  messages AssistantMessage[] @relation("ThreadMessages")
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([audience])
+  @@index([lastMessageAt])
+  @@map("assistant_threads")
+}
+
+model AssistantMessage {
+  id                String                   @id @default(cuid())
+  threadId          String
+  role              AssistantMessageRole
+  content           String
+  toolName          String?
+  toolArgs          Json?
+  toolCallStatus    AssistantToolCallStatus?
+  confirmedByUserId String?
+  tokenUsage        Json?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  thread      AssistantThread @relation("ThreadMessages", fields: [threadId], references: [id], onDelete: Cascade)
+  confirmedBy User?           @relation("AssistantMessageConfirmedBy", fields: [confirmedByUserId], references: [id])
+
+  citations AssistantCitation[] @relation("MessageCitations")
+
+  @@index([threadId])
+  @@index([role])
+  @@index([confirmedByUserId])
+  @@index([toolCallStatus])
+  @@map("assistant_messages")
+}
+
+model AssistantCitation {
+  id              String                      @id @default(cuid())
+  messageId       String
+  targetType      AssistantCitationTargetType
+  targetId        String?
+  citedDocumentId String?
+  label           String?
+  snippet         String?
+  accessLevel     DocumentAccessLevel?
+  sourceUrl       String?
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+
+  message       AssistantMessage @relation("MessageCitations", fields: [messageId], references: [id], onDelete: Cascade)
+  citedDocument Document?        @relation("DocumentAssistantCitations", fields: [citedDocumentId], references: [id])
+
+  @@index([messageId])
+  @@index([targetType, targetId])
+  @@index([citedDocumentId])
+  @@map("assistant_citations")
+}

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   Truck,
   PlaneTakeoff,
@@ -83,12 +83,12 @@ const DERIVED_STATUSES: DerivedShipmentStatus[] = ['preparing', 'in_transit', 'c
 
 const STATUS_META: Record<
   DerivedShipmentStatus,
-  { label: string; variant: 'success' | 'info' | 'warning' | 'muted' }
+  { labelKey: string; variant: 'success' | 'info' | 'warning' | 'muted' }
 > = {
-  delivered: { label: 'Delivered', variant: 'success' },
-  in_transit: { label: 'In transit', variant: 'info' },
-  customs: { label: 'At customs', variant: 'warning' },
-  preparing: { label: 'Preparing', variant: 'muted' },
+  delivered: { labelKey: 'delivered', variant: 'success' },
+  in_transit: { labelKey: 'inTransit', variant: 'info' },
+  customs: { labelKey: 'atCustoms', variant: 'warning' },
+  preparing: { labelKey: 'preparing', variant: 'muted' },
 };
 
 const INCOTERMS: Incoterm[] = ['DAP', 'DDP', 'EXW', 'CPT', 'FCA', 'CIP'];
@@ -96,13 +96,14 @@ const INCOTERMS: Incoterm[] = ['DAP', 'DDP', 'EXW', 'CPT', 'FCA', 'CIP'];
 /* ────────────────────────────── Status badge ────────────────────────────── */
 
 function ShipmentStatusCell({ shipment }: { shipment: Shipment }) {
+  const t = useTranslations('AdminShipments');
   const status = shipmentService.deriveStatus(shipment);
   const meta = STATUS_META[status];
   const delayed = shipment.isDelayed && !shipment.actualDelivery;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <Badge variant={meta.variant}>{meta.label}</Badge>
-      {delayed ? <Badge variant="danger">Delayed</Badge> : null}
+      <Badge variant={meta.variant}>{t(meta.labelKey)}</Badge>
+      {delayed ? <Badge variant="danger">{t('delayed')}</Badge> : null}
     </div>
   );
 }
@@ -110,6 +111,7 @@ function ShipmentStatusCell({ shipment }: { shipment: Shipment }) {
 /* ────────────────────────────── Page ────────────────────────────── */
 
 export default function ShipmentsPage() {
+  const t = useTranslations('AdminShipments');
   const locale = useLocale() as Locale;
   const router = useRouter();
 
@@ -191,8 +193,8 @@ export default function ShipmentsPage() {
     applyPatch(s.id, { shipmentDate: s.shipmentDate ?? today });
     toast({
       variant: 'success',
-      title: 'Shipment dispatched',
-      description: `${s.reference} marked as dispatched.`,
+      title: t('toastDispatchedTitle'),
+      description: t('toastDispatchedDescription', { reference: s.reference }),
     });
   }
 
@@ -202,8 +204,8 @@ export default function ShipmentsPage() {
     applyPatch(s.id, { actualDelivery: today, isDelayed: false, customsStatus: 'cleared' });
     toast({
       variant: 'success',
-      title: 'Delivery confirmed',
-      description: `${s.reference} marked as delivered.`,
+      title: t('toastDeliveredTitle'),
+      description: t('toastDeliveredDescription', { reference: s.reference }),
     });
   }
 
@@ -216,7 +218,7 @@ export default function ShipmentsPage() {
   const columns: Column<Shipment>[] = [
     {
       key: 'reference',
-      header: 'Reference',
+      header: t('colReference'),
       sortValue: (s) => s.reference,
       cell: (s) => (
         <div className="min-w-0">
@@ -227,7 +229,7 @@ export default function ShipmentsPage() {
     },
     {
       key: 'company',
-      header: 'Company',
+      header: t('colCompany'),
       sortValue: (s) => companyMap.get(s.companyId)?.legalName ?? '',
       cell: (s) => {
         const c = companyMap.get(s.companyId);
@@ -246,7 +248,7 @@ export default function ShipmentsPage() {
     },
     {
       key: 'courier',
-      header: 'Courier',
+      header: t('colCourier'),
       sortValue: (s) => s.courier ?? '',
       cell: (s) => (
         <div className="min-w-0">
@@ -258,7 +260,7 @@ export default function ShipmentsPage() {
     },
     {
       key: 'tracking',
-      header: 'Tracking',
+      header: t('colTracking'),
       sortValue: (s) => s.trackingNumber ?? '',
       cell: (s) =>
         s.trackingNumber ? (
@@ -283,7 +285,7 @@ export default function ShipmentsPage() {
     },
     {
       key: 'destination',
-      header: 'Destination',
+      header: t('colDestination'),
       sortValue: (s) => s.address.country,
       cell: (s) => (
         <span className="flex items-center gap-1.5 whitespace-nowrap text-sm">
@@ -295,7 +297,7 @@ export default function ShipmentsPage() {
     },
     {
       key: 'dispatch',
-      header: 'Dispatch',
+      header: t('colDispatch'),
       align: 'right',
       sortable: true,
       sortValue: (s) => (s.shipmentDate ? new Date(s.shipmentDate).getTime() : 0),
@@ -304,7 +306,7 @@ export default function ShipmentsPage() {
     },
     {
       key: 'eta',
-      header: 'ETA',
+      header: t('colEta'),
       align: 'right',
       sortable: true,
       sortValue: (s) => (s.estimatedDelivery ? new Date(s.estimatedDelivery).getTime() : 0),
@@ -317,7 +319,7 @@ export default function ShipmentsPage() {
     },
     {
       key: 'delivered',
-      header: 'Delivered',
+      header: t('delivered'),
       align: 'right',
       sortable: true,
       sortValue: (s) => (s.actualDelivery ? new Date(s.actualDelivery).getTime() : 0),
@@ -334,13 +336,13 @@ export default function ShipmentsPage() {
     },
     {
       key: 'status',
-      header: 'Status',
+      header: t('colStatus'),
       sortValue: (s) => shipmentService.deriveStatus(s),
       cell: (s) => <ShipmentStatusCell shipment={s} />,
     },
     {
       key: 'sample',
-      header: 'Related sample',
+      header: t('colRelatedSample'),
       sortValue: (s) => sampleMap.get(s.sampleRequestId)?.reference ?? '',
       cell: (s) => {
         const sample = sampleMap.get(s.sampleRequestId);
@@ -364,13 +366,13 @@ export default function ShipmentsPage() {
     <div className="flex flex-wrap items-center gap-2">
       <Select value={fStatus} onValueChange={setFStatus}>
         <SelectTrigger className="h-9 w-[150px]">
-          <SelectValue placeholder="Status" />
+          <SelectValue placeholder={t('colStatus')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All statuses</SelectItem>
+          <SelectItem value={ALL}>{t('allStatuses')}</SelectItem>
           {DERIVED_STATUSES.map((st) => (
             <SelectItem key={st} value={st}>
-              {STATUS_META[st].label}
+              {t(STATUS_META[st].labelKey)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -378,10 +380,10 @@ export default function ShipmentsPage() {
 
       <Select value={fCourier} onValueChange={setFCourier}>
         <SelectTrigger className="h-9 w-[160px]">
-          <SelectValue placeholder="Courier" />
+          <SelectValue placeholder={t('colCourier')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All couriers</SelectItem>
+          <SelectItem value={ALL}>{t('allCouriers')}</SelectItem>
           {courierOptions.map((c) => (
             <SelectItem key={c} value={c}>
               {c}
@@ -393,7 +395,7 @@ export default function ShipmentsPage() {
       {activeFilterCount > 0 ? (
         <Button variant="ghost" size="sm" onClick={resetFilters}>
           <X />
-          Clear ({activeFilterCount})
+          {t('clearFilters', { count: activeFilterCount })}
         </Button>
       ) : null}
     </div>

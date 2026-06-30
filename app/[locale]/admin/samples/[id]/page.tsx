@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   ArrowLeft,
   FlaskConical,
@@ -59,10 +59,10 @@ import { toast } from '@/components/ui/use-toast';
 
 /* ────────────────────────────── Helpers ────────────────────────────── */
 
-function ownerName(id?: string): string {
-  if (!id) return 'Unassigned';
+function ownerName(id: string | undefined, unassignedLabel: string): string {
+  if (!id) return unassignedLabel;
   const a = authService.getAccount(id);
-  return a ? `${a.firstName} ${a.lastName}` : 'Unassigned';
+  return a ? `${a.firstName} ${a.lastName}` : unassignedLabel;
 }
 
 const ADVANCE_STAGES: SampleStatus[] = [
@@ -81,6 +81,7 @@ const ADVANCE_STAGES: SampleStatus[] = [
 
 export default function SampleDetailPage({ params }: { params: { id: string } }) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('AdminSampleDetail');
   const router = useRouter();
 
   const [sample, setSample] = React.useState<SampleRequest | null>(null);
@@ -139,19 +140,37 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
   function approve() {
     if (!sample) return;
     applyStatus('approved', { approvedQuantity: sample.requestedQuantity, approvalDate: '2026-06-17' });
-    toast({ variant: 'success', title: 'Sample approved', description: `${sample.reference} approved for ${formatQuantity(sample.requestedQuantity, sample.unit, locale)}.` });
+    toast({
+      variant: 'success',
+      title: t('sampleApprovedTitle'),
+      description: t('sampleApprovedDescription', {
+        reference: sample.reference,
+        quantity: formatQuantity(sample.requestedQuantity, sample.unit, locale),
+      }),
+    });
   }
 
   function confirmReject() {
     if (!sample) return;
     applyStatus('rejected');
-    toast({ variant: 'warning', title: 'Sample rejected', description: `${sample.reference} was rejected.` });
+    toast({
+      variant: 'warning',
+      title: t('sampleRejectedTitle'),
+      description: t('sampleRejectedDescription', { reference: sample.reference }),
+    });
   }
 
   function advance(status: SampleStatus) {
     if (!sample) return;
     applyStatus(status);
-    toast({ variant: 'success', title: 'Status updated', description: `${sample.reference} → ${getLabel('sampleStatus', status)}.` });
+    toast({
+      variant: 'success',
+      title: t('statusUpdatedTitle'),
+      description: t('statusUpdatedDescription', {
+        reference: sample.reference,
+        status: getLabel('sampleStatus', status),
+      }),
+    });
   }
 
   async function createShipment() {
@@ -160,8 +179,8 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
     applyStatus('ready_to_ship');
     toast({
       variant: 'success',
-      title: 'Shipment created',
-      description: `A draft shipment for ${sample.reference} is ready for dispatch.`,
+      title: t('shipmentCreatedTitle'),
+      description: t('shipmentCreatedDescription', { reference: sample.reference }),
     });
   }
 
@@ -179,8 +198,8 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         <ErrorState
-          title="Sample request not found"
-          description="This sample request does not exist or was removed."
+          title={t('notFoundTitle')}
+          description={t('notFoundDescription')}
           onRetry={() => router.push('/admin/samples')}
         />
       </div>
@@ -213,7 +232,7 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
       <Button variant="ghost" size="sm" asChild className="-ml-2 w-fit">
         <Link href="/admin/samples">
           <ArrowLeft className="h-4 w-4" />
-          Back to samples
+          {t('backToSamples')}
         </Link>
       </Button>
 
@@ -226,27 +245,27 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
               <>
                 <Button variant="success" onClick={approve}>
                   <CheckCircle2 />
-                  Approve
+                  {t('approve')}
                 </Button>
                 <Button variant="outline" onClick={() => setRejectOpen(true)}>
                   <XCircle />
-                  Reject
+                  {t('reject')}
                 </Button>
               </>
             ) : null}
             <Button variant="outline" onClick={createShipment}>
               <PackagePlus />
-              Create shipment
+              {t('createShipment')}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="gold">
-                  Advance status
+                  {t('advanceStatus')}
                   <ChevronRight />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Move to</DropdownMenuLabel>
+                <DropdownMenuLabel>{t('moveTo')}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {ADVANCE_STAGES.map((st) => (
                   <DropdownMenuItem key={st} onSelect={() => advance(st)} disabled={st === sample.status}>
@@ -280,7 +299,7 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <SummaryCard
           icon={Package}
-          label="Requested / approved"
+          label={t('requestedApproved')}
           value={
             <span className="tabular">
               {formatQuantity(sample.requestedQuantity, sample.unit, locale)}
@@ -294,19 +313,19 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
         />
         <SummaryCard
           icon={FlaskConical}
-          label="Application"
+          label={t('application')}
           value={getLabel('applicationCategory', sample.applicationCategory)}
         />
-        <SummaryCard icon={CalendarDays} label="Request date" value={formatDate(sample.requestDate, locale)} />
+        <SummaryCard icon={CalendarDays} label={t('requestDate')} value={formatDate(sample.requestDate, locale)} />
         <SummaryCard
           icon={User}
-          label="Account owner"
+          label={t('accountOwner')}
           value={
             <span className="inline-flex items-center gap-2">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-navy/10 text-2xs font-semibold text-brand-navy">
-                {initials(ownerName(sample.accountOwnerId))}
+                {initials(ownerName(sample.accountOwnerId, t('unassigned')))}
               </span>
-              {ownerName(sample.accountOwnerId)}
+              {ownerName(sample.accountOwnerId, t('unassigned'))}
             </span>
           }
         />
@@ -318,7 +337,7 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
           {/* Status timeline */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Status timeline</CardTitle>
+              <CardTitle className="text-base">{t('statusTimeline')}</CardTitle>
             </CardHeader>
             <CardContent>
               <ol className="relative space-y-5 border-l border-border pl-6">
@@ -333,7 +352,7 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
                       <span className="text-xs text-muted-foreground">{formatDate(ev.at, locale)}</span>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      by {ownerName(ev.byUserId)}
+                      {t('timelineBy', { name: ownerName(ev.byUserId, t('unassigned')) })}
                       {ev.note ? <span className="text-foreground"> — {ev.note}</span> : null}
                     </p>
                   </li>
@@ -345,11 +364,11 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
           {/* Required documents checklist */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Required documents</CardTitle>
+              <CardTitle className="text-base">{t('requiredDocuments')}</CardTitle>
             </CardHeader>
             <CardContent>
               {requiredDocs.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No documents required for this sample.</p>
+                <p className="text-sm text-muted-foreground">{t('noDocumentsRequired')}</p>
               ) : (
                 <ul className="space-y-3">
                   {requiredDocs.map((doc) => {
@@ -368,11 +387,11 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
                         </Label>
                         {checked ? (
                           <Badge variant="success" className="text-2xs">
-                            Ready
+                            {t('ready')}
                           </Badge>
                         ) : (
                           <Badge variant="muted" className="text-2xs">
-                            Pending
+                            {t('pending')}
                           </Badge>
                         )}
                       </li>
@@ -391,17 +410,17 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <MapPin className="h-4 w-4 text-muted-foreground" />
-                Destination
+                {t('destination')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               {sample.recipient ? (
-                <DetailRow label="Recipient" value={sample.recipient} />
+                <DetailRow label={t('recipient')} value={sample.recipient} />
               ) : null}
-              {sample.recipientEmail ? <DetailRow label="Email" value={sample.recipientEmail} /> : null}
+              {sample.recipientEmail ? <DetailRow label={t('email')} value={sample.recipientEmail} /> : null}
               {sample.deliveryAddress ? (
                 <div>
-                  <p className="text-xs text-muted-foreground">Address</p>
+                  <p className="text-xs text-muted-foreground">{t('address')}</p>
                   <p className="mt-0.5 text-foreground">
                     {sample.deliveryAddress.line1}
                     <br />
@@ -413,13 +432,13 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
                   </p>
                 </div>
               ) : (
-                <p className="text-muted-foreground">No destination recorded.</p>
+                <p className="text-muted-foreground">{t('noDestinationRecorded')}</p>
               )}
               {sample.internalInstructions ? (
                 <>
                   <Separator />
                   <div>
-                    <p className="text-xs text-muted-foreground">Internal instructions</p>
+                    <p className="text-xs text-muted-foreground">{t('internalInstructions')}</p>
                     <p className="mt-0.5 text-foreground">{sample.internalInstructions}</p>
                   </div>
                 </>
@@ -432,7 +451,7 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Truck className="h-4 w-4 text-muted-foreground" />
-                Linked shipment
+                {t('linkedShipment')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
@@ -442,10 +461,10 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
                     <span className="font-mono text-sm font-medium text-foreground">{shipment.reference}</span>
                     <StatusBadge kind="customsStatus" value={deriveShipmentStatus(shipment)} />
                   </div>
-                  {shipment.courier ? <DetailRow label="Courier" value={shipment.courier} /> : null}
+                  {shipment.courier ? <DetailRow label={t('courier')} value={shipment.courier} /> : null}
                   {shipment.trackingNumber ? (
                     <DetailRow
-                      label="Tracking"
+                      label={t('tracking')}
                       value={
                         shipment.trackingUrl ? (
                           <a
@@ -462,20 +481,20 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
                       }
                     />
                   ) : null}
-                  {shipment.shipmentDate ? <DetailRow label="Shipped" value={formatDate(shipment.shipmentDate, locale)} /> : null}
+                  {shipment.shipmentDate ? <DetailRow label={t('shipped')} value={formatDate(shipment.shipmentDate, locale)} /> : null}
                   {shipment.estimatedDelivery ? (
-                    <DetailRow label="Est. delivery" value={formatDate(shipment.estimatedDelivery, locale)} />
+                    <DetailRow label={t('estDelivery')} value={formatDate(shipment.estimatedDelivery, locale)} />
                   ) : null}
                   {shipment.actualDelivery ? (
-                    <DetailRow label="Delivered" value={formatDate(shipment.actualDelivery, locale)} />
+                    <DetailRow label={t('delivered')} value={formatDate(shipment.actualDelivery, locale)} />
                   ) : null}
                 </>
               ) : (
                 <div className="space-y-3">
-                  <p className="text-muted-foreground">No shipment linked yet.</p>
+                  <p className="text-muted-foreground">{t('noShipmentLinked')}</p>
                   <Button variant="outline" size="sm" onClick={createShipment} className="w-full">
                     <PackagePlus className="h-4 w-4" />
-                    Create shipment
+                    {t('createShipment')}
                   </Button>
                 </div>
               )}
@@ -488,7 +507,7 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <MessageSquareQuote className="h-4 w-4 text-muted-foreground" />
-                  Feedback
+                  {t('feedback')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
@@ -498,13 +517,13 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
                 </div>
                 {feedback.overallResult ? (
                   <DetailRow
-                    label="Result"
+                    label={t('result')}
                     value={<StatusBadge kind="feedbackResult" value={feedback.overallResult} />}
                   />
                 ) : null}
                 {feedback.overallRating != null ? (
                   <DetailRow
-                    label="Rating"
+                    label={t('rating')}
                     value={
                       <span className="inline-flex items-center gap-0.5">
                         {Array.from({ length: 5 }).map((_, i) => (
@@ -521,7 +540,7 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
                     }
                   />
                 ) : null}
-                {feedback.testDate ? <DetailRow label="Tested" value={formatDateTime(feedback.testDate, locale)} /> : null}
+                {feedback.testDate ? <DetailRow label={t('tested')} value={formatDateTime(feedback.testDate, locale)} /> : null}
               </CardContent>
             </Card>
           ) : null}
@@ -531,9 +550,9 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
       <ConfirmDialog
         open={rejectOpen}
         onOpenChange={setRejectOpen}
-        title="Reject sample request?"
-        description={`This will mark ${sample.reference} as rejected. The requester will be notified.`}
-        confirmLabel="Reject"
+        title={t('rejectDialogTitle')}
+        description={t('rejectDialogDescription', { reference: sample.reference })}
+        confirmLabel={t('rejectLabel')}
         variant="danger"
         onConfirm={confirmReject}
       />

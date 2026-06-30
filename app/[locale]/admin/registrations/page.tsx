@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   Inbox,
   Clock,
@@ -85,6 +85,7 @@ const TAB_FILTER: Record<string, (r: Registration) => boolean> = {
 
 export default function RegistrationsPage() {
   const locale = useLocale() as Locale;
+  const t = useTranslations('AdminRegistrations');
 
   const [rows, setRows] = React.useState<Registration[] | null>(null);
   const [stats, setStats] = React.useState<Stats | null>(null);
@@ -132,13 +133,13 @@ export default function RegistrationsPage() {
   const columns: Column<Registration>[] = [
     {
       key: 'reference',
-      header: 'Reference',
+      header: t('colReference'),
       sortValue: (r) => r.reference,
       cell: (r) => <span className="font-mono text-sm font-medium text-foreground">{r.reference}</span>,
     },
     {
       key: 'company',
-      header: 'Company',
+      header: t('colCompany'),
       sortValue: (r) => r.legalName,
       cell: (r) => (
         <div className="min-w-0">
@@ -151,14 +152,14 @@ export default function RegistrationsPage() {
     },
     {
       key: 'type',
-      header: 'Type',
+      header: t('colType'),
       sortValue: (r) => getLabel('companyType', r.companyType),
       cell: (r) => <StatusBadge kind="companyType" value={r.companyType} />,
       hideable: true,
     },
     {
       key: 'country',
-      header: 'Country',
+      header: t('colCountry'),
       sortValue: (r) => r.country,
       cell: (r) => (
         <span className="flex items-center gap-1.5 whitespace-nowrap text-sm">
@@ -170,7 +171,7 @@ export default function RegistrationsPage() {
     },
     {
       key: 'applicant',
-      header: 'Applicant',
+      header: t('colApplicant'),
       sortValue: (r) => `${r.contactFirstName} ${r.contactLastName}`,
       cell: (r) => (
         <div className="min-w-0">
@@ -184,7 +185,7 @@ export default function RegistrationsPage() {
     },
     {
       key: 'applications',
-      header: 'Applications',
+      header: t('colApplications'),
       cell: (r) => {
         const apps = r.intendedApplications ?? [];
         if (apps.length === 0) return <span className="text-sm text-muted-foreground">—</span>;
@@ -205,7 +206,7 @@ export default function RegistrationsPage() {
     },
     {
       key: 'submitted',
-      header: 'Submitted',
+      header: t('colSubmitted'),
       align: 'right',
       sortable: true,
       sortValue: (r) => new Date(r.createdAt).getTime(),
@@ -218,7 +219,7 @@ export default function RegistrationsPage() {
     },
     {
       key: 'status',
-      header: 'Status',
+      header: t('colStatus'),
       sortValue: (r) => getLabel('registrationStatus', r.status),
       cell: (r) => <StatusBadge kind="registrationStatus" value={r.status} />,
     },
@@ -249,25 +250,25 @@ export default function RegistrationsPage() {
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <PageHeader title="Registrations" subtitle="Business registration approval workflow." />
+      <PageHeader title={t('pageTitle')} subtitle={t('pageSubtitle')} />
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-5">
-        <StatCard label="Total" value={stats?.total ?? 0} icon={Inbox} tone="gold" />
-        <StatCard label="Pending" value={stats?.pending ?? 0} icon={Clock} tone="warning" delay={0.05} />
-        <StatCard label="More info" value={stats?.moreInfo ?? 0} icon={Info} tone="info" delay={0.1} />
-        <StatCard label="Approved" value={stats?.approved ?? 0} icon={CheckCircle2} tone="success" delay={0.15} />
-        <StatCard label="Rejected" value={stats?.rejected ?? 0} icon={XCircle} tone="danger" delay={0.2} />
+        <StatCard label={t('statTotal')} value={stats?.total ?? 0} icon={Inbox} tone="gold" />
+        <StatCard label={t('statPending')} value={stats?.pending ?? 0} icon={Clock} tone="warning" delay={0.05} />
+        <StatCard label={t('statMoreInfo')} value={stats?.moreInfo ?? 0} icon={Info} tone="info" delay={0.1} />
+        <StatCard label={t('statApproved')} value={stats?.approved ?? 0} icon={CheckCircle2} tone="success" delay={0.15} />
+        <StatCard label={t('statRejected')} value={stats?.rejected ?? 0} icon={XCircle} tone="danger" delay={0.2} />
       </div>
 
       {/* Status tabs */}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="more_info">More info</TabsTrigger>
-          <TabsTrigger value="approved">Approved</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          <TabsTrigger value="all">{t('tabAll')}</TabsTrigger>
+          <TabsTrigger value="pending">{t('tabPending')}</TabsTrigger>
+          <TabsTrigger value="more_info">{t('tabMoreInfo')}</TabsTrigger>
+          <TabsTrigger value="approved">{t('tabApproved')}</TabsTrigger>
+          <TabsTrigger value="rejected">{t('tabRejected')}</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -278,7 +279,7 @@ export default function RegistrationsPage() {
         getRowId={(r) => r.id}
         loading={rows === null}
         searchable
-        searchPlaceholder="Search reference, company, applicant…"
+        searchPlaceholder={t('searchPlaceholder')}
         searchValue={(r) =>
           [r.reference, r.legalName, r.tradingName, r.country, `${r.contactFirstName} ${r.contactLastName}`, r.contactEmail]
             .filter(Boolean)
@@ -288,14 +289,14 @@ export default function RegistrationsPage() {
         onRowClick={openReview}
         rowActions={(r) => (
           <Button variant="ghost" size="sm" onClick={() => openReview(r)}>
-            Review
+            {t('rowActionReview')}
           </Button>
         )}
         enableColumnVisibility
         enableDensityToggle
         mobileCard={mobileCard}
-        emptyTitle="No registrations"
-        emptyDescription="No business registrations match this filter."
+        emptyTitle={t('emptyTitle')}
+        emptyDescription={t('emptyDescription')}
         exportFilename="registrations"
         storageKey="registrations-table"
       />
@@ -338,6 +339,7 @@ function ReviewPanel({
   locale: Locale;
   onPatch: (id: string, patch: Partial<Registration>) => void;
 }) {
+  const t = useTranslations('AdminRegistrations');
   const [assignee, setAssignee] = React.useState<string>('');
   const [rejectOpen, setRejectOpen] = React.useState(false);
   const [infoOpen, setInfoOpen] = React.useState(false);
@@ -365,8 +367,8 @@ function ReviewPanel({
     onPatch(r.id, { status: 'approved', decidedAt: TODAY, decidedByUserId: assignee || 'u_giuseppe' });
     toast({
       variant: 'success',
-      title: 'Registration approved',
-      description: `${r.reference} — ${r.legalName} approved.`,
+      title: t('toastApprovedTitle'),
+      description: t('toastApprovedDescription', { reference: r.reference, company: r.legalName }),
     });
   }
 
@@ -375,8 +377,8 @@ function ReviewPanel({
     onPatch(r.id, { status: 'rejected', decidedAt: TODAY, decidedByUserId: assignee || 'u_giuseppe' });
     toast({
       variant: 'warning',
-      title: 'Registration rejected',
-      description: `${r.reference} — ${r.legalName} was rejected.`,
+      title: t('toastRejectedTitle'),
+      description: t('toastRejectedDescription', { reference: r.reference, company: r.legalName }),
     });
   }
 
@@ -388,8 +390,8 @@ function ReviewPanel({
     });
     toast({
       variant: 'info',
-      title: 'Additional information requested',
-      description: `A request was sent to ${r.contactEmail}.`,
+      title: t('toastInfoRequestedTitle'),
+      description: t('toastInfoRequestedDescription', { email: r.contactEmail }),
     });
     setInfoOpen(false);
     setInfoMessage('');
@@ -401,8 +403,10 @@ function ReviewPanel({
     const m = staff.find((s) => s.id === userId);
     toast({
       variant: 'success',
-      title: 'Staff assigned',
-      description: m ? `${r.reference} assigned to ${m.firstName} ${m.lastName}.` : 'Assignment updated.',
+      title: t('toastStaffAssignedTitle'),
+      description: m
+        ? t('toastStaffAssignedDescription', { reference: r.reference, name: `${m.firstName} ${m.lastName}` })
+        : t('toastStaffAssignedFallback'),
     });
   }
 
@@ -411,8 +415,8 @@ function ReviewPanel({
     onPatch(r.id, { status: 'approved', decidedAt: TODAY, decidedByUserId: assignee || 'u_giuseppe' });
     toast({
       variant: 'success',
-      title: 'Company account created',
-      description: `${r.legalName} is now an active company account.`,
+      title: t('toastCompanyCreatedTitle'),
+      description: t('toastCompanyCreatedDescription', { company: r.legalName }),
     });
   }
 
@@ -430,33 +434,33 @@ function ReviewPanel({
               {r.legalName}
             </SheetTitle>
             <SheetDescription>
-              Submitted {formatRelative(r.createdAt, locale)} · {formatDate(r.createdAt, locale)}
+              {t('submittedPrefix')} {formatRelative(r.createdAt, locale)} · {formatDate(r.createdAt, locale)}
             </SheetDescription>
           </SheetHeader>
 
           <div className="space-y-5 text-sm">
             {/* Company */}
             <section className="space-y-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Company</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('sectionCompany')}</h4>
               <div className="grid grid-cols-2 gap-3">
-                {r.tradingName ? <Field label="Trading name">{r.tradingName}</Field> : null}
-                <Field label="Type">
+                {r.tradingName ? <Field label={t('fieldTradingName')}>{r.tradingName}</Field> : null}
+                <Field label={t('fieldType')}>
                   <StatusBadge kind="companyType" value={r.companyType} />
                 </Field>
                 {r.companySize ? (
-                  <Field label="Size">{getLabel('companySize', r.companySize)}</Field>
+                  <Field label={t('fieldSize')}>{getLabel('companySize', r.companySize)}</Field>
                 ) : null}
-                <Field label="Country">
+                <Field label={t('fieldCountry')}>
                   <span className="flex items-center gap-1.5">
                     <span className="text-base leading-none">{flagEmoji(r.countryCode)}</span>
                     {r.country}
                   </span>
                 </Field>
-                <Field label="City">{r.city}</Field>
-                {r.vatNumber ? <Field label="VAT number">{r.vatNumber}</Field> : null}
-                {r.registrationNumber ? <Field label="Reg. number">{r.registrationNumber}</Field> : null}
+                <Field label={t('fieldCity')}>{r.city}</Field>
+                {r.vatNumber ? <Field label={t('fieldVatNumber')}>{r.vatNumber}</Field> : null}
+                {r.registrationNumber ? <Field label={t('fieldRegNumber')}>{r.registrationNumber}</Field> : null}
                 {r.website ? (
-                  <Field label="Website">
+                  <Field label={t('fieldWebsite')}>
                     <span className="inline-flex items-center gap-1 text-info">
                       <Globe className="h-3.5 w-3.5" />
                       {r.website}
@@ -470,7 +474,7 @@ function ReviewPanel({
                   {[r.address, r.postalCode, r.city, r.region, r.country].filter(Boolean).join(', ')}
                 </p>
               ) : null}
-              {r.mainActivity ? <Field label="Main activity">{r.mainActivity}</Field> : null}
+              {r.mainActivity ? <Field label={t('fieldMainActivity')}>{r.mainActivity}</Field> : null}
             </section>
 
             <Separator />
@@ -478,20 +482,20 @@ function ReviewPanel({
             {/* Contact */}
             <section className="space-y-3">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Primary contact
+                {t('sectionPrimaryContact')}
               </h4>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Name">
+                <Field label={t('fieldName')}>
                   {r.contactFirstName} {r.contactLastName}
                 </Field>
-                {r.contactJobTitle ? <Field label="Job title">{r.contactJobTitle}</Field> : null}
-                <Field label="Email">
+                {r.contactJobTitle ? <Field label={t('fieldJobTitle')}>{r.contactJobTitle}</Field> : null}
+                <Field label={t('fieldEmail')}>
                   <span className="inline-flex items-center gap-1 text-info">
                     <Mail className="h-3.5 w-3.5" />
                     {r.contactEmail}
                   </span>
                 </Field>
-                {r.contactPhone ? <Field label="Phone">{r.contactPhone}</Field> : null}
+                {r.contactPhone ? <Field label={t('fieldPhone')}>{r.contactPhone}</Field> : null}
               </div>
             </section>
 
@@ -499,9 +503,9 @@ function ReviewPanel({
 
             {/* Interest */}
             <section className="space-y-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Interest</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('sectionInterest')}</h4>
               {r.intendedApplications && r.intendedApplications.length > 0 ? (
-                <Field label="Intended applications">
+                <Field label={t('fieldIntendedApplications')}>
                   <div className="flex flex-wrap gap-1">
                     {r.intendedApplications.map((a) => (
                       <Badge key={a} variant="info" className="text-2xs">
@@ -512,24 +516,24 @@ function ReviewPanel({
                 </Field>
               ) : null}
               {r.intendedTerritories && r.intendedTerritories.length > 0 ? (
-                <Field label="Territories">{r.intendedTerritories.join(', ')}</Field>
+                <Field label={t('fieldTerritories')}>{r.intendedTerritories.join(', ')}</Field>
               ) : null}
               {r.estimatedTimeline ? (
-                <Field label="Estimated timeline">
+                <Field label={t('fieldEstimatedTimeline')}>
                   <span className="inline-flex items-center gap-1">
                     <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
                     {r.estimatedTimeline}
                   </span>
                 </Field>
               ) : null}
-              {r.reason ? <Field label="Reason">{r.reason}</Field> : null}
+              {r.reason ? <Field label={t('fieldReason')}>{r.reason}</Field> : null}
               {r.additionalMessage ? (
-                <Field label="Additional message">
+                <Field label={t('fieldAdditionalMessage')}>
                   <p className="rounded-md bg-muted/50 p-2 text-muted-foreground">{r.additionalMessage}</p>
                 </Field>
               ) : null}
               {r.adminNote ? (
-                <Field label="Admin note">
+                <Field label={t('fieldAdminNote')}>
                   <p className="rounded-md bg-warning-subtle p-2 text-warning-foreground">{r.adminNote}</p>
                 </Field>
               ) : null}
@@ -539,10 +543,10 @@ function ReviewPanel({
 
             {/* Assignment */}
             <section className="space-y-2">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Assign staff</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('sectionAssignStaff')}</h4>
               <Select value={assignee} onValueChange={assign}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a staff member" />
+                  <SelectValue placeholder={t('selectStaffPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {staff.map((s) => (
@@ -560,21 +564,21 @@ function ReviewPanel({
               <div className="grid w-full grid-cols-2 gap-2">
                 <Button variant="success" onClick={approve} disabled={busy}>
                   <CheckCircle2 className="h-4 w-4" />
-                  Approve
+                  {t('btnApprove')}
                 </Button>
                 <Button variant="destructive" onClick={() => setRejectOpen(true)} disabled={busy}>
                   <XCircle className="h-4 w-4" />
-                  Reject
+                  {t('btnReject')}
                 </Button>
               </div>
             ) : null}
             <Button variant="outline" className="w-full" onClick={() => setInfoOpen(true)} disabled={busy}>
               <MessageSquarePlus className="h-4 w-4" />
-              Request additional information
+              {t('btnRequestInfo')}
             </Button>
             <Button variant="gold" className="w-full" onClick={convertToCompany} disabled={busy}>
               <ArrowRightCircle className="h-4 w-4" />
-              Convert to company account
+              {t('btnConvertToCompany')}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -583,9 +587,9 @@ function ReviewPanel({
       <ConfirmDialog
         open={rejectOpen}
         onOpenChange={setRejectOpen}
-        title="Reject registration?"
-        description={`This will reject ${r.reference} — ${r.legalName}. The applicant will be notified.`}
-        confirmLabel="Reject"
+        title={t('rejectDialogTitle')}
+        description={t('rejectDialogDescription', { reference: r.reference, company: r.legalName })}
+        confirmLabel={t('rejectDialogConfirm')}
         variant="danger"
         onConfirm={reject}
       />
@@ -593,24 +597,24 @@ function ReviewPanel({
       <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Request additional information</DialogTitle>
+            <DialogTitle>{t('infoDialogTitle')}</DialogTitle>
             <DialogDescription>
-              A message will be sent to {r.contactEmail}. The registration moves to “More info requested”.
+              {t('infoDialogDescription', { email: r.contactEmail })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-1.5">
-            <Label htmlFor="info-message">Message</Label>
+            <Label htmlFor="info-message">{t('infoMessageLabel')}</Label>
             <Textarea
               id="info-message"
               rows={4}
               value={infoMessage}
               onChange={(e) => setInfoMessage(e.target.value)}
-              placeholder="Please confirm your VAT number and intended order volumes…"
+              placeholder={t('infoMessagePlaceholder')}
             />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setInfoOpen(false)} disabled={busy}>
-              Cancel
+              {t('btnCancel')}
             </Button>
             <Button
               variant="default"
@@ -618,7 +622,7 @@ function ReviewPanel({
               disabled={busy || infoMessage.trim().length === 0}
             >
               <UserPlus className="h-4 w-4" />
-              Send request
+              {t('btnSendRequest')}
             </Button>
           </DialogFooter>
         </DialogContent>

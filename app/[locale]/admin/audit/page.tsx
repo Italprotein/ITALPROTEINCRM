@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { ScrollText, CalendarClock, Users } from 'lucide-react';
 import { activityService, authService } from '@/lib/mock-services';
 import type { Activity } from '@/lib/types';
@@ -37,6 +38,7 @@ const CONFIG_EVENTS: AuditRow[] = [
 ];
 
 export default function AuditPage() {
+  const t = useTranslations('AdminAudit');
   const [rows, setRows] = React.useState<AuditRow[] | null>(null);
   const [fActor, setFActor] = React.useState(ALL);
   const [fAction, setFAction] = React.useState(ALL);
@@ -60,7 +62,7 @@ export default function AuditPage() {
   }, []);
 
   const actorName = (id?: string) => {
-    if (!id) return 'System';
+    if (!id) return t('systemActor');
     const a = authService.getAccount(id);
     return a ? `${a.firstName} ${a.lastName}` : humanize(id.replace('u_', ''));
   };
@@ -85,9 +87,9 @@ export default function AuditPage() {
   }, [rows]);
 
   const columns: Column<AuditRow>[] = [
-    { key: 'at', header: 'Timestamp', sortable: true, sortValue: (r) => new Date(r.at).getTime(), cell: (r) => <span className="whitespace-nowrap text-sm tabular text-muted-foreground">{formatDateTime(r.at)}</span> },
+    { key: 'at', header: t('colTimestamp'), sortable: true, sortValue: (r) => new Date(r.at).getTime(), cell: (r) => <span className="whitespace-nowrap text-sm tabular text-muted-foreground">{formatDateTime(r.at)}</span> },
     {
-      key: 'actor', header: 'Actor', sortValue: (r) => actorName(r.actorId),
+      key: 'actor', header: t('colActor'), sortValue: (r) => actorName(r.actorId),
       cell: (r) => (
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-foreground">{actorName(r.actorId)}</span>
@@ -95,39 +97,39 @@ export default function AuditPage() {
         </div>
       ),
     },
-    { key: 'action', header: 'Action', sortValue: (r) => r.action, cell: (r) => <Badge variant="secondary" className="font-mono text-2xs">{r.action}</Badge> },
-    { key: 'entity', header: 'Entity', sortValue: (r) => r.entity, cell: (r) => <span className="text-sm capitalize text-muted-foreground">{r.entity.replace(/_/g, ' ')}</span>, hideable: true },
-    { key: 'summary', header: 'Summary', cell: (r) => <span className="text-sm">{r.summary}</span> },
+    { key: 'action', header: t('colAction'), sortValue: (r) => r.action, cell: (r) => <Badge variant="secondary" className="font-mono text-2xs">{r.action}</Badge> },
+    { key: 'entity', header: t('colEntity'), sortValue: (r) => r.entity, cell: (r) => <span className="text-sm capitalize text-muted-foreground">{r.entity.replace(/_/g, ' ')}</span>, hideable: true },
+    { key: 'summary', header: t('colSummary'), cell: (r) => <span className="text-sm">{r.summary}</span> },
   ];
 
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2">
       <Select value={fActor} onValueChange={setFActor}>
-        <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder="Actor" /></SelectTrigger>
-        <SelectContent><SelectItem value={ALL}>All actors</SelectItem>{actors.map((a) => <SelectItem key={a} value={a}>{actorName(a)}</SelectItem>)}</SelectContent>
+        <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder={t('filterActorPlaceholder')} /></SelectTrigger>
+        <SelectContent><SelectItem value={ALL}>{t('allActors')}</SelectItem>{actors.map((a) => <SelectItem key={a} value={a}>{actorName(a)}</SelectItem>)}</SelectContent>
       </Select>
       <Select value={fAction} onValueChange={setFAction}>
-        <SelectTrigger className="h-9 w-[170px]"><SelectValue placeholder="Action" /></SelectTrigger>
-        <SelectContent><SelectItem value={ALL}>All actions</SelectItem>{actions.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
+        <SelectTrigger className="h-9 w-[170px]"><SelectValue placeholder={t('filterActionPlaceholder')} /></SelectTrigger>
+        <SelectContent><SelectItem value={ALL}>{t('allActions')}</SelectItem>{actions.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
       </Select>
     </div>
   );
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <PageHeader title="Audit log" subtitle="A demo-derived record of system and data events. Production logs are written server-side." />
+      <PageHeader title={t('title')} subtitle={t('subtitle')} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Total events" value={stats.total} icon={ScrollText} tone="gold" />
-        <StatCard label="Events today" value={stats.today} icon={CalendarClock} tone="info" delay={0.05} />
-        <StatCard label="Distinct actors" value={stats.actors} icon={Users} tone="success" delay={0.1} />
+        <StatCard label={t('statTotalEvents')} value={stats.total} icon={ScrollText} tone="gold" />
+        <StatCard label={t('statEventsToday')} value={stats.today} icon={CalendarClock} tone="info" delay={0.05} />
+        <StatCard label={t('statDistinctActors')} value={stats.actors} icon={Users} tone="success" delay={0.1} />
       </div>
 
       <DataTable<AuditRow>
         data={filtered} columns={columns} getRowId={(r) => r.id} loading={rows === null}
-        searchable searchPlaceholder="Search audit events…" searchValue={(r) => `${actorName(r.actorId)} ${r.action} ${r.entity} ${r.summary}`}
+        searchable searchPlaceholder={t('searchPlaceholder')} searchValue={(r) => `${actorName(r.actorId)} ${r.action} ${r.entity} ${r.summary}`}
         pageSize={15} toolbar={toolbar} enableColumnVisibility enableDensityToggle
-        emptyTitle="No events" exportFilename="audit-log" storageKey="audit-table"
+        emptyTitle={t('emptyTitle')} exportFilename="audit-log" storageKey="audit-table"
       />
     </div>
   );

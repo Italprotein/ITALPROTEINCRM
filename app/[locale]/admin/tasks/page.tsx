@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   ListTodo,
   AlertTriangle,
@@ -82,23 +82,23 @@ const BOARD_LANES: TaskStatus[] = ['open', 'in_progress', 'blocked', 'done'];
 
 type FilterKey = 'mine' | 'team' | 'overdue' | 'due_today' | 'upcoming' | 'completed';
 
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'mine', label: 'My tasks' },
-  { key: 'team', label: 'Team' },
-  { key: 'overdue', label: 'Overdue' },
-  { key: 'due_today', label: 'Due today' },
-  { key: 'upcoming', label: 'Upcoming' },
-  { key: 'completed', label: 'Completed' },
+const FILTERS = (t: (key: string) => string): { key: FilterKey; label: string }[] => [
+  { key: 'mine', label: t('filterMine') },
+  { key: 'team', label: t('filterTeam') },
+  { key: 'overdue', label: t('filterOverdue') },
+  { key: 'due_today', label: t('filterDueToday') },
+  { key: 'upcoming', label: t('filterUpcoming') },
+  { key: 'completed', label: t('filterCompleted') },
 ];
 
 type Stats = Awaited<ReturnType<typeof taskService.getStatistics>>;
 
 /* ────────────────────────────── Helpers ────────────────────────────── */
 
-function ownerName(id?: string): string {
-  if (!id) return 'Unassigned';
+function ownerName(id: string | undefined, t: (key: string) => string): string {
+  if (!id) return t('unassigned');
   const a = authService.getAccount(id);
-  return a ? `${a.firstName} ${a.lastName}` : 'Unassigned';
+  return a ? `${a.firstName} ${a.lastName}` : t('unassigned');
 }
 
 const isActive = (t: Task) => t.status !== 'done' && t.status !== 'cancelled';
@@ -108,6 +108,7 @@ const sameDay = (a: Date, b: Date) => a.toISOString().slice(0, 10) === b.toISOSt
 
 export default function TasksPage() {
   const locale = useLocale() as Locale;
+  const t = useTranslations('AdminTasks');
   const router = useRouter();
   const { account } = useSession();
 
@@ -194,32 +195,40 @@ export default function TasksPage() {
   );
 
   /* ── mutations (mock) ── */
-  function completeTask(t: Task) {
+  function completeTask(task: Task) {
     setRows((prev) =>
-      prev ? prev.map((x) => (x.id === t.id ? { ...x, status: 'done', completedAt: TODAY } : x)) : prev,
+      prev ? prev.map((x) => (x.id === task.id ? { ...x, status: 'done', completedAt: TODAY } : x)) : prev,
     );
-    void taskService.update(t.id, { status: 'done', completedAt: TODAY });
+    void taskService.update(task.id, { status: 'done', completedAt: TODAY });
     refreshStats();
-    toast({ variant: 'success', title: 'Task completed', description: `“${t.title}” marked as done.` });
+    toast({
+      variant: 'success',
+      title: t('toastCompletedTitle'),
+      description: t('toastCompletedDescription', { title: task.title }),
+    });
   }
 
-  function reopenTask(t: Task) {
+  function reopenTask(task: Task) {
     setRows((prev) =>
       prev
-        ? prev.map((x) => (x.id === t.id ? { ...x, status: 'open', completedAt: undefined } : x))
+        ? prev.map((x) => (x.id === task.id ? { ...x, status: 'open', completedAt: undefined } : x))
         : prev,
     );
-    void taskService.update(t.id, { status: 'open', completedAt: undefined });
+    void taskService.update(task.id, { status: 'open', completedAt: undefined });
     refreshStats();
-    toast({ variant: 'info', title: 'Task reopened', description: `“${t.title}” moved back to Open.` });
+    toast({
+      variant: 'info',
+      title: t('toastReopenedTitle'),
+      description: t('toastReopenedDescription', { title: task.title }),
+    });
   }
 
-  function moveTo(t: Task, status: TaskStatus) {
-    if (status === t.status) return;
+  function moveTo(task: Task, status: TaskStatus) {
+    if (status === task.status) return;
     setRows((prev) =>
       prev
         ? prev.map((x) =>
-            x.id === t.id
+            x.id === task.id
               ? {
                   ...x,
                   status,
@@ -229,15 +238,18 @@ export default function TasksPage() {
           )
         : prev,
     );
-    void taskService.update(t.id, {
+    void taskService.update(task.id, {
       status,
       completedAt: status === 'done' ? TODAY : undefined,
     });
     refreshStats();
     toast({
       variant: status === 'done' ? 'success' : 'info',
-      title: 'Status updated',
-      description: `“${t.title}” → ${getLabel('taskStatus', status)}.`,
+      title: t('toastStatusUpdatedTitle'),
+      description: t('toastStatusUpdatedDescription', {
+        title: task.title,
+        status: getLabel('taskStatus', status),
+      }),
     });
   }
 
@@ -252,19 +264,19 @@ export default function TasksPage() {
       key: 'done',
       header: '',
       className: 'w-10',
-      cell: (t) => (
+      cell: (task) => (
         <span onClick={(e) => e.stopPropagation()} className="flex items-center justify-center">
           <Checkbox
-            checked={t.status === 'done'}
-            aria-label={t.status === 'done' ? 'Reopen task' : 'Complete task'}
-            onCheckedChange={(c) => (c ? completeTask(t) : reopenTask(t))}
+            checked={task.status === 'done'}
+            aria-label={task.status === 'done' ? t('reopenTaskAria') : t('completeTaskAria')}
+            onCheckedChange={(c) => (c ? completeTask(task) : reopenTask(task))}
           />
         </span>
       ),
     },
     {
       key: 'title',
-      header: 'Title',
+      header: t('colTitle'),
       sortValue: (t) => t.title,
       cell: (t) => (
         <span
@@ -279,14 +291,14 @@ export default function TasksPage() {
     },
     {
       key: 'type',
-      header: 'Type',
+      header: t('colType'),
       sortValue: (t) => getLabel('taskType', t.type),
       cell: (t) => <StatusBadge kind="taskType" value={t.type} />,
       hideable: true,
     },
     {
       key: 'company',
-      header: 'Company',
+      header: t('colCompany'),
       sortValue: (t) => companyName(t.companyId),
       cell: (t) => {
         const c = t.companyId ? companies.get(t.companyId) : undefined;
@@ -311,14 +323,14 @@ export default function TasksPage() {
     },
     {
       key: 'priority',
-      header: 'Priority',
+      header: t('colPriority'),
       sortValue: (t) => PRIORITIES.indexOf(t.priority),
       cell: (t) => <PriorityBadge value={t.priority} />,
       hideable: true,
     },
     {
       key: 'due',
-      header: 'Due',
+      header: t('colDue'),
       align: 'right',
       sortable: true,
       sortValue: (t) => (t.dueDate ? new Date(t.dueDate).getTime() : Number.MAX_SAFE_INTEGER),
@@ -340,16 +352,16 @@ export default function TasksPage() {
     },
     {
       key: 'status',
-      header: 'Status',
+      header: t('colStatus'),
       sortValue: (t) => getLabel('taskStatus', t.status),
       cell: (t) => <StatusBadge kind="taskStatus" value={t.status} />,
     },
     {
       key: 'assignee',
-      header: 'Assignee',
-      sortValue: (t) => ownerName(t.ownerId),
-      cell: (t) => {
-        const name = ownerName(t.ownerId);
+      header: t('colAssignee'),
+      sortValue: (task) => ownerName(task.ownerId, t),
+      cell: (task) => {
+        const name = ownerName(task.ownerId, t);
         return (
           <span className="flex items-center gap-2 whitespace-nowrap">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-navy/10 text-2xs font-semibold text-brand-navy">
@@ -364,27 +376,27 @@ export default function TasksPage() {
   ];
 
   /* ── row actions ── */
-  function rowActions(t: Task) {
+  function rowActions(task: Task) {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="Row actions">
+          <Button variant="ghost" size="icon-sm" aria-label={t('rowActionsAria')}>
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {t.companyId ? (
+          {task.companyId ? (
             <>
-              <DropdownMenuItem onSelect={() => router.push('/admin/companies/' + t.companyId)}>
+              <DropdownMenuItem onSelect={() => router.push('/admin/companies/' + task.companyId)}>
                 <ArrowRight />
-                Open company
+                {t('openCompany')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
           ) : null}
-          <DropdownMenuLabel>Move to</DropdownMenuLabel>
+          <DropdownMenuLabel>{t('moveTo')}</DropdownMenuLabel>
           {BOARD_LANES.map((lane) => (
-            <DropdownMenuItem key={lane} disabled={lane === t.status} onSelect={() => moveTo(t, lane)}>
+            <DropdownMenuItem key={lane} disabled={lane === task.status} onSelect={() => moveTo(task, lane)}>
               {getLabel('taskStatus', lane)}
             </DropdownMenuItem>
           ))}
@@ -394,35 +406,35 @@ export default function TasksPage() {
   }
 
   /* ── mobile card ── */
-  function mobileCard(t: Task) {
-    const overdue = isActive(t) && !!t.dueDate && isOverdue(t.dueDate, NOW);
+  function mobileCard(task: Task) {
+    const overdue = isActive(task) && !!task.dueDate && isOverdue(task.dueDate, NOW);
     return (
       <Card className="p-3">
         <div className="flex items-start gap-2">
           <span onClick={(e) => e.stopPropagation()} className="pt-0.5">
             <Checkbox
-              checked={t.status === 'done'}
-              aria-label="Complete task"
-              onCheckedChange={(c) => (c ? completeTask(t) : reopenTask(t))}
+              checked={task.status === 'done'}
+              aria-label={t('completeTaskAria')}
+              onCheckedChange={(c) => (c ? completeTask(task) : reopenTask(task))}
             />
           </span>
           <div className="min-w-0 flex-1">
             <p
               className={cn(
                 'text-sm font-medium text-foreground',
-                t.status === 'done' && 'text-muted-foreground line-through',
+                task.status === 'done' && 'text-muted-foreground line-through',
               )}
             >
-              {t.title}
+              {task.title}
             </p>
-            <p className="truncate text-xs text-muted-foreground">{companyName(t.companyId)}</p>
+            <p className="truncate text-xs text-muted-foreground">{companyName(task.companyId)}</p>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <StatusBadge kind="taskStatus" value={t.status} />
-              <StatusBadge kind="taskType" value={t.type} />
-              <PriorityBadge value={t.priority} />
-              {t.dueDate ? (
+              <StatusBadge kind="taskStatus" value={task.status} />
+              <StatusBadge kind="taskType" value={task.type} />
+              <PriorityBadge value={task.priority} />
+              {task.dueDate ? (
                 <span className={cn('text-2xs', overdue ? 'font-semibold text-danger' : 'text-muted-foreground')}>
-                  {formatDate(t.dueDate, locale)}
+                  {formatDate(task.dueDate, locale)}
                 </span>
               ) : null}
             </div>
@@ -435,8 +447,8 @@ export default function TasksPage() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
-        title="Tasks"
-        subtitle="Plan and track every follow-up across the commercial pipeline."
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <>
             <div className="inline-flex items-center rounded-lg border bg-card p-0.5">
@@ -447,7 +459,7 @@ export default function TasksPage() {
                 className="gap-1.5"
               >
                 <Table2 className="h-4 w-4" />
-                List
+                {t('viewList')}
               </Button>
               <Button
                 variant={view === 'board' ? 'secondary' : 'ghost'}
@@ -456,12 +468,12 @@ export default function TasksPage() {
                 className="gap-1.5"
               >
                 <LayoutGrid className="h-4 w-4" />
-                Board
+                {t('viewBoard')}
               </Button>
             </div>
             <Button variant="gold" onClick={() => setCreateOpen(true)}>
               <Plus />
-              New task
+              {t('newTask')}
             </Button>
           </>
         }
@@ -469,12 +481,12 @@ export default function TasksPage() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <StatCard label="Open" value={stats?.open ?? 0} icon={ListTodo} tone="info" />
-        <StatCard label="Overdue" value={stats?.overdue ?? 0} icon={AlertTriangle} tone="danger" delay={0.05} />
-        <StatCard label="Due today" value={stats?.dueToday ?? 0} icon={CalendarClock} tone="warning" delay={0.1} />
-        <StatCard label="Completed" value={stats?.completed ?? 0} icon={CheckCircle2} tone="success" delay={0.15} />
+        <StatCard label={t('statOpen')} value={stats?.open ?? 0} icon={ListTodo} tone="info" />
+        <StatCard label={t('statOverdue')} value={stats?.overdue ?? 0} icon={AlertTriangle} tone="danger" delay={0.05} />
+        <StatCard label={t('statDueToday')} value={stats?.dueToday ?? 0} icon={CalendarClock} tone="warning" delay={0.1} />
+        <StatCard label={t('statCompleted')} value={stats?.completed ?? 0} icon={CheckCircle2} tone="success" delay={0.15} />
         <StatCard
-          label="Completion rate"
+          label={t('statCompletionRate')}
           value={stats?.completionRate ?? 0}
           icon={Gauge}
           tone="gold"
@@ -485,7 +497,7 @@ export default function TasksPage() {
 
       {/* Filter chips */}
       <div className="flex flex-wrap items-center gap-2">
-        {FILTERS.map((f) => {
+        {FILTERS(t).map((f) => {
           const active = filter === f.key;
           return (
             <Button
@@ -510,7 +522,7 @@ export default function TasksPage() {
         {filter !== 'team' ? (
           <Button variant="ghost" size="sm" onClick={() => setFilter('team')}>
             <X />
-            Reset
+            {t('reset')}
           </Button>
         ) : null}
       </div>
@@ -523,15 +535,15 @@ export default function TasksPage() {
           getRowId={(t) => t.id}
           loading={rows === null}
           searchable
-          searchPlaceholder="Search tasks, companies…"
-          searchValue={(t) => [t.title, t.description, companyName(t.companyId), ownerName(t.ownerId)].filter(Boolean).join(' ')}
+          searchPlaceholder={t('searchPlaceholder')}
+          searchValue={(task) => [task.title, task.description, companyName(task.companyId), ownerName(task.ownerId, t)].filter(Boolean).join(' ')}
           pageSize={12}
           rowActions={rowActions}
           mobileCard={mobileCard}
           enableColumnVisibility
           enableDensityToggle
-          emptyTitle="No tasks match"
-          emptyDescription="Adjust the filter or create a new task."
+          emptyTitle={t('emptyTitle')}
+          emptyDescription={t('emptyDescription')}
           exportFilename="tasks"
           storageKey="tasks-table"
         />
@@ -571,6 +583,7 @@ function TaskBoard({
   companyName: (id?: string) => string;
   onMove: (t: Task, status: TaskStatus) => void;
 }) {
+  const t = useTranslations('AdminTasks');
   if (loading) {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -596,38 +609,38 @@ function TaskBoard({
           </div>
           <div className="flex flex-col gap-2 p-2">
             {items.length === 0 ? (
-              <p className="px-2 py-6 text-center text-xs text-muted-foreground">No tasks</p>
+              <p className="px-2 py-6 text-center text-xs text-muted-foreground">{t('noTasks')}</p>
             ) : (
-              items.map((t) => {
+              items.map((task) => {
                 const overdue =
-                  t.status !== 'done' && t.status !== 'cancelled' && !!t.dueDate && isOverdue(t.dueDate, NOW);
+                  task.status !== 'done' && task.status !== 'cancelled' && !!task.dueDate && isOverdue(task.dueDate, NOW);
                 return (
                   <div
-                    key={t.id}
+                    key={task.id}
                     className="rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p
                         className={cn(
                           'text-sm font-medium text-foreground',
-                          t.status === 'done' && 'text-muted-foreground line-through',
+                          task.status === 'done' && 'text-muted-foreground line-through',
                         )}
                       >
-                        {t.title}
+                        {task.title}
                       </p>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon-sm" aria-label="Move task">
+                          <Button variant="ghost" size="icon-sm" aria-label={t('moveTaskAria')}>
                             <MoreHorizontal />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Move to</DropdownMenuLabel>
+                          <DropdownMenuLabel>{t('moveTo')}</DropdownMenuLabel>
                           {BOARD_LANES.map((lane) => (
                             <DropdownMenuItem
                               key={lane}
-                              disabled={lane === t.status}
-                              onSelect={() => onMove(t, lane)}
+                              disabled={lane === task.status}
+                              onSelect={() => onMove(task, lane)}
                             >
                               {getLabel('taskStatus', lane)}
                             </DropdownMenuItem>
@@ -635,17 +648,17 @@ function TaskBoard({
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    <p className="mt-1 truncate text-xs text-muted-foreground">{companyName(t.companyId)}</p>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">{companyName(task.companyId)}</p>
                     <div className="mt-2 flex items-center justify-between gap-2">
-                      <PriorityBadge value={t.priority} />
-                      {t.dueDate ? (
+                      <PriorityBadge value={task.priority} />
+                      {task.dueDate ? (
                         <span
                           className={cn(
                             'text-2xs',
                             overdue ? 'font-semibold text-danger' : 'text-muted-foreground',
                           )}
                         >
-                          {formatDate(t.dueDate, locale)}
+                          {formatDate(task.dueDate, locale)}
                         </span>
                       ) : null}
                     </div>
@@ -675,6 +688,7 @@ function CreateTaskDialog({
   defaultOwnerId: string;
   onCreated: (t: Task) => void;
 }) {
+  const t = useTranslations('AdminTasks');
   const NONE = '__none__';
   const [title, setTitle] = React.useState('');
   const [type, setType] = React.useState<TaskType>('follow_up');
@@ -720,7 +734,11 @@ function CreateTaskDialog({
 
     await taskService.create(task);
     onCreated(task);
-    toast({ variant: 'success', title: 'Task created', description: `“${task.title}” added to your list.` });
+    toast({
+      variant: 'success',
+      title: t('toastCreatedTitle'),
+      description: t('toastCreatedDescription', { title: task.title }),
+    });
     setSubmitting(false);
     reset();
     onOpenChange(false);
@@ -736,23 +754,23 @@ function CreateTaskDialog({
     >
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>New task</DialogTitle>
-          <DialogDescription>Create a follow-up and assign a due date.</DialogDescription>
+          <DialogTitle>{t('dialogTitle')}</DialogTitle>
+          <DialogDescription>{t('dialogDescription')}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="task-title">Title *</Label>
+            <Label htmlFor="task-title">{t('labelTitle')}</Label>
             <Input
               id="task-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Follow up on sample feedback"
+              placeholder={t('titlePlaceholder')}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label>Type</Label>
+            <Label>{t('labelType')}</Label>
             <Select value={type} onValueChange={(v) => setType(v as TaskType)}>
               <SelectTrigger>
                 <SelectValue />
@@ -768,7 +786,7 @@ function CreateTaskDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Priority</Label>
+            <Label>{t('labelPriority')}</Label>
             <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
               <SelectTrigger>
                 <SelectValue />
@@ -784,13 +802,13 @@ function CreateTaskDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Company</Label>
+            <Label>{t('labelCompany')}</Label>
             <Select value={companyId} onValueChange={setCompanyId}>
               <SelectTrigger>
-                <SelectValue placeholder="No company" />
+                <SelectValue placeholder={t('noCompany')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>No company</SelectItem>
+                <SelectItem value={NONE}>{t('noCompany')}</SelectItem>
                 {sortedCompanies.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {flagEmoji(c.countryCode)} {c.tradingName || c.legalName}
@@ -801,17 +819,17 @@ function CreateTaskDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="task-due">Due date</Label>
+            <Label htmlFor="task-due">{t('labelDueDate')}</Label>
             <Input id="task-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button variant="gold" onClick={submit} disabled={!valid || submitting}>
-            {submitting ? 'Creating…' : 'Create task'}
+            {submitting ? t('creating') : t('createTask')}
           </Button>
         </DialogFooter>
       </DialogContent>

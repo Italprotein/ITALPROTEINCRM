@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   FlaskConical,
   Rocket,
@@ -106,10 +106,10 @@ function nextStage(stage: DevelopmentStage): DevelopmentStage | null {
   return STAGE_ORDER[idx + 1];
 }
 
-function ownerName(id?: string): string {
-  if (!id) return 'Unassigned';
+function ownerName(id: string | undefined, unassignedLabel: string): string {
+  if (!id) return unassignedLabel;
   const a = authService.getAccount(id);
-  return a ? `${a.firstName} ${a.lastName}` : 'Unassigned';
+  return a ? `${a.firstName} ${a.lastName}` : unassignedLabel;
 }
 
 type Stats = Awaited<ReturnType<typeof projectService.getStatistics>>;
@@ -118,6 +118,7 @@ type Stats = Awaited<ReturnType<typeof projectService.getStatistics>>;
 
 export default function ProjectsPage() {
   const locale = useLocale() as Locale;
+  const t = useTranslations('AdminProjects');
   const router = useRouter();
 
   const [rows, setRows] = React.useState<ApplicationProject[] | null>(null);
@@ -209,8 +210,8 @@ export default function ProjectsPage() {
     if (!next) {
       toast({
         variant: 'info',
-        title: 'No further stage',
-        description: `${p.name} is already at ${getLabel('developmentStage', p.developmentStage)}.`,
+        title: t('toastNoFurtherStageTitle'),
+        description: t('toastNoFurtherStageDescription', { name: p.name, stage: getLabel('developmentStage', p.developmentStage) }),
       });
       return;
     }
@@ -222,8 +223,8 @@ export default function ProjectsPage() {
     void projectService.getStatistics().then(setStats);
     toast({
       variant: 'success',
-      title: 'Stage advanced',
-      description: `${p.name} → ${getLabel('developmentStage', next)}.`,
+      title: t('toastStageAdvancedTitle'),
+      description: t('toastStageAdvancedDescription', { name: p.name, stage: getLabel('developmentStage', next) }),
     });
   }
 
@@ -231,7 +232,7 @@ export default function ProjectsPage() {
   const columns: Column<ApplicationProject>[] = [
     {
       key: 'name',
-      header: 'Project',
+      header: t('columnProject'),
       sortValue: (p) => p.name,
       cell: (p) => (
         <div className="min-w-0">
@@ -242,7 +243,7 @@ export default function ProjectsPage() {
     },
     {
       key: 'company',
-      header: 'Company',
+      header: t('columnCompany'),
       sortValue: (p) => companyName(p.companyId),
       cell: (p) => {
         const c = companies.get(p.companyId);
@@ -263,27 +264,27 @@ export default function ProjectsPage() {
     },
     {
       key: 'category',
-      header: 'Category',
+      header: t('columnCategory'),
       sortValue: (p) => getLabel('applicationCategory', p.category),
       cell: (p) => <StatusBadge kind="applicationCategory" value={p.category} />,
       hideable: true,
     },
     {
       key: 'devStage',
-      header: 'Dev stage',
+      header: t('columnDevStage'),
       sortValue: (p) => STAGE_PROGRESS[p.developmentStage] ?? 0,
       cell: (p) => <StatusBadge kind="developmentStage" value={p.developmentStage} />,
     },
     {
       key: 'testStage',
-      header: 'Test stage',
+      header: t('columnTestStage'),
       sortValue: (p) => getLabel('testStage', p.testStage ?? 'not_started'),
       cell: (p) => <StatusBadge kind="testStage" value={p.testStage ?? 'not_started'} />,
       hideable: true,
     },
     {
       key: 'progress',
-      header: 'Progress',
+      header: t('columnProgress'),
       sortValue: (p) => STAGE_PROGRESS[p.developmentStage] ?? 0,
       cell: (p) => {
         const v = STAGE_PROGRESS[p.developmentStage] ?? 0;
@@ -302,7 +303,7 @@ export default function ProjectsPage() {
     },
     {
       key: 'launch',
-      header: 'Est. launch',
+      header: t('columnLaunch'),
       align: 'right',
       sortable: true,
       sortValue: (p) => (p.estimatedLaunch ? new Date(p.estimatedLaunch).getTime() : 0),
@@ -316,10 +317,10 @@ export default function ProjectsPage() {
     },
     {
       key: 'owner',
-      header: 'Owner',
-      sortValue: (p) => ownerName(p.internalOwnerId),
+      header: t('columnOwner'),
+      sortValue: (p) => ownerName(p.internalOwnerId, t('unassigned')),
       cell: (p) => {
-        const name = ownerName(p.internalOwnerId);
+        const name = ownerName(p.internalOwnerId, t('unassigned'));
         return (
           <span className="flex items-center gap-2 whitespace-nowrap">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-navy/10 text-2xs font-semibold text-brand-navy">
@@ -338,10 +339,10 @@ export default function ProjectsPage() {
     <div className="flex flex-wrap items-center gap-2">
       <Select value={fStage} onValueChange={setFStage}>
         <SelectTrigger className="h-9 w-[170px]">
-          <SelectValue placeholder="Dev stage" />
+          <SelectValue placeholder={t('filterStagePlaceholder')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All stages</SelectItem>
+          <SelectItem value={ALL}>{t('filterAllStages')}</SelectItem>
           {stageOptions.map((s) => (
             <SelectItem key={s} value={s}>
               {getLabel('developmentStage', s)}
@@ -352,10 +353,10 @@ export default function ProjectsPage() {
 
       <Select value={fCategory} onValueChange={setFCategory}>
         <SelectTrigger className="h-9 w-[170px]">
-          <SelectValue placeholder="Category" />
+          <SelectValue placeholder={t('filterCategoryPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All categories</SelectItem>
+          <SelectItem value={ALL}>{t('filterAllCategories')}</SelectItem>
           {categoryOptions.map((c) => (
             <SelectItem key={c} value={c}>
               {getLabel('applicationCategory', c)}
@@ -367,7 +368,7 @@ export default function ProjectsPage() {
       {activeFilters > 0 ? (
         <Button variant="ghost" size="sm" onClick={resetFilters}>
           <X />
-          Clear ({activeFilters})
+          {t('clearFilters', { count: activeFilters })}
         </Button>
       ) : null}
     </div>
@@ -379,19 +380,19 @@ export default function ProjectsPage() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="Row actions">
+          <Button variant="ghost" size="icon-sm" aria-label={t('rowActions')}>
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => setDetail(p)}>
             <Eye />
-            Open
+            {t('open')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => advance(p)} disabled={!next}>
             <ChevronRight />
-            {next ? `Advance to ${getLabel('developmentStage', next)}` : 'No further stage'}
+            {next ? t('advanceTo', { stage: getLabel('developmentStage', next) }) : t('noFurtherStage')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -425,58 +426,58 @@ export default function ProjectsPage() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
-        title="Application projects"
-        subtitle="Co-development projects taking Proamina® from concept to launch across applications."
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           <Button
             variant="outline"
             onClick={() =>
               toast({
                 variant: 'info',
-                title: 'Export started',
-                description: `Preparing CSV for ${filtered.length} ${filtered.length === 1 ? 'project' : 'projects'}…`,
+                title: t('toastExportStartedTitle'),
+                description: t('toastExportStartedDescription', { count: filtered.length }),
               })
             }
           >
             <FlaskRound className="h-4 w-4" />
-            Export
+            {t('export')}
           </Button>
         }
       />
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total projects" value={stats?.total ?? 0} icon={FlaskConical} tone="gold" delay={0} />
+        <StatCard label={t('kpiTotal')} value={stats?.total ?? 0} icon={FlaskConical} tone="gold" delay={0} />
         <StatCard
-          label="Active"
+          label={t('kpiActive')}
           value={stats?.active ?? 0}
           icon={ActivityIcon}
           tone="info"
-          hint="In development pipeline"
+          hint={t('kpiActiveHint')}
           delay={0.05}
         />
-        <StatCard label="Launched" value={stats?.launched ?? 0} icon={Rocket} tone="success" delay={0.1} />
-        <StatCard label="On hold" value={onHold} icon={PauseCircle} tone="warning" delay={0.15} />
+        <StatCard label={t('kpiLaunched')} value={stats?.launched ?? 0} icon={Rocket} tone="success" delay={0.1} />
+        <StatCard label={t('kpiOnHold')} value={onHold} icon={PauseCircle} tone="warning" delay={0.15} />
       </div>
 
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
-          title="Projects by development stage"
-          description="Where co-development work sits in the lifecycle"
+          title={t('chartStageTitle')}
+          description={t('chartStageDescription')}
           loading={rows === null}
           isEmpty={stageChart.length === 0}
         >
-          <CategoryBar data={stageChart} xKey="stage" barKey="count" name="Projects" />
+          <CategoryBar data={stageChart} xKey="stage" barKey="count" name={t('chartStageName')} />
         </ChartCard>
 
         <ChartCard
-          title="Projects by application"
-          description="Distribution across product categories"
+          title={t('chartCategoryTitle')}
+          description={t('chartCategoryDescription')}
           loading={rows === null}
           isEmpty={categoryChart.length === 0}
         >
-          <DonutChart data={categoryChart} centerLabel="projects" />
+          <DonutChart data={categoryChart} centerLabel={t('donutCenterLabel')} />
         </ChartCard>
       </div>
 
@@ -487,7 +488,7 @@ export default function ProjectsPage() {
         getRowId={(p) => p.id}
         loading={rows === null}
         searchable
-        searchPlaceholder="Search project, brand, company…"
+        searchPlaceholder={t('searchPlaceholder')}
         searchValue={(p) =>
           [p.name, p.brandName, p.productName, companyName(p.companyId), p.market, p.clientProjectCode]
             .filter(Boolean)
@@ -500,8 +501,8 @@ export default function ProjectsPage() {
         enableColumnVisibility
         enableDensityToggle
         mobileCard={mobileCard}
-        emptyTitle="No projects match"
-        emptyDescription="Adjust the filters to see more application projects."
+        emptyTitle={t('emptyTitle')}
+        emptyDescription={t('emptyDescription')}
         exportFilename="application-projects"
         storageKey="projects-table"
       />
@@ -529,7 +530,7 @@ export default function ProjectsPage() {
               {/* Progress */}
               <div className="rounded-lg border bg-muted/30 p-3">
                 <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">Development progress</span>
+                  <span className="text-xs font-medium text-muted-foreground">{t('developmentProgress')}</span>
                   <span className="text-xs font-semibold tabular text-foreground">
                     {STAGE_PROGRESS[detail.developmentStage] ?? 0}%
                   </span>
@@ -545,7 +546,7 @@ export default function ProjectsPage() {
                 <div className="flex items-start gap-2">
                   <Target className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div>
-                    <p className="text-xs text-muted-foreground">Objective</p>
+                    <p className="text-xs text-muted-foreground">{t('objective')}</p>
                     <p className="text-sm font-medium text-foreground">{detail.objective}</p>
                   </div>
                 </div>
@@ -555,21 +556,21 @@ export default function ProjectsPage() {
                 <div className="flex items-start gap-2">
                   <Globe2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div>
-                    <dt className="text-xs text-muted-foreground">Market</dt>
+                    <dt className="text-xs text-muted-foreground">{t('market')}</dt>
                     <dd className="font-medium">{detail.market ?? '—'}</dd>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
                   <Repeat className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div>
-                    <dt className="text-xs text-muted-foreground">Test rounds</dt>
+                    <dt className="text-xs text-muted-foreground">{t('testRounds')}</dt>
                     <dd className="font-medium tabular">{detail.testRounds ?? 0}</dd>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
                   <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div>
-                    <dt className="text-xs text-muted-foreground">Est. launch</dt>
+                    <dt className="text-xs text-muted-foreground">{t('columnLaunch')}</dt>
                     <dd className="font-medium">
                       {detail.estimatedLaunch ? formatDate(detail.estimatedLaunch, locale) : '—'}
                     </dd>
@@ -578,20 +579,20 @@ export default function ProjectsPage() {
                 <div className="flex items-start gap-2">
                   <FlaskConical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div>
-                    <dt className="text-xs text-muted-foreground">Technical owner</dt>
-                    <dd className="font-medium">{ownerName(detail.technicalOwnerId)}</dd>
+                    <dt className="text-xs text-muted-foreground">{t('technicalOwner')}</dt>
+                    <dd className="font-medium">{ownerName(detail.technicalOwnerId, t('unassigned'))}</dd>
                   </div>
                 </div>
               </dl>
 
               {/* Current result */}
               <div className="rounded-lg border bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground">Current result</p>
+                <p className="text-xs text-muted-foreground">{t('currentResult')}</p>
                 <div className="mt-1">
                   {detail.currentResult ? (
                     <StatusBadge kind="feedbackResult" value={detail.currentResult} />
                   ) : (
-                    <Badge variant="muted">Awaiting results</Badge>
+                    <Badge variant="muted">{t('awaitingResults')}</Badge>
                   )}
                 </div>
               </div>
@@ -599,7 +600,7 @@ export default function ProjectsPage() {
               {/* Linked sample */}
               <div className="rounded-lg border p-3">
                 <div className="mb-1 flex items-center justify-between">
-                  <p className="text-xs font-medium text-muted-foreground">Linked sample</p>
+                  <p className="text-xs font-medium text-muted-foreground">{t('linkedSample')}</p>
                   {sample ? <StatusBadge kind="sampleStatus" value={sample.status} /> : null}
                 </div>
                 {detail.sampleRequestId ? (
@@ -624,31 +625,31 @@ export default function ProjectsPage() {
                       <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </button>
                   ) : (
-                    <p className="text-sm text-muted-foreground">Loading sample…</p>
+                    <p className="text-sm text-muted-foreground">{t('loadingSample')}</p>
                   )
                 ) : (
-                  <p className="text-sm text-muted-foreground">No sample linked.</p>
+                  <p className="text-sm text-muted-foreground">{t('noSampleLinked')}</p>
                 )}
               </div>
 
               {/* Next action */}
               {detail.nextAction ? (
                 <div className="rounded-lg border border-dashed bg-muted/40 p-3">
-                  <p className="text-xs font-medium text-muted-foreground">Next action</p>
+                  <p className="text-xs font-medium text-muted-foreground">{t('nextAction')}</p>
                   <p className="mt-0.5 text-sm font-medium text-foreground">{detail.nextAction.label}</p>
                   {detail.nextAction.dueDate ? (
-                    <p className="text-xs text-muted-foreground">Due {formatDate(detail.nextAction.dueDate, locale)}</p>
+                    <p className="text-xs text-muted-foreground">{t('due', { date: formatDate(detail.nextAction.dueDate, locale) })}</p>
                   ) : null}
                 </div>
               ) : null}
 
               <SheetFooter>
                 <SheetClose asChild>
-                  <Button variant="outline">Close</Button>
+                  <Button variant="outline">{t('close')}</Button>
                 </SheetClose>
                 <Button variant="gold" onClick={() => advance(detail)} disabled={!nextStage(detail.developmentStage)}>
                   <ChevronRight className="h-4 w-4" />
-                  Advance stage
+                  {t('advanceStage')}
                 </Button>
               </SheetFooter>
             </>

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   ArrowLeft,
   Truck,
@@ -65,14 +65,19 @@ type TimelineStep = {
   icon: typeof Truck;
 };
 
-const TIMELINE: TimelineStep[] = [
-  { key: 'preparing', label: 'Preparing', icon: Package },
-  { key: 'collected', label: 'Collected', icon: Warehouse },
-  { key: 'in_transit', label: 'In transit', icon: PlaneTakeoff },
-  { key: 'customs', label: 'Customs', icon: ShieldAlert },
-  { key: 'out_for_delivery', label: 'Out for delivery', icon: TruckIcon },
-  { key: 'delivered', label: 'Delivered', icon: PackageCheck },
+type T = ReturnType<typeof useTranslations<'AdminShipmentDetail'>>;
+
+const TIMELINE = (t: T): TimelineStep[] => [
+  { key: 'preparing', label: t('stepPreparing'), icon: Package },
+  { key: 'collected', label: t('stepCollected'), icon: Warehouse },
+  { key: 'in_transit', label: t('stepInTransit'), icon: PlaneTakeoff },
+  { key: 'customs', label: t('stepCustoms'), icon: ShieldAlert },
+  { key: 'out_for_delivery', label: t('stepOutForDelivery'), icon: TruckIcon },
+  { key: 'delivered', label: t('stepDelivered'), icon: PackageCheck },
 ];
+
+/** Number of steps in the visual timeline (length is constant regardless of t). */
+const TIMELINE_LENGTH = 6;
 
 /** Map a shipment to the current index in the visual timeline. */
 function currentStepIndex(s: Shipment): number {
@@ -85,28 +90,33 @@ function currentStepIndex(s: Shipment): number {
   return 0; // preparing
 }
 
-const STATUS_META: Record<DerivedShipmentStatus, { label: string; variant: 'success' | 'info' | 'warning' | 'muted' }> = {
-  delivered: { label: 'Delivered', variant: 'success' },
-  in_transit: { label: 'In transit', variant: 'info' },
-  customs: { label: 'At customs', variant: 'warning' },
-  preparing: { label: 'Preparing', variant: 'muted' },
-};
+const STATUS_META = (
+  t: T,
+): Record<DerivedShipmentStatus, { label: string; variant: 'success' | 'info' | 'warning' | 'muted' }> => ({
+  delivered: { label: t('statusDelivered'), variant: 'success' },
+  in_transit: { label: t('statusInTransit'), variant: 'info' },
+  customs: { label: t('statusAtCustoms'), variant: 'warning' },
+  preparing: { label: t('statusPreparing'), variant: 'muted' },
+});
 
 /* ────────────────────────────── Document checklist ────────────────────────────── */
 
-const CHECKLIST_ITEMS = [
-  'Commercial invoice',
-  'Packing list',
-  'Customs declaration (CN23)',
-  'Certificate of analysis',
-  'Safety data sheet',
-  'Proof of delivery',
+type ChecklistItem = { id: string; label: string };
+
+const CHECKLIST_ITEMS = (t: T): ChecklistItem[] => [
+  { id: 'commercial_invoice', label: t('checklistCommercialInvoice') },
+  { id: 'packing_list', label: t('checklistPackingList') },
+  { id: 'customs_declaration', label: t('checklistCustomsDeclaration') },
+  { id: 'certificate_of_analysis', label: t('checklistCertificateOfAnalysis') },
+  { id: 'safety_data_sheet', label: t('checklistSafetyDataSheet') },
+  { id: 'proof_of_delivery', label: t('checklistProofOfDelivery') },
 ];
 
 /* ────────────────────────────── Page ────────────────────────────── */
 
 export default function ShipmentDetailPage({ params }: { params: { id: string } }) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('AdminShipmentDetail');
   const router = useRouter();
 
   const [shipment, setShipment] = React.useState<Shipment | null>(null);
@@ -138,10 +148,10 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
     setSample(sr ?? null);
     // pre-tick checklist items based on available data
     setChecked({
-      'Commercial invoice': true,
-      'Packing list': true,
-      'Customs declaration (CN23)': !!s.customsStatus && s.customsStatus !== 'not_required',
-      'Proof of delivery': !!s.proofOfDelivery || !!s.actualDelivery,
+      commercial_invoice: true,
+      packing_list: true,
+      customs_declaration: !!s.customsStatus && s.customsStatus !== 'not_required',
+      proof_of_delivery: !!s.proofOfDelivery || !!s.actualDelivery,
     });
     setLoading(false);
   }, [params.id]);
@@ -160,7 +170,11 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
     await new Promise((r) => setTimeout(r, 500));
     const today = new Date().toISOString().slice(0, 10);
     applyPatch({ shipmentDate: shipment.shipmentDate ?? today });
-    toast({ variant: 'success', title: 'Shipment dispatched', description: `${shipment.reference} is on its way.` });
+    toast({
+      variant: 'success',
+      title: t('toastDispatchedTitle'),
+      description: t('toastDispatchedDescription', { reference: shipment.reference }),
+    });
   }
 
   async function markDelivered() {
@@ -168,7 +182,11 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
     await new Promise((r) => setTimeout(r, 500));
     const today = new Date().toISOString().slice(0, 10);
     applyPatch({ actualDelivery: today, isDelayed: false, customsStatus: 'cleared' });
-    toast({ variant: 'success', title: 'Delivery confirmed', description: `${shipment.reference} delivered.` });
+    toast({
+      variant: 'success',
+      title: t('toastDeliveredTitle'),
+      description: t('toastDeliveredDescription', { reference: shipment.reference }),
+    });
   }
 
   /* ── loading / error ── */
@@ -190,11 +208,11 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         <Button variant="ghost" size="sm" onClick={() => router.push('/admin/shipments')}>
           <ArrowLeft />
-          Back to shipments
+          {t('backToShipments')}
         </Button>
         <ErrorState
-          title="Shipment not found"
-          description="This shipment may have been removed. Return to the shipments list."
+          title={t('notFoundTitle')}
+          description={t('notFoundDescription')}
           onRetry={() => void load()}
         />
       </div>
@@ -202,42 +220,43 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
   }
 
   const status = shipmentService.deriveStatus(shipment);
+  const timeline = TIMELINE(t);
   const stepIdx = currentStepIndex(shipment);
-  const progressPct = Math.round((stepIdx / (TIMELINE.length - 1)) * 100);
-  const meta = STATUS_META[status];
+  const progressPct = Math.round((stepIdx / (TIMELINE_LENGTH - 1)) * 100);
+  const meta = STATUS_META(t)[status];
   const delayed = !!shipment.isDelayed && !shipment.actualDelivery;
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <Button variant="ghost" size="sm" className="-ml-2 w-fit" onClick={() => router.push('/admin/shipments')}>
         <ArrowLeft />
-        Back to shipments
+        {t('backToShipments')}
       </Button>
 
       <PageHeader
         title={shipment.reference}
-        subtitle={`${company?.tradingName || company?.legalName || 'Unknown company'} • ${shipment.address.city}, ${shipment.address.country}`}
+        subtitle={`${company?.tradingName || company?.legalName || t('unknownCompany')} • ${shipment.address.city}, ${shipment.address.country}`}
         actions={
           <>
             {status === 'preparing' ? (
               <Button variant="outline" onClick={() => void markDispatched()}>
                 <Send />
-                Mark dispatched
+                {t('markDispatched')}
               </Button>
             ) : null}
             {status !== 'delivered' ? (
               <Button variant="success" onClick={() => void markDelivered()}>
                 <CheckCircle2 />
-                Mark delivered
+                {t('markDelivered')}
               </Button>
             ) : null}
             <Button variant="outline" onClick={() => setTrackingOpen(true)}>
               <MapPin />
-              Add tracking update
+              {t('addTrackingUpdate')}
             </Button>
             <Button variant="destructive" onClick={() => setIssueOpen(true)}>
               <Flag />
-              Report issue
+              {t('reportIssue')}
             </Button>
           </>
         }
@@ -248,9 +267,9 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
         <div className="flex items-start gap-3 rounded-lg border border-danger/40 bg-danger-subtle/50 p-4">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
           <div>
-            <p className="text-sm font-semibold text-danger">Shipment delayed</p>
+            <p className="text-sm font-semibold text-danger">{t('delayBannerTitle')}</p>
             <p className="text-sm text-muted-foreground">
-              {shipment.deliveryIssue || 'This shipment is running behind its estimated delivery date. Follow up with the courier.'}
+              {shipment.deliveryIssue || t('delayBannerDescription')}
             </p>
           </div>
         </div>
@@ -259,8 +278,8 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
       {/* Tracking timeline */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
-          <CardTitle className="text-base">Tracking timeline</CardTitle>
-          <Badge variant={delayed ? 'danger' : meta.variant}>{delayed ? 'Delayed' : meta.label}</Badge>
+          <CardTitle className="text-base">{t('trackingTimeline')}</CardTitle>
+          <Badge variant={delayed ? 'danger' : meta.variant}>{delayed ? t('delayed') : meta.label}</Badge>
         </CardHeader>
         <CardContent className="space-y-5">
           <Progress
@@ -270,7 +289,7 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
 
           {/* steps */}
           <div className="grid grid-cols-3 gap-4 sm:grid-cols-6">
-            {TIMELINE.map((step, i) => {
+            {timeline.map((step, i) => {
               const done = i < stepIdx;
               const active = i === stepIdx;
               const Icon = step.icon;
@@ -302,14 +321,14 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
 
           {/* key dates */}
           <div className="grid grid-cols-2 gap-4 border-t pt-4 sm:grid-cols-4">
-            <Stat label="Dispatched" value={formatDate(shipment.shipmentDate, locale)} />
-            <Stat label="Estimated delivery" value={formatDate(shipment.estimatedDelivery, locale)} />
+            <Stat label={t('statDispatched')} value={formatDate(shipment.shipmentDate, locale)} />
+            <Stat label={t('statEstimatedDelivery')} value={formatDate(shipment.estimatedDelivery, locale)} />
             <Stat
-              label="Delivered"
+              label={t('statDelivered')}
               value={formatDate(shipment.actualDelivery, locale)}
               valueClass={shipment.actualDelivery ? 'text-success' : undefined}
             />
-            <Stat label="Sender" value={shipment.senderLocation} />
+            <Stat label={t('statSender')} value={shipment.senderLocation} />
           </div>
         </CardContent>
       </Card>
@@ -320,15 +339,15 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
           {/* Courier & tracking */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Courier &amp; tracking</CardTitle>
+              <CardTitle className="text-base">{t('courierTracking')}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
-              <Field icon={Truck} label="Courier" value={shipment.courier ?? '—'} />
-              <Field icon={Truck} label="Service" value={shipment.service ?? '—'} />
+              <Field icon={Truck} label={t('courier')} value={shipment.courier ?? '—'} />
+              <Field icon={Truck} label={t('service')} value={shipment.service ?? '—'} />
               <div className="space-y-1">
                 <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <MapPin className="h-3.5 w-3.5" />
-                  Tracking number
+                  {t('trackingNumber')}
                 </p>
                 {shipment.trackingNumber ? (
                   shipment.trackingUrl ? (
@@ -345,12 +364,12 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
                     <p className="text-sm font-medium tabular text-foreground">{shipment.trackingNumber}</p>
                   )
                 ) : (
-                  <p className="text-sm text-muted-foreground">Not yet assigned</p>
+                  <p className="text-sm text-muted-foreground">{t('notYetAssigned')}</p>
                 )}
               </div>
               <Field
                 icon={ShieldAlert}
-                label="Customs status"
+                label={t('customsStatus')}
                 valueNode={
                   shipment.customsStatus ? (
                     <StatusBadge kind="customsStatus" value={shipment.customsStatus} />
@@ -365,23 +384,23 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
           {/* Package details */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Package details</CardTitle>
+              <CardTitle className="text-base">{t('packageDetails')}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Field icon={Boxes} label="Packages" value={shipment.packageCount != null ? String(shipment.packageCount) : '—'} />
-              <Field icon={Weight} label="Weight" value={shipment.weightKg != null ? `${shipment.weightKg} kg` : '—'} />
-              <Field icon={Package} label="Dimensions" value={shipment.dimensions ?? '—'} />
+              <Field icon={Boxes} label={t('packages')} value={shipment.packageCount != null ? String(shipment.packageCount) : '—'} />
+              <Field icon={Weight} label={t('weight')} value={shipment.weightKg != null ? `${shipment.weightKg} kg` : '—'} />
+              <Field icon={Package} label={t('dimensions')} value={shipment.dimensions ?? '—'} />
               <Field
                 icon={FileText}
-                label="Incoterm"
+                label={t('incoterm')}
                 valueNode={shipment.incoterm ? <Badge variant="info">{getLabel('incoterm', shipment.incoterm)}</Badge> : <span className="text-sm text-muted-foreground">—</span>}
               />
               <Field
                 icon={ShieldAlert}
-                label="Customs"
+                label={t('customs')}
                 valueNode={shipment.customsStatus ? <StatusBadge kind="customsStatus" value={shipment.customsStatus} /> : <span className="text-sm text-muted-foreground">—</span>}
               />
-              <Field icon={MapPin} label="EORI / import" value={shipment.eoriImportInfo ?? '—'} />
+              <Field icon={MapPin} label={t('eoriImport')} value={shipment.eoriImportInfo ?? '—'} />
             </CardContent>
           </Card>
 
@@ -390,32 +409,32 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                Document checklist
+                {t('documentChecklist')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {CHECKLIST_ITEMS.map((item) => {
-                const id = `chk-${item}`;
+              {CHECKLIST_ITEMS(t).map((item) => {
+                const id = `chk-${item.id}`;
                 return (
-                  <div key={item} className="flex items-center gap-3">
+                  <div key={item.id} className="flex items-center gap-3">
                     <Checkbox
                       id={id}
-                      checked={!!checked[item]}
+                      checked={!!checked[item.id]}
                       onCheckedChange={(v) => {
                         const next = v === true;
-                        setChecked((prev) => ({ ...prev, [item]: next }));
+                        setChecked((prev) => ({ ...prev, [item.id]: next }));
                         toast({
                           variant: next ? 'success' : 'info',
-                          title: next ? 'Document checked' : 'Document unchecked',
-                          description: item,
+                          title: next ? t('toastDocumentCheckedTitle') : t('toastDocumentUncheckedTitle'),
+                          description: item.label,
                         });
                       }}
                     />
                     <Label
                       htmlFor={id}
-                      className={cn('cursor-pointer text-sm', checked[item] ? 'text-foreground' : 'text-muted-foreground')}
+                      className={cn('cursor-pointer text-sm', checked[item.id] ? 'text-foreground' : 'text-muted-foreground')}
                     >
-                      {item}
+                      {item.label}
                     </Label>
                   </div>
                 );
@@ -429,7 +448,7 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
           {/* Recipient & address */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Recipient &amp; address</CardTitle>
+              <CardTitle className="text-base">{t('recipientAddress')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <p className="font-medium text-foreground">{shipment.recipient}</p>
@@ -464,7 +483,7 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
           {company ? (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Company</CardTitle>
+                <CardTitle className="text-base">{t('company')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Link
@@ -493,7 +512,7 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
           {/* Related sample */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Related sample</CardTitle>
+              <CardTitle className="text-base">{t('relatedSample')}</CardTitle>
             </CardHeader>
             <CardContent>
               {sample ? (
@@ -514,7 +533,7 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
                   </div>
                 </Link>
               ) : (
-                <p className="text-sm text-muted-foreground">No linked sample request.</p>
+                <p className="text-sm text-muted-foreground">{t('noLinkedSample')}</p>
               )}
             </CardContent>
           </Card>
@@ -582,6 +601,7 @@ function IssueDialog({
   currentIssue?: string;
   onReported: (issue: string) => void;
 }) {
+  const t = useTranslations('AdminShipmentDetail');
   const [issue, setIssue] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -595,7 +615,11 @@ function IssueDialog({
     await new Promise((r) => setTimeout(r, 500));
     onReported(issue.trim());
     setSubmitting(false);
-    toast({ variant: 'warning', title: 'Issue reported', description: `Logged against ${reference}.` });
+    toast({
+      variant: 'warning',
+      title: t('toastIssueReportedTitle'),
+      description: t('toastIssueReportedDescription', { reference }),
+    });
     onOpenChange(false);
   }
 
@@ -603,25 +627,25 @@ function IssueDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Report issue</DialogTitle>
+          <DialogTitle>{t('reportIssue')}</DialogTitle>
           <DialogDescription>{reference}</DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5">
-          <Label htmlFor="detailIssue">Describe the issue</Label>
+          <Label htmlFor="detailIssue">{t('describeIssue')}</Label>
           <Textarea
             id="detailIssue"
             rows={4}
             value={issue}
             onChange={(e) => setIssue(e.target.value)}
-            placeholder="Held at customs, missing CN23 declaration…"
+            placeholder={t('issuePlaceholder')}
           />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button variant="destructive" onClick={submit} disabled={!issue.trim() || submitting}>
-            {submitting ? 'Reporting…' : 'Report issue'}
+            {submitting ? t('reporting') : t('reportIssue')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -640,6 +664,7 @@ function TrackingDialog({
   onOpenChange: (open: boolean) => void;
   reference: string;
 }) {
+  const t = useTranslations('AdminShipmentDetail');
   const [note, setNote] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -652,7 +677,11 @@ function TrackingDialog({
     setSubmitting(true);
     await new Promise((r) => setTimeout(r, 400));
     setSubmitting(false);
-    toast({ variant: 'info', title: 'Tracking updated', description: `Update posted to ${reference}.` });
+    toast({
+      variant: 'info',
+      title: t('toastTrackingUpdatedTitle'),
+      description: t('toastTrackingUpdatedDescription', { reference }),
+    });
     onOpenChange(false);
   }
 
@@ -660,25 +689,25 @@ function TrackingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add tracking update</DialogTitle>
+          <DialogTitle>{t('addTrackingUpdate')}</DialogTitle>
           <DialogDescription>{reference}</DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5">
-          <Label htmlFor="detailTrack">Update</Label>
+          <Label htmlFor="detailTrack">{t('update')}</Label>
           <Textarea
             id="detailTrack"
             rows={3}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Arrived at sorting hub, Paris CDG…"
+            placeholder={t('trackingPlaceholder')}
           />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button onClick={submit} disabled={!note.trim() || submitting}>
-            {submitting ? 'Posting…' : 'Post update'}
+            {submitting ? t('posting') : t('postUpdate')}
           </Button>
         </DialogFooter>
       </DialogContent>

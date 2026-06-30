@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   FileSignature,
   Clock,
@@ -127,6 +127,7 @@ function expiringWindow(expiry?: string): { soon: boolean; days: number | null }
 
 export default function NdasPage() {
   const locale = useLocale() as Locale;
+  const t = useTranslations('AdminNdas');
   const router = useRouter();
 
   const [rows, setRows] = React.useState<NDA[] | null>(null);
@@ -228,7 +229,7 @@ export default function NdasPage() {
   async function markSent(n: NDA) {
     await new Promise((r) => setTimeout(r, 500));
     applyPatch(n.id, { status: 'sent', dateSent: n.dateSent ?? TODAY });
-    toast({ variant: 'success', title: 'NDA marked as sent', description: `${n.reference} sent to ${companyName(n.companyId)}.` });
+    toast({ variant: 'success', title: t('toastMarkedSentTitle'), description: t('toastMarkedSentDescription', { reference: n.reference, company: companyName(n.companyId) }) });
   }
 
   async function markSigned(n: NDA) {
@@ -237,9 +238,9 @@ export default function NdasPage() {
     applyPatch(
       n.id,
       { status: 'fully_signed', effectiveDate: effective },
-      { version: nextVersion(n), date: TODAY, note: 'Counter-signed copy filed' },
+      { version: nextVersion(n), date: TODAY, note: t('versionNoteCounterSigned') },
     );
-    toast({ variant: 'success', title: 'NDA fully signed', description: `${n.reference} is now in force.` });
+    toast({ variant: 'success', title: t('toastFullySignedTitle'), description: t('toastFullySignedDescription', { reference: n.reference }) });
   }
 
   async function requestRevision(n: NDA, note: string) {
@@ -247,32 +248,32 @@ export default function NdasPage() {
     applyPatch(
       n.id,
       { status: 'changes_requested', requestedModifications: note || n.requestedModifications },
-      { version: nextVersion(n), date: TODAY, note: note ? `Revision requested: ${note}` : 'Revision requested' },
+      { version: nextVersion(n), date: TODAY, note: note ? t('versionNoteRevisionRequestedWithNote', { note }) : t('versionNoteRevisionRequested') },
     );
-    toast({ variant: 'warning', title: 'Revision requested', description: `Changes flagged on ${n.reference}.` });
+    toast({ variant: 'warning', title: t('toastRevisionRequestedTitle'), description: t('toastRevisionRequestedDescription', { reference: n.reference }) });
   }
 
   async function replaceDocument(n: NDA) {
     await new Promise((r) => setTimeout(r, 500));
-    applyPatch(n.id, {}, { version: nextVersion(n), date: TODAY, note: 'Document replaced with updated draft' });
-    toast({ variant: 'success', title: 'Document replaced', description: `New version filed on ${n.reference}.` });
+    applyPatch(n.id, {}, { version: nextVersion(n), date: TODAY, note: t('versionNoteDocumentReplaced') });
+    toast({ variant: 'success', title: t('toastDocumentReplacedTitle'), description: t('toastDocumentReplacedDescription', { reference: n.reference }) });
   }
 
   async function addNote(n: NDA, note: string) {
     await new Promise((r) => setTimeout(r, 500));
     applyPatch(n.id, {}, { version: nextVersion(n), date: TODAY, note });
-    toast({ variant: 'success', title: 'Note added', description: `Note saved to ${n.reference}.` });
+    toast({ variant: 'success', title: t('toastNoteAddedTitle'), description: t('toastNoteAddedDescription', { reference: n.reference }) });
   }
 
   function download(n: NDA) {
-    toast({ variant: 'info', title: 'Download started', description: `Preparing ${n.reference}.pdf…` });
+    toast({ variant: 'info', title: t('toastDownloadStartedTitle'), description: t('toastDownloadStartedDescription', { reference: n.reference }) });
   }
 
   function createFollowUpTask(n: NDA) {
     toast({
       variant: 'success',
-      title: 'Follow-up task created',
-      description: `Reminder to chase ${n.reference} added to your tasks.`,
+      title: t('toastFollowUpCreatedTitle'),
+      description: t('toastFollowUpCreatedDescription', { reference: n.reference }),
     });
   }
 
@@ -291,13 +292,13 @@ export default function NdasPage() {
   const columns: Column<NDA>[] = [
     {
       key: 'reference',
-      header: 'Reference',
+      header: t('colReference'),
       sortValue: (n) => n.reference,
       cell: (n) => <span className="font-mono text-sm font-medium text-foreground">{n.reference}</span>,
     },
     {
       key: 'company',
-      header: 'Company',
+      header: t('colCompany'),
       sortValue: (n) => companyName(n.companyId),
       cell: (n) => {
         const c = companies.get(n.companyId);
@@ -316,20 +317,20 @@ export default function NdasPage() {
     },
     {
       key: 'type',
-      header: 'Type',
+      header: t('colType'),
       sortValue: (n) => getLabel('ndaType', n.type),
       cell: (n) => <StatusBadge kind="ndaType" value={n.type} />,
       hideable: true,
     },
     {
       key: 'status',
-      header: 'Status',
+      header: t('colStatus'),
       sortValue: (n) => NDA_STATUS_FLOW.indexOf(n.status),
       cell: (n) => <StatusBadge kind="ndaStatus" value={n.status} />,
     },
     {
       key: 'sent',
-      header: 'Sent',
+      header: t('colSent'),
       align: 'right',
       sortable: true,
       sortValue: (n) => (n.dateSent ? new Date(n.dateSent).getTime() : 0),
@@ -338,7 +339,7 @@ export default function NdasPage() {
     },
     {
       key: 'effective',
-      header: 'Effective',
+      header: t('colEffective'),
       align: 'right',
       sortable: true,
       sortValue: (n) => (n.effectiveDate ? new Date(n.effectiveDate).getTime() : 0),
@@ -348,7 +349,7 @@ export default function NdasPage() {
     },
     {
       key: 'expiry',
-      header: 'Expiry',
+      header: t('colExpiry'),
       align: 'right',
       sortable: true,
       sortValue: (n) => (n.expiryDate ? new Date(n.expiryDate).getTime() : 0),
@@ -362,7 +363,7 @@ export default function NdasPage() {
             </span>
             {soon ? (
               <Badge variant="warning" className="text-2xs">
-                {days}d
+                {t('expiresDays', { days: days ?? 0 })}
               </Badge>
             ) : null}
           </span>
@@ -372,7 +373,7 @@ export default function NdasPage() {
     },
     {
       key: 'versions',
-      header: 'Versions',
+      header: t('colVersions'),
       align: 'right',
       sortable: true,
       sortValue: (n) => n.versions.length,
@@ -390,10 +391,10 @@ export default function NdasPage() {
     <div className="flex flex-wrap items-center gap-2">
       <Select value={fStatus} onValueChange={setFStatus}>
         <SelectTrigger className="h-9 w-[180px]">
-          <SelectValue placeholder="Status" />
+          <SelectValue placeholder={t('filterStatusPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All statuses</SelectItem>
+          <SelectItem value={ALL}>{t('allStatuses')}</SelectItem>
           {statusOptions.map((s) => (
             <SelectItem key={s} value={s}>
               {getLabel('ndaStatus', s)}
@@ -404,10 +405,10 @@ export default function NdasPage() {
 
       <Select value={fType} onValueChange={setFType}>
         <SelectTrigger className="h-9 w-[180px]">
-          <SelectValue placeholder="Type" />
+          <SelectValue placeholder={t('filterTypePlaceholder')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All types</SelectItem>
+          <SelectItem value={ALL}>{t('allTypes')}</SelectItem>
           {NDA_TYPES.map((t) => (
             <SelectItem key={t} value={t}>
               {getLabel('ndaType', t)}
@@ -419,7 +420,7 @@ export default function NdasPage() {
       {activeFilterCount > 0 ? (
         <Button variant="ghost" size="sm" onClick={resetFilters}>
           <X />
-          Clear ({activeFilterCount})
+          {t('clearFilters', { count: activeFilterCount })}
         </Button>
       ) : null}
     </div>
@@ -431,45 +432,45 @@ export default function NdasPage() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="Row actions">
+          <Button variant="ghost" size="icon-sm" aria-label={t('rowActionsLabel')}>
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
           <DropdownMenuItem onSelect={() => setDetailId(n.id)}>
             <Eye />
-            View details
+            {t('actionViewDetails')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => download(n)}>
             <Download />
-            Download
+            {t('actionDownload')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuLabel>Lifecycle</DropdownMenuLabel>
+          <DropdownMenuLabel>{t('lifecycleLabel')}</DropdownMenuLabel>
           <DropdownMenuItem disabled={n.status === 'sent' || isSigned} onSelect={() => void markSent(n)}>
             <Send />
-            Mark sent
+            {t('actionMarkSent')}
           </DropdownMenuItem>
           <DropdownMenuItem disabled={isSigned} onSelect={() => void markSigned(n)}>
             <PenLine />
-            Mark signed
+            {t('actionMarkSigned')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setRevisionFor(n)}>
             <RotateCcw />
-            Request revision
+            {t('actionRequestRevision')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void replaceDocument(n)}>
             <FileUp />
-            Replace document
+            {t('actionReplaceDocument')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => setNoteFor(n)}>
             <StickyNote />
-            Add note
+            {t('actionAddNote')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => createFollowUpTask(n)}>
             <ListChecks />
-            Create follow-up task
+            {t('actionCreateFollowUp')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -495,12 +496,12 @@ export default function NdasPage() {
           </Badge>
           {soon ? (
             <Badge variant="warning" className="text-2xs">
-              Expires {days}d
+              {t('mobileExpiresDays', { days: days ?? 0 })}
             </Badge>
           ) : null}
         </div>
         <p className="mt-1.5 text-xs text-muted-foreground">
-          Sent {formatDate(n.dateSent, locale)} · Expiry {formatDate(n.expiryDate, locale)}
+          {t('mobileSentExpiry', { sent: formatDate(n.dateSent, locale), expiry: formatDate(n.expiryDate, locale) })}
         </p>
       </Card>
     );
@@ -509,17 +510,17 @@ export default function NdasPage() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
-        title="NDAs & Documents"
-        subtitle="Prepare, track and file confidentiality agreements across every relationship."
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <>
             <Button variant="outline" onClick={() => setUploadOpen(true)}>
               <Upload />
-              Upload NDA
+              {t('uploadNda')}
             </Button>
             <Button variant="gold" onClick={() => setCreateOpen(true)}>
               <Plus />
-              New NDA
+              {t('newNda')}
             </Button>
           </>
         }
@@ -527,16 +528,16 @@ export default function NdasPage() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total NDAs" value={stats?.total ?? 0} icon={FileSignature} tone="gold" />
-        <StatCard label="Awaiting signature" value={stats?.awaitingSignature ?? 0} icon={Clock} tone="warning" delay={0.05} />
-        <StatCard label="Fully signed" value={stats?.signed ?? 0} icon={CheckCircle2} tone="success" delay={0.1} />
-        <StatCard label="To prepare" value={stats?.toPrepare ?? 0} icon={FileClock} tone="info" delay={0.15} />
+        <StatCard label={t('kpiTotalNdas')} value={stats?.total ?? 0} icon={FileSignature} tone="gold" />
+        <StatCard label={t('kpiAwaitingSignature')} value={stats?.awaitingSignature ?? 0} icon={Clock} tone="warning" delay={0.05} />
+        <StatCard label={t('kpiFullySigned')} value={stats?.signed ?? 0} icon={CheckCircle2} tone="success" delay={0.1} />
+        <StatCard label={t('kpiToPrepare')} value={stats?.toPrepare ?? 0} icon={FileClock} tone="info" delay={0.15} />
         <StatCard
-          label="Expiring soon"
+          label={t('kpiExpiringSoon')}
           value={stats?.expiringSoon ?? 0}
           icon={AlertTriangle}
           tone="danger"
-          hint="within 60 days"
+          hint={t('kpiExpiringSoonHint')}
           delay={0.2}
         />
       </div>
@@ -544,17 +545,17 @@ export default function NdasPage() {
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
-          title="NDA status mix"
-          description="Distribution across the agreement lifecycle"
+          title={t('chartStatusMixTitle')}
+          description={t('chartStatusMixDescription')}
           loading={rows === null}
           isEmpty={donutData.length === 0}
         >
-          <DonutChart data={donutData} centerLabel="NDAs" />
+          <DonutChart data={donutData} centerLabel={t('donutCenterLabel')} />
         </ChartCard>
 
         <ChartCard
-          title="Sent vs. signed over time"
-          description="Monthly NDA throughput"
+          title={t('chartSentSignedTitle')}
+          description={t('chartSentSignedDescription')}
           loading={rows === null}
           isEmpty={trendData.length === 0}
         >
@@ -562,8 +563,8 @@ export default function NdasPage() {
             data={trendData}
             xKey="label"
             series={[
-              { key: 'sent', name: 'Sent', color: CHART_COLORS[2], type: 'area' },
-              { key: 'signed', name: 'Signed', color: CHART_COLORS[1], type: 'area' },
+              { key: 'sent', name: t('seriesSent'), color: CHART_COLORS[2], type: 'area' },
+              { key: 'signed', name: t('seriesSigned'), color: CHART_COLORS[1], type: 'area' },
             ]}
           />
         </ChartCard>
@@ -576,7 +577,7 @@ export default function NdasPage() {
         getRowId={(n) => n.id}
         loading={rows === null}
         searchable
-        searchPlaceholder="Search reference, company, type…"
+        searchPlaceholder={t('tableSearchPlaceholder')}
         searchValue={(n) =>
           [n.reference, companyName(n.companyId), getLabel('ndaType', n.type), getLabel('ndaStatus', n.status)]
             .filter(Boolean)
@@ -589,8 +590,8 @@ export default function NdasPage() {
         enableColumnVisibility
         enableDensityToggle
         mobileCard={mobileCard}
-        emptyTitle="No NDAs match"
-        emptyDescription="Adjust the filters or create a new agreement."
+        emptyTitle={t('emptyTitle')}
+        emptyDescription={t('emptyDescription')}
         exportFilename="ndas"
         storageKey="ndas-table"
       />
@@ -707,6 +708,7 @@ function DetailSheet({
   onFollowUp: (n: NDA) => void;
   onOpenCompany: (id: string) => void;
 }) {
+  const t = useTranslations('AdminNdas');
   const isSigned = nda?.status === 'fully_signed';
   const { soon, days } = expiringWindow(nda?.expiryDate);
 
@@ -733,7 +735,7 @@ function DetailSheet({
                   <SheetTitle className="font-mono">{nda.reference}</SheetTitle>
                   <SheetDescription className="flex items-center gap-1.5">
                     <Building2 className="h-3.5 w-3.5" />
-                    {company ? company.tradingName || company.legalName : 'Unknown company'}
+                    {company ? company.tradingName || company.legalName : t('sheetUnknownCompany')}
                   </SheetDescription>
                 </div>
               </div>
@@ -747,7 +749,7 @@ function DetailSheet({
                 {soon ? (
                   <Badge variant="warning" className="gap-1 text-2xs">
                     <AlertTriangle className="h-3 w-3" />
-                    Expires in {days}d
+                    {t('sheetExpiresInDays', { days: days ?? 0 })}
                   </Badge>
                 ) : null}
               </div>
@@ -760,29 +762,29 @@ function DetailSheet({
                   className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-teal hover:underline"
                 >
                   <span className="text-base leading-none">{flagEmoji(company.countryCode)}</span>
-                  View company profile
+                  {t('sheetViewCompanyProfile')}
                 </button>
               ) : null}
 
               {/* Key facts */}
               <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg border bg-muted/40 p-3">
-                <DetailRow label="Date prepared" value={formatDate(nda.datePrepared, locale)} />
-                <DetailRow label="Date sent" value={formatDate(nda.dateSent, locale)} />
-                <DetailRow label="Effective date" value={formatDate(nda.effectiveDate, locale)} />
+                <DetailRow label={t('detailDatePrepared')} value={formatDate(nda.datePrepared, locale)} />
+                <DetailRow label={t('detailDateSent')} value={formatDate(nda.dateSent, locale)} />
+                <DetailRow label={t('detailEffectiveDate')} value={formatDate(nda.effectiveDate, locale)} />
                 <DetailRow
-                  label="Expiry date"
+                  label={t('detailExpiryDate')}
                   value={
                     <span className={cn(soon && 'text-warning')}>{formatDate(nda.expiryDate, locale)}</span>
                   }
                 />
-                <DetailRow label="Internal signatory" value={nda.internalSignatory} />
-                <DetailRow label="External signatory" value={nda.externalSignatory} />
-                {nda.governingLaw ? <DetailRow label="Governing law" value={nda.governingLaw} /> : null}
-                {nda.jurisdiction ? <DetailRow label="Jurisdiction" value={nda.jurisdiction} /> : null}
-                {nda.templateVersion ? <DetailRow label="Template" value={nda.templateVersion} /> : null}
+                <DetailRow label={t('detailInternalSignatory')} value={nda.internalSignatory} />
+                <DetailRow label={t('detailExternalSignatory')} value={nda.externalSignatory} />
+                {nda.governingLaw ? <DetailRow label={t('detailGoverningLaw')} value={nda.governingLaw} /> : null}
+                {nda.jurisdiction ? <DetailRow label={t('detailJurisdiction')} value={nda.jurisdiction} /> : null}
+                {nda.templateVersion ? <DetailRow label={t('detailTemplate')} value={nda.templateVersion} /> : null}
                 {nda.accessLevelUnlocked ? (
                   <DetailRow
-                    label="Unlocks access"
+                    label={t('detailUnlocksAccess')}
                     value={<StatusBadge kind="documentAccessLevel" value={nda.accessLevelUnlocked} />}
                   />
                 ) : null}
@@ -793,7 +795,7 @@ function DetailSheet({
                 <div className="mt-4 rounded-lg border border-warning/40 bg-warning-subtle/50 p-3">
                   <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-warning">
                     <RotateCcw className="h-3.5 w-3.5" />
-                    Requested modifications
+                    {t('requestedModifications')}
                   </p>
                   <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{nda.requestedModifications}</p>
                 </div>
@@ -803,11 +805,11 @@ function DetailSheet({
               <Separator className="my-4" />
               <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-foreground">
                 <History className="h-4 w-4 text-muted-foreground" />
-                Version history ({nda.versions.length})
+                {t('versionHistory', { count: nda.versions.length })}
               </h3>
               {timeline.length === 0 ? (
                 <p className="rounded-lg border border-dashed bg-muted/30 p-4 text-center text-sm text-muted-foreground">
-                  No versions recorded yet.
+                  {t('noVersionsRecorded')}
                 </p>
               ) : (
                 <ol className="relative space-y-4 border-l border-border pl-5">
@@ -824,7 +826,7 @@ function DetailSheet({
                         <span className="text-xs text-muted-foreground">{formatDate(v.date, locale)}</span>
                         {i === 0 ? (
                           <Badge variant="info" className="text-2xs">
-                            Latest
+                            {t('versionLatest')}
                           </Badge>
                         ) : null}
                       </div>
@@ -846,7 +848,7 @@ function DetailSheet({
                   <Separator className="my-4" />
                   <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-foreground">
                     <ShieldCheck className="h-4 w-4 text-success" />
-                    Signed files
+                    {t('signedFiles')}
                   </h3>
                   <ul className="space-y-2">
                     {nda.signedFiles.map((f) => (
@@ -858,7 +860,7 @@ function DetailSheet({
                           <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <span className="truncate">{f.name}</span>
                         </span>
-                        <Button variant="ghost" size="icon-sm" aria-label="Download" onClick={() => onDownload(nda)}>
+                        <Button variant="ghost" size="icon-sm" aria-label={t('downloadAriaLabel')} onClick={() => onDownload(nda)}>
                           <Download />
                         </Button>
                       </li>
@@ -871,31 +873,31 @@ function DetailSheet({
             <SheetFooter className="flex-row flex-wrap gap-2 sm:justify-start">
               <Button variant="outline" size="sm" onClick={() => onDownload(nda)}>
                 <Download />
-                Download
+                {t('sheetDownload')}
               </Button>
               <Button variant="outline" size="sm" disabled={nda.status === 'sent' || isSigned} onClick={() => void onMarkSent(nda)}>
                 <Send />
-                Mark sent
+                {t('sheetMarkSent')}
               </Button>
               <Button variant="outline" size="sm" onClick={() => onRequestRevision(nda)}>
                 <RotateCcw />
-                Request revision
+                {t('sheetRequestRevision')}
               </Button>
               <Button variant="outline" size="sm" onClick={() => void onReplace(nda)}>
                 <FileUp />
-                Replace
+                {t('sheetReplace')}
               </Button>
               <Button variant="outline" size="sm" onClick={() => onAddNote(nda)}>
                 <StickyNote />
-                Add note
+                {t('sheetAddNote')}
               </Button>
               <Button variant="outline" size="sm" onClick={() => onFollowUp(nda)}>
                 <ListChecks />
-                Follow-up task
+                {t('sheetFollowUpTask')}
               </Button>
               <Button variant="success" size="sm" disabled={isSigned} onClick={() => void onMarkSigned(nda)}>
                 <PenLine />
-                Mark signed
+                {t('sheetMarkSigned')}
               </Button>
             </SheetFooter>
           </>
@@ -903,7 +905,7 @@ function DetailSheet({
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <FileSignature className="h-4 w-4" />
-              NDA
+              {t('sheetFallbackTitle')}
             </SheetTitle>
           </SheetHeader>
         )}
@@ -929,6 +931,7 @@ function CreateNdaDialog({
   companies: Company[];
   onCreated: (n: NDA) => void;
 }) {
+  const t = useTranslations('AdminNdas');
   const [companyId, setCompanyId] = React.useState('');
   const [type, setType] = React.useState<NDAType>('mutual');
   const [status, setStatus] = React.useState<NDAStatus>('to_prepare');
@@ -961,19 +964,19 @@ function CreateNdaDialog({
       reference,
       companyId,
       type,
-      templateVersion: type === 'mutual' ? 'Mutual NDA v3.1' : 'One-way NDA v2.4',
+      templateVersion: type === 'mutual' ? t('templateMutual') : t('templateOneWay'),
       status,
       datePrepared: TODAY,
       dateSent: status === 'sent' ? TODAY : undefined,
       internalSignatory: 'ITALPROTEIN S.r.l.',
       externalSignatory: company?.legalName,
-      governingLaw: 'Italian law',
-      jurisdiction: 'Court of Milan',
+      governingLaw: t('governingLawItalian'),
+      jurisdiction: t('jurisdictionMilan'),
       versions: [
         {
           version: 'v1.0',
           date: TODAY,
-          note: note.trim() || 'Initial draft prepared',
+          note: note.trim() || t('versionNoteInitialDraft'),
         },
       ],
       createdAt: TODAY,
@@ -983,8 +986,8 @@ function CreateNdaDialog({
     onCreated(nda);
     toast({
       variant: 'success',
-      title: 'NDA created',
-      description: `${reference} for ${company?.tradingName || company?.legalName || 'company'} created.`,
+      title: t('toastNdaCreatedTitle'),
+      description: t('toastNdaCreatedDescription', { reference, company: company?.tradingName || company?.legalName || t('fallbackCompany') }),
     });
     setSubmitting(false);
     reset();
@@ -1001,16 +1004,16 @@ function CreateNdaDialog({
     >
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>New NDA</DialogTitle>
-          <DialogDescription>Draft a confidentiality agreement and track it through signing.</DialogDescription>
+          <DialogTitle>{t('createDialogTitle')}</DialogTitle>
+          <DialogDescription>{t('createDialogDescription')}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
-            <Label>Company *</Label>
+            <Label>{t('fieldCompanyRequired')}</Label>
             <Select value={companyId} onValueChange={setCompanyId}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a company" />
+                <SelectValue placeholder={t('selectCompanyPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
                 {sortedCompanies.map((c) => (
@@ -1023,15 +1026,15 @@ function CreateNdaDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Type</Label>
+            <Label>{t('fieldType')}</Label>
             <Select value={type} onValueChange={(v) => setType(v as NDAType)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {NDA_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {getLabel('ndaType', t)}
+                {NDA_TYPES.map((nt) => (
+                  <SelectItem key={nt} value={nt}>
+                    {getLabel('ndaType', nt)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1039,7 +1042,7 @@ function CreateNdaDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Initial status</Label>
+            <Label>{t('fieldInitialStatus')}</Label>
             <Select value={status} onValueChange={(v) => setStatus(v as NDAStatus)}>
               <SelectTrigger>
                 <SelectValue />
@@ -1055,28 +1058,28 @@ function CreateNdaDialog({
           </div>
 
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="nda-note">Preparation note</Label>
+            <Label htmlFor="nda-note">{t('fieldPreparationNote')}</Label>
             <Textarea
               id="nda-note"
               rows={3}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Template used, special clauses, affiliates covered…"
+              placeholder={t('preparationNotePlaceholder')}
             />
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button variant="gold" onClick={submit} disabled={!valid || submitting}>
             {submitting ? (
-              'Creating…'
+              t('creating')
             ) : (
               <>
                 <Plus className="h-4 w-4" />
-                Create NDA
+                {t('createNda')}
               </>
             )}
           </Button>
@@ -1099,6 +1102,7 @@ function UploadNdaDialog({
   companies: Company[];
   onCreated: (n: NDA) => void;
 }) {
+  const t = useTranslations('AdminNdas');
   const [companyId, setCompanyId] = React.useState('');
   const [type, setType] = React.useState<NDAType>('mutual');
   const [fileName, setFileName] = React.useState('');
@@ -1142,7 +1146,7 @@ function UploadNdaDialog({
         {
           version: 'v1.0',
           date: TODAY,
-          note: signed ? 'Signed document uploaded' : 'Document uploaded for review',
+          note: signed ? t('versionNoteSignedUploaded') : t('versionNoteDocumentUploaded'),
           fileRef: {
             id: uid('file'),
             name: name.toLowerCase().endsWith('.pdf') ? name : `${name}.pdf`,
@@ -1168,8 +1172,8 @@ function UploadNdaDialog({
     onCreated(nda);
     toast({
       variant: 'success',
-      title: 'NDA uploaded',
-      description: `${reference} filed for ${company?.tradingName || company?.legalName || 'company'}.`,
+      title: t('toastNdaUploadedTitle'),
+      description: t('toastNdaUploadedDescription', { reference, company: company?.tradingName || company?.legalName || t('fallbackCompany') }),
     });
     setSubmitting(false);
     reset();
@@ -1186,16 +1190,16 @@ function UploadNdaDialog({
     >
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Upload NDA</DialogTitle>
-          <DialogDescription>File an existing agreement document against a company record.</DialogDescription>
+          <DialogTitle>{t('uploadDialogTitle')}</DialogTitle>
+          <DialogDescription>{t('uploadDialogDescription')}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
-            <Label>Company *</Label>
+            <Label>{t('fieldCompanyRequired')}</Label>
             <Select value={companyId} onValueChange={setCompanyId}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a company" />
+                <SelectValue placeholder={t('selectCompanyPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
                 {sortedCompanies.map((c) => (
@@ -1208,15 +1212,15 @@ function UploadNdaDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Type</Label>
+            <Label>{t('fieldType')}</Label>
             <Select value={type} onValueChange={(v) => setType(v as NDAType)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {NDA_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {getLabel('ndaType', t)}
+                {NDA_TYPES.map((nt) => (
+                  <SelectItem key={nt} value={nt}>
+                    {getLabel('ndaType', nt)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1224,43 +1228,43 @@ function UploadNdaDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Document state</Label>
+            <Label>{t('fieldDocumentState')}</Label>
             <Select value={signed ? 'signed' : 'review'} onValueChange={(v) => setSigned(v === 'signed')}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="review">For review</SelectItem>
-                <SelectItem value="signed">Fully signed</SelectItem>
+                <SelectItem value="review">{t('documentStateForReview')}</SelectItem>
+                <SelectItem value="signed">{t('documentStateFullySigned')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="nda-file">Document name *</Label>
+            <Label htmlFor="nda-file">{t('fieldDocumentNameRequired')}</Label>
             <Input
               id="nda-file"
               value={fileName}
               onChange={(e) => setFileName(e.target.value)}
-              placeholder="e.g. Mutual-NDA-Signed.pdf"
+              placeholder={t('documentNamePlaceholder')}
             />
             <p className="text-xs text-muted-foreground">
-              Drag-and-drop is simulated in this prototype — enter the file name to file it.
+              {t('uploadDragDropHint')}
             </p>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button variant="gold" onClick={submit} disabled={!valid || submitting}>
             {submitting ? (
-              'Uploading…'
+              t('uploading')
             ) : (
               <>
                 <Upload className="h-4 w-4" />
-                Upload & file
+                {t('uploadAndFile')}
               </>
             )}
           </Button>
@@ -1281,6 +1285,7 @@ function NoteDialog({
   onOpenChange: (open: boolean) => void;
   onSubmit: (n: NDA, note: string) => Promise<void>;
 }) {
+  const t = useTranslations('AdminNdas');
   const [note, setNote] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -1299,30 +1304,30 @@ function NoteDialog({
     <Dialog open={!!nda} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add note</DialogTitle>
+          <DialogTitle>{t('noteDialogTitle')}</DialogTitle>
           <DialogDescription>
-            {nda ? `Append a note to ${nda.reference}'s version history.` : ''}
+            {nda ? t('noteDialogDescription', { reference: nda.reference }) : ''}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5">
-          <Label htmlFor="note-body">Note</Label>
+          <Label htmlFor="note-body">{t('fieldNote')}</Label>
           <Textarea
             id="note-body"
             rows={4}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Add context — a call summary, legal observation, reminder…"
+            placeholder={t('notePlaceholder')}
           />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button onClick={submit} disabled={!note.trim() || submitting}>
-            {submitting ? 'Saving…' : (
+            {submitting ? t('saving') : (
               <>
                 <StickyNote className="h-4 w-4" />
-                Save note
+                {t('saveNote')}
               </>
             )}
           </Button>
@@ -1343,6 +1348,7 @@ function RevisionDialog({
   onOpenChange: (open: boolean) => void;
   onSubmit: (n: NDA, note: string) => Promise<void>;
 }) {
+  const t = useTranslations('AdminNdas');
   const [note, setNote] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -1361,30 +1367,30 @@ function RevisionDialog({
     <Dialog open={!!nda} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Request revision</DialogTitle>
+          <DialogTitle>{t('revisionDialogTitle')}</DialogTitle>
           <DialogDescription>
-            {nda ? `Flag changes required on ${nda.reference} and notify the counterparty.` : ''}
+            {nda ? t('revisionDialogDescription', { reference: nda.reference }) : ''}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5">
-          <Label htmlFor="revision-body">Requested modifications</Label>
+          <Label htmlFor="revision-body">{t('fieldRequestedModifications')}</Label>
           <Textarea
             id="revision-body"
             rows={4}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Describe the clauses or terms that need to change…"
+            placeholder={t('revisionPlaceholder')}
           />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button variant="default" onClick={submit} disabled={!note.trim() || submitting}>
-            {submitting ? 'Sending…' : (
+            {submitting ? t('sending') : (
               <>
                 <RotateCcw className="h-4 w-4" />
-                Request revision
+                {t('revisionDialogTitle')}
               </>
             )}
           </Button>

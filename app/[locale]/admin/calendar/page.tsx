@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   format, isSameMonth, isSameDay, addMonths, subMonths, parseISO,
@@ -21,9 +22,10 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
 const ANCHOR = new Date('2026-06-17T00:00:00');
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const WEEKDAY_KEYS = ['weekdayMon', 'weekdayTue', 'weekdayWed', 'weekdayThu', 'weekdayFri', 'weekdaySat', 'weekdaySun'] as const;
 
 export default function CalendarPage() {
+  const t = useTranslations('AdminCalendar');
   const [meetings, setMeetings] = React.useState<Meeting[] | null>(null);
   const [tasks, setTasks] = React.useState<Task[] | null>(null);
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
@@ -69,12 +71,12 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <PageHeader title="Calendar" subtitle="Meetings, technical calls and task deadlines at a glance." />
+      <PageHeader title={t('pageTitle')} subtitle={t('pageSubtitle')} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Meetings scheduled" value={stats.scheduled} icon={Users} tone="gold" />
-        <StatCard label="Tasks due this month" value={stats.tasksThisMonth} icon={ListChecks} tone="warning" delay={0.05} />
-        <StatCard label="Meetings completed" value={stats.completed} icon={CalendarDays} tone="success" delay={0.1} />
+        <StatCard label={t('statMeetingsScheduled')} value={stats.scheduled} icon={Users} tone="gold" />
+        <StatCard label={t('statTasksDueThisMonth')} value={stats.tasksThisMonth} icon={ListChecks} tone="warning" delay={0.05} />
+        <StatCard label={t('statMeetingsCompleted')} value={stats.completed} icon={CalendarDays} tone="success" delay={0.1} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
@@ -83,14 +85,14 @@ export default function CalendarPage() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">{format(month, 'MMMM yyyy')}</CardTitle>
             <div className="flex items-center gap-1">
-              <Button variant="outline" size="icon-sm" onClick={() => setMonth((m) => subMonths(m, 1))} aria-label="Previous month"><ChevronLeft /></Button>
-              <Button variant="outline" size="sm" onClick={() => setMonth(startOfMonth(ANCHOR))}>Today</Button>
-              <Button variant="outline" size="icon-sm" onClick={() => setMonth((m) => addMonths(m, 1))} aria-label="Next month"><ChevronRight /></Button>
+              <Button variant="outline" size="icon-sm" onClick={() => setMonth((m) => subMonths(m, 1))} aria-label={t('previousMonth')}><ChevronLeft /></Button>
+              <Button variant="outline" size="sm" onClick={() => setMonth(startOfMonth(ANCHOR))}>{t('today')}</Button>
+              <Button variant="outline" size="icon-sm" onClick={() => setMonth((m) => addMonths(m, 1))} aria-label={t('nextMonth')}><ChevronRight /></Button>
             </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border bg-border text-sm">
-              {WEEKDAYS.map((d) => <div key={d} className="bg-muted/60 py-2 text-center text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{d}</div>)}
+              {WEEKDAY_KEYS.map((k) => <div key={k} className="bg-muted/60 py-2 text-center text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{t(k)}</div>)}
               {days.map((d) => {
                 const ms = meetingsOn(d);
                 const ts = tasksOn(d);
@@ -110,27 +112,27 @@ export default function CalendarPage() {
                       {ts.slice(0, 2 - Math.min(ms.length, 2)).map((t) => (
                         <div key={t.id} className="truncate rounded bg-warning-subtle px-1 py-0.5 text-2xs text-warning-foreground">⏰ {t.title}</div>
                       ))}
-                      {ms.length + ts.length > 2 && <div className="px-1 text-2xs text-muted-foreground">+{ms.length + ts.length - 2} more</div>}
+                      {ms.length + ts.length > 2 && <div className="px-1 text-2xs text-muted-foreground">{t('moreCount', { count: ms.length + ts.length - 2 })}</div>}
                     </div>
                   </button>
                 );
               })}
             </div>
             <div className="mt-3 flex items-center gap-4 text-2xs text-muted-foreground">
-              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-info-subtle ring-1 ring-info/40" /> Meeting</span>
-              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-warning-subtle ring-1 ring-warning/40" /> Task due</span>
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-info-subtle ring-1 ring-info/40" /> {t('legendMeeting')}</span>
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-warning-subtle ring-1 ring-warning/40" /> {t('legendTaskDue')}</span>
             </div>
           </CardContent>
         </Card>
 
         {/* Upcoming */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Upcoming</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t('upcoming')}</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {meetings === null ? (
               Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-14 w-full" />)
             ) : upcoming.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">No upcoming meetings.</p>
+              <p className="py-6 text-center text-sm text-muted-foreground">{t('noUpcomingMeetings')}</p>
             ) : upcoming.map((m) => {
               const Icon = mIcon(m.type);
               return (
@@ -153,10 +155,10 @@ export default function CalendarPage() {
         <SheetContent side="right" className="max-w-md overflow-y-auto">
           {selected && (
             <>
-              <SheetHeader><SheetTitle>{format(selected, 'EEEE d MMMM yyyy')}</SheetTitle><SheetDescription>{meetingsOn(selected).length} meetings · {tasksOn(selected).length} tasks due</SheetDescription></SheetHeader>
+              <SheetHeader><SheetTitle>{format(selected, 'EEEE d MMMM yyyy')}</SheetTitle><SheetDescription>{t('dayDetailSummary', { meetings: meetingsOn(selected).length, tasks: tasksOn(selected).length })}</SheetDescription></SheetHeader>
               <div className="space-y-3">
                 {meetingsOn(selected).length === 0 && tasksOn(selected).length === 0 && (
-                  <p className="py-8 text-center text-sm text-muted-foreground">Nothing scheduled.</p>
+                  <p className="py-8 text-center text-sm text-muted-foreground">{t('nothingScheduled')}</p>
                 )}
                 {meetingsOn(selected).map((m) => {
                   const Icon = mIcon(m.type);
@@ -168,11 +170,11 @@ export default function CalendarPage() {
                     </div>
                   );
                 })}
-                {tasksOn(selected).map((t) => (
-                  <div key={t.id} className="rounded-lg border p-3">
-                    <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">⏰ {t.title}</span><PriorityBadge value={t.priority} /></div>
-                    <p className="mt-1 text-xs text-muted-foreground">Due {formatDate(t.dueDate)} · {companyName(t.companyId)}</p>
-                    <Link href="/admin/tasks" className="mt-1 inline-block text-xs font-medium text-brand-teal hover:underline">Open in tasks →</Link>
+                {tasksOn(selected).map((task) => (
+                  <div key={task.id} className="rounded-lg border p-3">
+                    <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">⏰ {task.title}</span><PriorityBadge value={task.priority} /></div>
+                    <p className="mt-1 text-xs text-muted-foreground">{t('dueDate', { date: formatDate(task.dueDate) })} · {companyName(task.companyId)}</p>
+                    <Link href="/admin/tasks" className="mt-1 inline-block text-xs font-medium text-brand-teal hover:underline">{t('openInTasks')}</Link>
                   </div>
                 ))}
               </div>

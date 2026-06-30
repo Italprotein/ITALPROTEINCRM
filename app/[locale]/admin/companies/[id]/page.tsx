@@ -33,6 +33,7 @@ import {
   Receipt,
   Target,
 } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/lib/i18n/navigation';
 import { useSession } from '@/components/providers/session-provider';
 import {
@@ -66,6 +67,7 @@ import type {
   ApplicationProject,
   FinanceDocument,
   Meeting,
+  Locale,
 } from '@/lib/types';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
@@ -113,9 +115,11 @@ interface ProfileData {
   meetings: Meeting[];
 }
 
+type T = ReturnType<typeof useTranslations<'AdminCompanyDetail'>>;
+
 const ACTIVE_TASK = (t: Task) => t.status !== 'done' && t.status !== 'cancelled';
-const ownerName = (id?: string) => {
-  if (!id) return 'Unassigned';
+const ownerName = (id: string | undefined, t: T) => {
+  if (!id) return t('unassigned');
   const a = authService.getAccount(id);
   return a ? `${a.firstName} ${a.lastName}` : id;
 };
@@ -131,10 +135,10 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-function Stars({ value }: { value?: number }) {
+function Stars({ value, t }: { value?: number; t: T }) {
   const n = Math.round(value ?? 0);
   return (
-    <span className="inline-flex items-center gap-0.5" aria-label={`${n} of 5`}>
+    <span className="inline-flex items-center gap-0.5" aria-label={t('starsAriaLabel', { n })}>
       {Array.from({ length: 5 }).map((_, i) => (
         <Star
           key={i}
@@ -160,6 +164,8 @@ function TabHeading({ title, count, action }: { title: string; count?: number; a
 /* ────────────────────────────── page ────────────────────────────── */
 
 export default function CompanyProfilePage({ params }: { params: { id: string } }) {
+  const t = useTranslations('AdminCompanyDetail');
+  const locale = useLocale() as Locale;
   const router = useRouter();
   const { account } = useSession();
   const id = params.id;
@@ -234,13 +240,13 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         <EmptyState
           icon={Building2}
-          title="Company not found"
-          description="This company may have been removed or the link is incorrect."
+          title={t('companyNotFoundTitle')}
+          description={t('companyNotFoundDescription')}
           action={
             <Button asChild variant="outline">
               <Link href="/admin/companies">
                 <ArrowLeft />
-                Back to companies
+                {t('backToCompanies')}
               </Link>
             </Button>
           }
@@ -270,7 +276,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
     await sleep(400);
     await taskService.update(task.id, { status: 'done', completedAt: new Date().toISOString() });
     setData((d) => (d ? { ...d, tasks: d.tasks.map((t) => (t.id === task.id ? { ...t, status: 'done' } : t)) } : d));
-    toast({ title: 'Task completed', description: task.title, variant: 'success' });
+    toast({ title: t('toastTaskCompleted'), description: task.title, variant: 'success' });
   };
 
   const applyNdaStatus = async () => {
@@ -282,7 +288,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
     await ndaService.update(nda.id, patch);
     setData((d) => (d ? { ...d, ndas: d.ndas.map((n) => (n.id === nda.id ? { ...n, ...patch } : n)) } : d));
     setNdaConfirm(null);
-    toast({ title: `NDA marked ${label}`, description: nda.reference, variant: 'success' });
+    toast({ title: t('toastNdaMarked', { label }), description: nda.reference, variant: 'success' });
   };
 
   return (
@@ -293,7 +299,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
         className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        All companies
+        {t('allCompanies')}
       </Link>
 
       {/* ── header card ── */}
@@ -315,7 +321,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                   <div>
                     <h1 className="font-display text-2xl font-bold tracking-tight">{company.legalName}</h1>
                     {company.tradingName && company.tradingName !== company.legalName && (
-                      <p className="text-sm text-muted-foreground">Trading as {company.tradingName}</p>
+                      <p className="text-sm text-muted-foreground">{t('tradingAs', { name: company.tradingName })}</p>
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -333,7 +339,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                   <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pt-1 text-sm text-muted-foreground">
                     <span className="inline-flex items-center gap-1.5">
                       <UserIcon className="h-3.5 w-3.5" />
-                      {ownerName(company.accountOwnerId)}
+                      {ownerName(company.accountOwnerId, t)}
                     </span>
                     {company.website && (
                       <a
@@ -343,7 +349,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                         className="inline-flex items-center gap-1.5 text-info hover:underline"
                       >
                         <Globe className="h-3.5 w-3.5" />
-                        Website
+                        {t('website')}
                         <ExternalLink className="h-3 w-3" />
                       </a>
                     )}
@@ -361,19 +367,19 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => setAction('activity')}>
                   <ActivityIcon />
-                  Log activity
+                  {t('logActivity')}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setAction('task')}>
                   <PenSquare />
-                  Create task
+                  {t('createTask')}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setAction('note')}>
                   <StickyNote />
-                  Add note
+                  {t('addNote')}
                 </Button>
                 <Button variant="gold" size="sm" onClick={() => setAction('sample')}>
                   <PackagePlus />
-                  Request sample
+                  {t('requestSample')}
                 </Button>
               </div>
             </CardContent>
@@ -388,21 +394,21 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
         ) : (
           <>
             <StatCard
-              label="NDA status"
+              label={t('statNdaStatus')}
               value={getLabel('ndaStatus', company.ndaStatus)}
               icon={FileSignature}
               tone={ndaSigned ? 'success' : 'warning'}
-              hint={`${data!.ndas.length} agreement${data!.ndas.length === 1 ? '' : 's'} on file`}
+              hint={t('agreementsOnFile', { count: data!.ndas.length })}
             />
             <StatCard
-              label="Latest sample"
-              value={latestSample ? getLabel('sampleStatus', latestSample.status) : 'None'}
+              label={t('statLatestSample')}
+              value={latestSample ? getLabel('sampleStatus', latestSample.status) : t('none')}
               icon={FlaskConical}
               tone="info"
               hint={latestSample?.reference}
             />
             <StatCard
-              label="Last requested qty"
+              label={t('statLastRequestedQty')}
               value={
                 latestSample
                   ? formatQuantity(latestSample.approvedQuantity ?? latestSample.requestedQuantity, latestSample.unit)
@@ -413,40 +419,40 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
               hint={latestSample?.requestedProduct}
             />
             <StatCard
-              label="Latest shipment"
-              value={latestShipment ? getLabel('sampleStatus', deriveShipmentStatus(latestShipment)) : 'None'}
+              label={t('statLatestShipment')}
+              value={latestShipment ? getLabel('sampleStatus', deriveShipmentStatus(latestShipment)) : t('none')}
               icon={Truck}
               tone={latestShipment && latestShipment.isDelayed ? 'danger' : 'info'}
               hint={latestShipment?.courier}
             />
             <StatCard
-              label="Open tasks"
+              label={t('statOpenTasks')}
               value={openTasks.length}
               icon={ListTodo}
               tone={openTasks.some((t) => daysUntil(t.dueDate) != null && daysUntil(t.dueDate)! < 0) ? 'danger' : 'warning'}
-              hint={`${data!.tasks.length} total`}
+              hint={t('tasksTotal', { count: data!.tasks.length })}
             />
             <StatCard
-              label="Documents"
+              label={t('statDocuments')}
               value={data!.documents.length}
               icon={FolderOpen}
               tone="default"
-              hint={`${sharedDocs} shared`}
+              hint={t('documentsShared', { count: sharedDocs })}
             />
             <StatCard
-              label="Opportunity value"
+              label={t('statOpportunityValue')}
               value={company.opportunityValue ?? 0}
               icon={TrendingUp}
               tone="gold"
-              format={(n) => formatCurrency(n, company.preferredCurrency, 'en', { compact: true })}
-              hint={`${data!.opportunities.length} opportunit${data!.opportunities.length === 1 ? 'y' : 'ies'}`}
+              format={(n) => formatCurrency(n, company.preferredCurrency, locale, { compact: true })}
+              hint={t('opportunitiesCount', { count: data!.opportunities.length })}
             />
             <StatCard
-              label="Next action"
-              value={company.nextAction?.label ?? 'No action set'}
+              label={t('statNextAction')}
+              value={company.nextAction?.label ?? t('noActionSet')}
               icon={CalendarClock}
               tone="warning"
-              hint={company.nextAction?.dueDate ? `Due ${formatDate(company.nextAction.dueDate)}` : undefined}
+              hint={company.nextAction?.dueDate ? t('dueDate', { date: formatDate(company.nextAction.dueDate) }) : undefined}
             />
           </>
         )}
@@ -456,22 +462,22 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
       {!loading && data && (
         <div className="grid gap-4 lg:grid-cols-2">
           <ChartCard
-            title="Relationship funnel"
-            description="Progress of this company along the engagement journey"
+            title={t('relationshipFunnel')}
+            description={t('relationshipFunnelDescription')}
             height={220}
             isEmpty={false}
           >
-            <FunnelChartCard data={buildFunnel(company!)} height={220} />
+            <FunnelChartCard data={buildFunnel(company!, t)} height={220} />
           </ChartCard>
           <ChartCard
-            title="Engagement mix"
-            description="Records logged against this company"
+            title={t('engagementMix')}
+            description={t('engagementMixDescription')}
             height={220}
             isEmpty={
               data.activities.length + data.samples.length + data.tasks.length + data.documents.length === 0
             }
           >
-            <DonutChart data={buildEngagementMix(data)} height={220} centerLabel="records" />
+            <DonutChart data={buildEngagementMix(data, t)} height={220} centerLabel={t('records')} />
           </ChartCard>
         </div>
       )}
@@ -483,18 +489,18 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
         <Tabs defaultValue="overview" className="w-full">
           <div className="overflow-x-auto pb-1">
             <TabsList className="w-max">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="contacts">Contacts</TabsTrigger>
-              <TabsTrigger value="nda">NDA</TabsTrigger>
-              <TabsTrigger value="samples">Samples</TabsTrigger>
-              <TabsTrigger value="shipments">Shipments</TabsTrigger>
-              <TabsTrigger value="documents">Documents</TabsTrigger>
-              <TabsTrigger value="activities">Activities</TabsTrigger>
-              <TabsTrigger value="tasks">Tasks</TabsTrigger>
-              <TabsTrigger value="feedback">Feedback</TabsTrigger>
-              <TabsTrigger value="projects">Projects</TabsTrigger>
-              <TabsTrigger value="commercial">Commercial</TabsTrigger>
-              <TabsTrigger value="logistics">Logistics</TabsTrigger>
+              <TabsTrigger value="overview">{t('tabOverview')}</TabsTrigger>
+              <TabsTrigger value="contacts">{t('tabContacts')}</TabsTrigger>
+              <TabsTrigger value="nda">{t('tabNda')}</TabsTrigger>
+              <TabsTrigger value="samples">{t('tabSamples')}</TabsTrigger>
+              <TabsTrigger value="shipments">{t('tabShipments')}</TabsTrigger>
+              <TabsTrigger value="documents">{t('tabDocuments')}</TabsTrigger>
+              <TabsTrigger value="activities">{t('tabActivities')}</TabsTrigger>
+              <TabsTrigger value="tasks">{t('tabTasks')}</TabsTrigger>
+              <TabsTrigger value="feedback">{t('tabFeedback')}</TabsTrigger>
+              <TabsTrigger value="projects">{t('tabProjects')}</TabsTrigger>
+              <TabsTrigger value="commercial">{t('tabCommercial')}</TabsTrigger>
+              <TabsTrigger value="logistics">{t('tabLogistics')}</TabsTrigger>
             </TabsList>
           </div>
 
@@ -503,26 +509,26 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
             <div className="grid gap-4 lg:grid-cols-5">
               <Card className="lg:col-span-3">
                 <CardHeader>
-                  <CardTitle className="text-base">Engagement journey</CardTitle>
+                  <CardTitle className="text-base">{t('engagementJourney')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <JourneyTimeline steps={buildJourney(company, data)} />
+                  <JourneyTimeline steps={buildJourney(company, data, t)} />
                 </CardContent>
               </Card>
               <Card className="lg:col-span-2">
                 <CardHeader>
-                  <CardTitle className="text-base">Key facts</CardTitle>
+                  <CardTitle className="text-base">{t('keyFacts')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <dl className="grid grid-cols-2 gap-4">
-                    <Fact label="Markets served">
+                    <Fact label={t('marketsServed')}>
                       {company.marketsServed?.length ? company.marketsServed.join(', ') : '—'}
                     </Fact>
-                    <Fact label="Cooperation model">
+                    <Fact label={t('cooperationModel')}>
                       {company.cooperationModel ? getLabel('cooperationModel', company.cooperationModel) : '—'}
                     </Fact>
                     <div className="col-span-2">
-                      <Fact label="Application interests">
+                      <Fact label={t('applicationInterests')}>
                         {company.applicationInterests?.length ? (
                           <div className="mt-1 flex flex-wrap gap-1.5">
                             {company.applicationInterests.map((a) => (
@@ -538,7 +544,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                     </div>
                     {company.productCategories?.length ? (
                       <div className="col-span-2">
-                        <Fact label="Product categories">
+                        <Fact label={t('productCategories')}>
                           <div className="mt-1 flex flex-wrap gap-1.5">
                             {company.productCategories.map((c) => (
                               <StatusBadge key={c} kind="applicationCategory" value={c} />
@@ -547,20 +553,20 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                         </Fact>
                       </div>
                     ) : null}
-                    <Fact label="Estimated annual potential">
+                    <Fact label={t('estimatedAnnualPotential')}>
                       {formatCurrency(company.estimatedAnnualPotential, company.preferredCurrency)}
                     </Fact>
-                    <Fact label="Lead score">{company.leadScore != null ? `${company.leadScore}/100` : '—'}</Fact>
-                    <Fact label="First contact">
+                    <Fact label={t('leadScore')}>{company.leadScore != null ? `${company.leadScore}/100` : '—'}</Fact>
+                    <Fact label={t('firstContact')}>
                       {formatDate(company.firstContact.date)} ·{' '}
                       {getLabel('firstContactChannel', company.firstContact.channel)}
                     </Fact>
-                    <Fact label="Last activity">
+                    <Fact label={t('lastActivity')}>
                       {company.lastActivityAt ? formatRelative(company.lastActivityAt) : '—'}
                     </Fact>
                     {company.commercialNotes && (
                       <div className="col-span-2">
-                        <Fact label="Commercial notes">{company.commercialNotes}</Fact>
+                        <Fact label={t('commercialNotes')}>{company.commercialNotes}</Fact>
                       </div>
                     )}
                   </dl>
@@ -572,17 +578,17 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
           {/* ── CONTACTS ── */}
           <TabsContent value="contacts">
             <TabHeading
-              title="Contacts"
+              title={t('tabContacts')}
               count={data.contacts.length}
               action={
                 <Button size="sm" onClick={() => setAction('contact')}>
                   <Plus />
-                  Add contact
+                  {t('addContact')}
                 </Button>
               }
             />
             {data.contacts.length === 0 ? (
-              <EmptyState icon={UserIcon} title="No contacts yet" description="Add the first contact for this company." />
+              <EmptyState icon={UserIcon} title={t('noContactsTitle')} description={t('noContactsDescription')} />
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {data.contacts.map((c) => (
@@ -599,11 +605,11 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                         {c.decisionRole && <StatusBadge kind="decisionRole" value={c.decisionRole} />}
                       </div>
                       <div className="flex flex-wrap gap-1.5">
-                        {c.isTechnical && <Badge variant="info">Technical</Badge>}
-                        {c.isCommercial && <Badge variant="gold">Commercial</Badge>}
-                        {c.isLogistics && <Badge variant="secondary">Logistics</Badge>}
-                        {c.isFinance && <Badge variant="muted">Finance</Badge>}
-                        {c.isLegal && <Badge variant="outline">Legal</Badge>}
+                        {c.isTechnical && <Badge variant="info">{t('roleTechnical')}</Badge>}
+                        {c.isCommercial && <Badge variant="gold">{t('roleCommercial')}</Badge>}
+                        {c.isLogistics && <Badge variant="secondary">{t('roleLogistics')}</Badge>}
+                        {c.isFinance && <Badge variant="muted">{t('roleFinance')}</Badge>}
+                        {c.isLegal && <Badge variant="outline">{t('roleLegal')}</Badge>}
                       </div>
                       <Separator />
                       <div className="space-y-1.5 text-sm">
@@ -627,12 +633,12 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
 
           {/* ── NDA ── */}
           <TabsContent value="nda">
-            <TabHeading title="Non-disclosure agreements" count={data.ndas.length} />
+            <TabHeading title={t('ndaTabTitle')} count={data.ndas.length} />
             {data.ndas.length === 0 ? (
               <EmptyState
                 icon={FileSignature}
-                title="No NDA on record"
-                description="No non-disclosure agreement has been prepared for this company yet."
+                title={t('noNdaTitle')}
+                description={t('noNdaDescription')}
               />
             ) : (
               <div className="space-y-4">
@@ -646,9 +652,9 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                             <StatusBadge kind="ndaType" value={n.type} />
                           </p>
                           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                            <span>Sent {formatDate(n.dateSent)}</span>
-                            <span>Effective {formatDate(n.effectiveDate)}</span>
-                            <span>Expires {formatDate(n.expiryDate)}</span>
+                            <span>{t('sentDate', { date: formatDate(n.dateSent) })}</span>
+                            <span>{t('effectiveDate', { date: formatDate(n.effectiveDate) })}</span>
+                            <span>{t('expiresDate', { date: formatDate(n.expiryDate) })}</span>
                           </div>
                         </div>
                         <StatusBadge kind="ndaStatus" value={n.status} />
@@ -657,7 +663,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                       {n.versions.length > 0 && (
                         <div className="rounded-md border bg-muted/30 p-3">
                           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            Versions
+                            {t('versions')}
                           </p>
                           <ul className="space-y-1 text-sm">
                             {n.versions.map((v) => (
@@ -675,18 +681,18 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                           variant="outline"
                           size="sm"
                           disabled={n.status === 'fully_signed'}
-                          onClick={() => setNdaConfirm({ nda: n, to: 'sent', label: 'sent' })}
+                          onClick={() => setNdaConfirm({ nda: n, to: 'sent', label: t('ndaLabelSent') })}
                         >
-                          Mark sent
+                          {t('markSent')}
                         </Button>
                         <Button
                           variant="success"
                           size="sm"
                           disabled={n.status === 'fully_signed'}
-                          onClick={() => setNdaConfirm({ nda: n, to: 'fully_signed', label: 'signed' })}
+                          onClick={() => setNdaConfirm({ nda: n, to: 'fully_signed', label: t('ndaLabelSigned') })}
                         >
                           <Check />
-                          Mark signed
+                          {t('markSigned')}
                         </Button>
                       </div>
                     </CardContent>
@@ -699,12 +705,12 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
           {/* ── SAMPLES ── */}
           <TabsContent value="samples">
             <TabHeading
-              title="Sample requests"
+              title={t('sampleRequestsTitle')}
               count={data.samples.length}
               action={
                 <Button size="sm" variant="gold" onClick={() => setAction('sample')}>
                   <PackagePlus />
-                  Request sample
+                  {t('requestSample')}
                 </Button>
               }
             />
@@ -713,14 +719,14 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
               getRowId={(s) => s.id}
               onRowClick={(s) => router.push('/admin/samples/' + s.id)}
               searchable
-              searchPlaceholder="Search samples…"
-              emptyTitle="No samples yet"
-              emptyDescription="Sample requests for this company will appear here."
+              searchPlaceholder={t('searchSamplesPlaceholder')}
+              emptyTitle={t('noSamplesTitle')}
+              emptyDescription={t('noSamplesTableDescription')}
               columns={[
-                { key: 'reference', header: 'Reference', sortable: true, cell: (s) => <span className="font-medium">{s.reference}</span> },
+                { key: 'reference', header: t('colReference'), sortable: true, cell: (s) => <span className="font-medium">{s.reference}</span> },
                 {
                   key: 'product',
-                  header: 'Product',
+                  header: t('colProduct'),
                   cell: (s) => (
                     <div>
                       <p className="truncate">{s.requestedProduct}</p>
@@ -730,16 +736,16 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                 },
                 {
                   key: 'qty',
-                  header: 'Qty',
+                  header: t('colQty'),
                   align: 'right',
                   sortValue: (s) => s.approvedQuantity ?? s.requestedQuantity,
                   cell: (s) => formatQuantity(s.approvedQuantity ?? s.requestedQuantity, s.unit),
                 },
-                { key: 'status', header: 'Status', cell: (s) => <StatusBadge kind="sampleStatus" value={s.status} /> },
-                { key: 'priority', header: 'Priority', cell: (s) => <PriorityBadge value={s.priority} /> },
+                { key: 'status', header: t('colStatus'), cell: (s) => <StatusBadge kind="sampleStatus" value={s.status} /> },
+                { key: 'priority', header: t('colPriority'), cell: (s) => <PriorityBadge value={s.priority} /> },
                 {
                   key: 'requestDate',
-                  header: 'Requested',
+                  header: t('colRequested'),
                   sortable: true,
                   sortValue: (s) => s.requestDate,
                   cell: (s) => formatDate(s.requestDate),
@@ -750,9 +756,9 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
 
           {/* ── SHIPMENTS ── */}
           <TabsContent value="shipments">
-            <TabHeading title="Shipments" count={data.shipments.length} />
+            <TabHeading title={t('tabShipments')} count={data.shipments.length} />
             {data.shipments.length === 0 ? (
-              <EmptyState icon={Truck} title="No shipments yet" description="Sample shipments will appear here once dispatched." />
+              <EmptyState icon={Truck} title={t('noShipmentsYetTitle')} description={t('noShipmentsYetDescription')} />
             ) : (
               <div className="space-y-3">
                 {data.shipments.map((s) => {
@@ -764,19 +770,19 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                           <p className="flex items-center gap-2 font-medium">
                             {s.reference}
                             <StatusBadge kind="sampleStatus" value={st} />
-                            {s.isDelayed && !s.actualDelivery && <Badge variant="danger">Delayed</Badge>}
+                            {s.isDelayed && !s.actualDelivery && <Badge variant="danger">{t('delayed')}</Badge>}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {s.courier ?? 'Courier TBD'}
+                            {s.courier ?? t('courierTbd')}
                             {s.service ? ` · ${s.service}` : ''} → {s.address.city}, {s.address.country}
                           </p>
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                            <span>Shipped {formatDate(s.shipmentDate)}</span>
-                            <span>ETA {formatDate(s.estimatedDelivery)}</span>
-                            {s.actualDelivery && <span>Delivered {formatDate(s.actualDelivery)}</span>}
+                            <span>{t('shippedDate', { date: formatDate(s.shipmentDate) })}</span>
+                            <span>{t('etaDate', { date: formatDate(s.estimatedDelivery) })}</span>
+                            {s.actualDelivery && <span>{t('deliveredDate', { date: formatDate(s.actualDelivery) })}</span>}
                             {s.customsStatus && (
                               <span className="inline-flex items-center gap-1">
-                                Customs: <StatusBadge kind="customsStatus" value={s.customsStatus} />
+                                {t('customsLabel')} <StatusBadge kind="customsStatus" value={s.customsStatus} />
                               </span>
                             )}
                           </div>
@@ -786,7 +792,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                             {s.trackingUrl ? (
                               <a href={s.trackingUrl} target="_blank" rel="noreferrer">
                                 <Truck />
-                                Track {s.trackingNumber}
+                                {t('track', { number: s.trackingNumber })}
                                 <ExternalLink className="h-3 w-3" />
                               </a>
                             ) : (
@@ -807,15 +813,15 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
 
           {/* ── DOCUMENTS ── */}
           <TabsContent value="documents">
-            <TabHeading title="Documents" count={data.documents.length} />
+            <TabHeading title={t('tabDocuments')} count={data.documents.length} />
             {!ndaSigned && (
               <div className="mb-4 flex items-center gap-2 rounded-md border border-warning/40 bg-warning-subtle/50 p-3 text-sm text-warning-foreground">
                 <Lock className="h-4 w-4 shrink-0" />
-                Post-NDA documents are locked until the NDA is fully signed.
+                {t('postNdaLocked')}
               </div>
             )}
             {data.documents.length === 0 ? (
-              <EmptyState icon={FolderOpen} title="No documents" description="Company-specific documents will appear here." />
+              <EmptyState icon={FolderOpen} title={t('noDocumentsTitle')} description={t('noDocumentsDescription')} />
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {data.documents.map((doc) => {
@@ -846,14 +852,14 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                             disabled={locked}
                             onClick={() =>
                               toast({
-                                title: 'Download started',
+                                title: t('toastDownloadStarted'),
                                 description: doc.name,
                                 variant: 'info',
                               })
                             }
                           >
                             <Download />
-                            {locked ? 'Locked' : 'Download'}
+                            {locked ? t('locked') : t('download')}
                           </Button>
                         </div>
                       </CardContent>
@@ -867,17 +873,17 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
           {/* ── ACTIVITIES ── */}
           <TabsContent value="activities">
             <TabHeading
-              title="Activity timeline"
+              title={t('activityTimelineTitle')}
               count={data.activities.length}
               action={
                 <Button size="sm" variant="outline" onClick={() => setAction('activity')}>
                   <Plus />
-                  Log activity
+                  {t('logActivity')}
                 </Button>
               }
             />
             {data.activities.length === 0 ? (
-              <EmptyState icon={ActivityIcon} title="No activity logged" description="Calls, emails and notes will appear here." />
+              <EmptyState icon={ActivityIcon} title={t('noActivityTitle')} description={t('noActivityDescription')} />
             ) : (
               <Card>
                 <CardContent className="p-5">
@@ -897,7 +903,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                           </div>
                           <div className="mt-0.5 flex items-center gap-2">
                             <StatusBadge kind="activityType" value={a.type} />
-                            <span className="text-xs text-muted-foreground">{ownerName(a.byUserId)}</span>
+                            <span className="text-xs text-muted-foreground">{ownerName(a.byUserId, t)}</span>
                           </div>
                           {a.body && <p className="mt-1 text-sm text-muted-foreground">{a.body}</p>}
                         </div>
@@ -912,45 +918,45 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
           {/* ── TASKS ── */}
           <TabsContent value="tasks">
             <TabHeading
-              title="Tasks"
+              title={t('tabTasks')}
               count={data.tasks.length}
               action={
                 <Button size="sm" onClick={() => setAction('task')}>
                   <Plus />
-                  Create task
+                  {t('createTask')}
                 </Button>
               }
             />
             {data.tasks.length === 0 ? (
-              <EmptyState icon={ListTodo} title="No tasks" description="Create a follow-up to keep this relationship moving." />
+              <EmptyState icon={ListTodo} title={t('noTasksTitle')} description={t('noTasksDescription')} />
             ) : (
               <Card>
                 <CardContent className="divide-y p-0">
-                  {data.tasks.map((t) => {
-                    const done = t.status === 'done';
-                    const overdue = !done && daysUntil(t.dueDate) != null && daysUntil(t.dueDate)! < 0;
+                  {data.tasks.map((task) => {
+                    const done = task.status === 'done';
+                    const overdue = !done && daysUntil(task.dueDate) != null && daysUntil(task.dueDate)! < 0;
                     return (
-                      <div key={t.id} className="flex items-start gap-3 p-4">
+                      <div key={task.id} className="flex items-start gap-3 p-4">
                         <Checkbox
                           checked={done}
                           disabled={done}
-                          onCheckedChange={() => !done && completeTask(t)}
-                          aria-label={`Complete ${t.title}`}
+                          onCheckedChange={() => !done && completeTask(task)}
+                          aria-label={t('completeTaskAria', { title: task.title })}
                           className="mt-0.5"
                         />
                         <div className="min-w-0 flex-1">
-                          <p className={cn('font-medium', done && 'text-muted-foreground line-through')}>{t.title}</p>
-                          {t.description && <p className="text-sm text-muted-foreground">{t.description}</p>}
+                          <p className={cn('font-medium', done && 'text-muted-foreground line-through')}>{task.title}</p>
+                          {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                            <StatusBadge kind="taskType" value={t.type} />
-                            <StatusBadge kind="taskStatus" value={t.status} />
-                            <PriorityBadge value={t.priority} />
-                            {t.dueDate && (
+                            <StatusBadge kind="taskType" value={task.type} />
+                            <StatusBadge kind="taskStatus" value={task.status} />
+                            <PriorityBadge value={task.priority} />
+                            {task.dueDate && (
                               <span className={cn('tabular', overdue ? 'font-medium text-danger' : 'text-muted-foreground')}>
-                                Due {formatDate(t.dueDate)}
+                                {t('dueDate', { date: formatDate(task.dueDate) })}
                               </span>
                             )}
-                            <span className="text-muted-foreground">· {ownerName(t.ownerId)}</span>
+                            <span className="text-muted-foreground">· {ownerName(task.ownerId, t)}</span>
                           </div>
                         </div>
                       </div>
@@ -963,9 +969,9 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
 
           {/* ── FEEDBACK ── */}
           <TabsContent value="feedback">
-            <TabHeading title="Application feedback" count={data.feedback.length} />
+            <TabHeading title={t('applicationFeedbackTitle')} count={data.feedback.length} />
             {data.feedback.length === 0 ? (
-              <EmptyState icon={MessageSquareText} title="No feedback yet" description="Client testing feedback will appear here." />
+              <EmptyState icon={MessageSquareText} title={t('noFeedbackTitle')} description={t('noFeedbackDescription')} />
             ) : (
               <div className="grid gap-4 lg:grid-cols-2">
                 {data.feedback.map((f) => (
@@ -979,10 +985,10 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {getLabel('applicationCategory', f.applicationCategory)}
-                            {f.testDate ? ` · tested ${formatDate(f.testDate)}` : ''}
+                            {f.testDate ? ` · ${t('testedDate', { date: formatDate(f.testDate) })}` : ''}
                           </p>
                         </div>
-                        <Stars value={f.overallRating} />
+                        <Stars value={f.overallRating} t={t} />
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <StatusBadge kind="feedbackStatus" value={f.status} />
@@ -990,9 +996,9 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                       </div>
                       {(f.tasteAroma || f.solubility || f.processingBehaviour) && (
                         <dl className="grid gap-2 text-sm">
-                          {f.tasteAroma && <Fact label="Taste / aroma">{f.tasteAroma}</Fact>}
-                          {f.solubility && <Fact label="Solubility">{f.solubility}</Fact>}
-                          {f.processingBehaviour && <Fact label="Processing behaviour">{f.processingBehaviour}</Fact>}
+                          {f.tasteAroma && <Fact label={t('tasteAroma')}>{f.tasteAroma}</Fact>}
+                          {f.solubility && <Fact label={t('solubility')}>{f.solubility}</Fact>}
+                          {f.processingBehaviour && <Fact label={t('processingBehaviour')}>{f.processingBehaviour}</Fact>}
                         </dl>
                       )}
                     </CardContent>
@@ -1004,9 +1010,9 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
 
           {/* ── PROJECTS ── */}
           <TabsContent value="projects">
-            <TabHeading title="Application projects" count={data.projects.length} />
+            <TabHeading title={t('applicationProjectsTitle')} count={data.projects.length} />
             {data.projects.length === 0 ? (
-              <EmptyState icon={FlaskConical} title="No projects" description="Development projects with this company will appear here." />
+              <EmptyState icon={FlaskConical} title={t('noProjectsTitle')} description={t('noProjectsDescription')} />
             ) : (
               <div className="grid gap-4 lg:grid-cols-2">
                 {data.projects.map((p) => (
@@ -1025,7 +1031,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                       {p.objective && <p className="text-sm text-muted-foreground">{p.objective}</p>}
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Development progress</span>
+                          <span>{t('developmentProgress')}</span>
                           <span className="tabular">{stageProgress(p.developmentStage)}%</span>
                         </div>
                         <Progress value={stageProgress(p.developmentStage)} />
@@ -1034,7 +1040,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                         {p.testStage && <StatusBadge kind="testStage" value={p.testStage} />}
                         {p.currentResult && <StatusBadge kind="feedbackResult" value={p.currentResult} />}
                         {p.estimatedLaunch && (
-                          <span className="text-muted-foreground">Launch {formatDate(p.estimatedLaunch)}</span>
+                          <span className="text-muted-foreground">{t('launchDate', { date: formatDate(p.estimatedLaunch) })}</span>
                         )}
                       </div>
                     </CardContent>
@@ -1049,18 +1055,18 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Commercial terms</CardTitle>
+                  <CardTitle className="text-base">{t('commercialTerms')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    <Fact label="Cooperation model">
+                    <Fact label={t('cooperationModel')}>
                       {company.cooperationModel ? getLabel('cooperationModel', company.cooperationModel) : '—'}
                     </Fact>
-                    <Fact label="Payment terms">{company.paymentTerms}</Fact>
-                    <Fact label="Estimated potential">
+                    <Fact label={t('paymentTerms')}>{company.paymentTerms}</Fact>
+                    <Fact label={t('estimatedPotential')}>
                       {formatCurrency(company.estimatedAnnualPotential, company.preferredCurrency)}
                     </Fact>
-                    <Fact label="Opportunity value">
+                    <Fact label={t('opportunityValue')}>
                       {formatCurrency(company.opportunityValue, company.preferredCurrency)}
                     </Fact>
                   </dl>
@@ -1068,72 +1074,72 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
               </Card>
 
               <div>
-                <TabHeading title="Opportunities" count={data.opportunities.length} />
+                <TabHeading title={t('tabOpportunities')} count={data.opportunities.length} />
                 {data.opportunities.length === 0 ? (
-                  <EmptyState icon={Target} title="No opportunities" description="Pipeline opportunities will appear here." />
+                  <EmptyState icon={Target} title={t('noOpportunitiesTitle')} description={t('noOpportunitiesDescription')} />
                 ) : (
                   <DataTable<Opportunity>
                     data={data.opportunities}
                     getRowId={(o) => o.id}
                     columns={[
-                      { key: 'title', header: 'Title', sortable: true, cell: (o) => <span className="font-medium">{o.title}</span> },
-                      { key: 'stage', header: 'Stage', cell: (o) => <StatusBadge kind="pipelineStage" value={o.stage} /> },
+                      { key: 'title', header: t('colTitle'), sortable: true, cell: (o) => <span className="font-medium">{o.title}</span> },
+                      { key: 'stage', header: t('colStage'), cell: (o) => <StatusBadge kind="pipelineStage" value={o.stage} /> },
                       {
                         key: 'value',
-                        header: 'Value',
+                        header: t('colValue'),
                         align: 'right',
                         sortValue: (o) => o.expectedValue ?? 0,
                         cell: (o) => formatCurrency(o.expectedValue, o.currency),
                       },
                       {
                         key: 'probability',
-                        header: 'Prob.',
+                        header: t('colProbability'),
                         align: 'right',
                         sortValue: (o) => o.probability ?? 0,
                         cell: (o) => (o.probability != null ? `${o.probability}%` : '—'),
                       },
                       {
                         key: 'close',
-                        header: 'Expected close',
+                        header: t('colExpectedClose'),
                         sortValue: (o) => o.expectedCloseDate ?? '',
                         cell: (o) => formatDate(o.expectedCloseDate),
                       },
-                      { key: 'owner', header: 'Owner', cell: (o) => ownerName(o.ownerId) },
+                      { key: 'owner', header: t('colOwner'), cell: (o) => ownerName(o.ownerId, t) },
                     ]}
                   />
                 )}
               </div>
 
               <div>
-                <TabHeading title="Finance documents" count={data.finance.length} />
+                <TabHeading title={t('financeDocumentsTitle')} count={data.finance.length} />
                 {data.finance.length === 0 ? (
-                  <EmptyState icon={Receipt} title="No finance documents" description="Quotes, orders and invoices will appear here." />
+                  <EmptyState icon={Receipt} title={t('noFinanceTitle')} description={t('noFinanceDescription')} />
                 ) : (
                   <DataTable<FinanceDocument>
                     data={data.finance}
                     getRowId={(d) => d.id}
                     columns={[
-                      { key: 'reference', header: 'Reference', sortable: true, cell: (d) => <span className="font-medium">{d.reference}</span> },
-                      { key: 'kind', header: 'Type', cell: (d) => <StatusBadge kind="financeDocKind" value={d.kind} /> },
+                      { key: 'reference', header: t('colReference'), sortable: true, cell: (d) => <span className="font-medium">{d.reference}</span> },
+                      { key: 'kind', header: t('colType'), cell: (d) => <StatusBadge kind="financeDocKind" value={d.kind} /> },
                       {
                         key: 'total',
-                        header: 'Total',
+                        header: t('colTotal'),
                         align: 'right',
                         sortValue: (d) => d.total,
                         cell: (d) => formatCurrency(d.total, d.currency),
                       },
                       {
                         key: 'outstanding',
-                        header: 'Outstanding',
+                        header: t('colOutstanding'),
                         align: 'right',
                         sortValue: (d) => d.outstandingAmount ?? 0,
                         cell: (d) =>
                           d.outstandingAmount ? formatCurrency(d.outstandingAmount, d.currency) : '—',
                       },
-                      { key: 'status', header: 'Status', cell: (d) => <StatusBadge kind="paymentStatus" value={d.paymentStatus} /> },
+                      { key: 'status', header: t('colStatus'), cell: (d) => <StatusBadge kind="paymentStatus" value={d.paymentStatus} /> },
                       {
                         key: 'issueDate',
-                        header: 'Issued',
+                        header: t('colIssued'),
                         sortable: true,
                         sortValue: (d) => d.issueDate,
                         cell: (d) => formatDate(d.issueDate),
@@ -1150,18 +1156,18 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Logistics profile</CardTitle>
+                  <CardTitle className="text-base">{t('logisticsProfile')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Fact label="Preferred courier">{company.preferredCourier}</Fact>
-                    <Fact label="Delivery instructions">{company.deliveryInstructions}</Fact>
+                    <Fact label={t('preferredCourier')}>{company.preferredCourier}</Fact>
+                    <Fact label={t('deliveryInstructions')}>{company.deliveryInstructions}</Fact>
                     <div className="sm:col-span-2">
-                      <Fact label="Customs information">{company.customsInfo}</Fact>
+                      <Fact label={t('customsInformation')}>{company.customsInfo}</Fact>
                     </div>
                     {company.logisticsRequirements && (
                       <div className="sm:col-span-2">
-                        <Fact label="Logistics requirements">{company.logisticsRequirements}</Fact>
+                        <Fact label={t('logisticsRequirements')}>{company.logisticsRequirements}</Fact>
                       </div>
                     )}
                   </dl>
@@ -1169,7 +1175,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
               </Card>
 
               <div>
-                <TabHeading title="Shipping addresses" />
+                <TabHeading title={t('shippingAddresses')} />
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {(company.shippingAddresses?.length ? company.shippingAddresses : [company.headquarters]).map(
                     (addr, i) => (
@@ -1177,7 +1183,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                         <CardContent className="space-y-1 p-4 text-sm">
                           <p className="flex items-center gap-1.5 font-medium">
                             <span>{flagEmoji(addr.countryCode)}</span>
-                            {addr.label ?? (i === 0 ? 'Primary' : `Address ${i + 1}`)}
+                            {addr.label ?? (i === 0 ? t('primaryAddress') : t('addressN', { n: i + 1 }))}
                           </p>
                           <p className="text-muted-foreground">{addr.line1}</p>
                           {addr.line2 && <p className="text-muted-foreground">{addr.line2}</p>}
@@ -1194,9 +1200,9 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
               </div>
 
               <div>
-                <TabHeading title="Recent shipments" count={data.shipments.length} />
+                <TabHeading title={t('recentShipments')} count={data.shipments.length} />
                 {data.shipments.length === 0 ? (
-                  <EmptyState icon={PackageSearch} title="No shipments" description="No shipments dispatched to this company yet." />
+                  <EmptyState icon={PackageSearch} title={t('noShipmentsTitle')} description={t('noShipmentsLogisticsDescription')} />
                 ) : (
                   <div className="space-y-3">
                     {data.shipments.slice(0, 5).map((s) => (
@@ -1222,10 +1228,10 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
       <QuickActionDialog
         open={action === 'activity'}
         onOpenChange={(o) => !o && setAction(null)}
-        title="Log activity"
-        description="Record a call, email or interaction with this company."
-        fields={ACTIVITY_FIELDS}
-        submitLabel="Log activity"
+        title={t('logActivity')}
+        description={t('logActivityDescription')}
+        fields={ACTIVITY_FIELDS(t)}
+        submitLabel={t('logActivity')}
         onSubmit={async (v) => {
           if (!company) return;
           await activityService.create({
@@ -1238,16 +1244,16 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
             at: new Date().toISOString(),
           });
           await load();
-          toast({ title: 'Activity logged', description: v.title, variant: 'success' });
+          toast({ title: t('toastActivityLogged'), description: v.title, variant: 'success' });
         }}
       />
       <QuickActionDialog
         open={action === 'task'}
         onOpenChange={(o) => !o && setAction(null)}
-        title="Create task"
-        description="Add a follow-up task for this company."
-        fields={TASK_FIELDS}
-        submitLabel="Create task"
+        title={t('createTask')}
+        description={t('createTaskDescription')}
+        fields={TASK_FIELDS(t)}
+        submitLabel={t('createTask')}
         onSubmit={async (v) => {
           if (!company) return;
           await taskService.create({
@@ -1263,39 +1269,39 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
             createdAt: new Date().toISOString(),
           });
           await load();
-          toast({ title: 'Task created', description: v.title, variant: 'success' });
+          toast({ title: t('toastTaskCreated'), description: v.title, variant: 'success' });
         }}
       />
       <QuickActionDialog
         open={action === 'note'}
         onOpenChange={(o) => !o && setAction(null)}
-        title="Add note"
-        description="Capture an internal note on this company."
-        fields={NOTE_FIELDS}
-        submitLabel="Add note"
+        title={t('addNote')}
+        description={t('addNoteDescription')}
+        fields={NOTE_FIELDS(t)}
+        submitLabel={t('addNote')}
         onSubmit={async (v) => {
           if (!company) return;
           await activityService.create({
             id: `act_${Date.now()}`,
             type: 'note',
             companyId: company.id,
-            title: 'Note',
+            title: t('noteTitle'),
             body: v.body,
             byUserId: account?.id,
             visibility: 'internal',
             at: new Date().toISOString(),
           });
           await load();
-          toast({ title: 'Note added', variant: 'success' });
+          toast({ title: t('toastNoteAdded'), variant: 'success' });
         }}
       />
       <QuickActionDialog
         open={action === 'sample'}
         onOpenChange={(o) => !o && setAction(null)}
-        title="Request sample"
-        description="Draft a new sample request for this company."
-        fields={SAMPLE_FIELDS}
-        submitLabel="Create request"
+        title={t('requestSample')}
+        description={t('requestSampleDescription')}
+        fields={SAMPLE_FIELDS(t)}
+        submitLabel={t('createRequest')}
         onSubmit={async (v) => {
           if (!company) return;
           const qty = Number(v.quantity) || 0;
@@ -1314,16 +1320,16 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
             createdAt: new Date().toISOString(),
           });
           await load();
-          toast({ title: 'Sample request drafted', description: v.product, variant: 'success' });
+          toast({ title: t('toastSampleDrafted'), description: v.product, variant: 'success' });
         }}
       />
       <QuickActionDialog
         open={action === 'contact'}
         onOpenChange={(o) => !o && setAction(null)}
-        title="Add contact"
-        description="Add a new contact at this company."
-        fields={CONTACT_FIELDS}
-        submitLabel="Add contact"
+        title={t('addContact')}
+        description={t('addContactDescription')}
+        fields={CONTACT_FIELDS(t)}
+        submitLabel={t('addContact')}
         onSubmit={async (v) => {
           if (!company) return;
           await contactService.create({
@@ -1337,7 +1343,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
             createdAt: new Date().toISOString(),
           });
           await load();
-          toast({ title: 'Contact added', description: `${v.firstName} ${v.lastName}`, variant: 'success' });
+          toast({ title: t('toastContactAdded'), description: `${v.firstName} ${v.lastName}`, variant: 'success' });
         }}
       />
 
@@ -1345,13 +1351,16 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
       <ConfirmDialog
         open={!!ndaConfirm}
         onOpenChange={(o) => !o && setNdaConfirm(null)}
-        title={`Mark NDA ${ndaConfirm?.label ?? ''}?`}
+        title={t('confirmNdaTitle', { label: ndaConfirm?.label ?? '' })}
         description={
           ndaConfirm
-            ? `This will update ${ndaConfirm.nda.reference} to “${getLabel('ndaStatus', ndaConfirm.to)}”.`
+            ? t('confirmNdaDescription', {
+                reference: ndaConfirm.nda.reference,
+                status: getLabel('ndaStatus', ndaConfirm.to),
+              })
             : undefined
         }
-        confirmLabel="Confirm"
+        confirmLabel={t('confirmLabel')}
         onConfirm={() => void applyNdaStatus()}
       />
     </div>
@@ -1360,7 +1369,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
 
 /* ────────────────────────────── derived builders ────────────────────────────── */
 
-function buildJourney(company: Company, data: ProfileData): JourneyStep[] {
+function buildJourney(company: Company, data: ProfileData, t: T): JourneyStep[] {
   const firstSample = data.samples
     .slice()
     .sort((a, b) => new Date(a.requestDate).getTime() - new Date(b.requestDate).getTime())[0];
@@ -1378,7 +1387,7 @@ function buildJourney(company: Company, data: ProfileData): JourneyStep[] {
   return [
     {
       key: 'first_contact',
-      label: 'First contact',
+      label: t('journeyFirstContact'),
       icon: Handshake,
       date: company.firstContact.date,
       state: 'done',
@@ -1386,7 +1395,7 @@ function buildJourney(company: Company, data: ProfileData): JourneyStep[] {
     },
     {
       key: 'nda',
-      label: 'NDA',
+      label: t('journeyNda'),
       icon: FileSignature,
       date: nda?.dateSent ?? nda?.createdAt,
       state: ndaSigned ? 'done' : ndaStarted ? 'active' : 'pending',
@@ -1394,39 +1403,39 @@ function buildJourney(company: Company, data: ProfileData): JourneyStep[] {
     },
     {
       key: 'sample',
-      label: 'Sample request',
+      label: t('journeySampleRequest'),
       icon: FlaskConical,
       date: firstSample?.requestDate,
       state: firstSample ? (firstSample.status === 'draft' ? 'active' : 'done') : 'pending',
-      detail: firstSample ? <StatusBadge kind="sampleStatus" value={firstSample.status} /> : 'Not requested yet',
+      detail: firstSample ? <StatusBadge kind="sampleStatus" value={firstSample.status} /> : t('journeyNotRequestedYet'),
     },
     {
       key: 'shipment',
-      label: 'Shipment',
+      label: t('journeyShipment'),
       icon: Truck,
       date: firstShipment?.shipmentDate ?? firstShipment?.createdAt,
       state: firstShipment ? (deriveShipmentStatus(firstShipment) === 'delivered' ? 'done' : 'active') : 'pending',
       detail: firstShipment ? (
         <StatusBadge kind="sampleStatus" value={deriveShipmentStatus(firstShipment)} />
       ) : (
-        'No shipment yet'
+        t('journeyNoShipmentYet')
       ),
     },
     {
       key: 'testing',
-      label: 'Testing',
+      label: t('journeyTesting'),
       icon: PackageSearch,
       date: undefined,
       state: fb ? 'done' : testing ? 'active' : 'pending',
-      detail: testing ? 'In progress' : 'Awaiting samples',
+      detail: testing ? t('journeyInProgress') : t('journeyAwaitingSamples'),
     },
     {
       key: 'feedback',
-      label: 'Feedback',
+      label: t('journeyFeedback'),
       icon: MessageSquareText,
       date: fb?.testDate ?? fb?.createdAt,
       state: fb ? (fb.status === 'resolved' ? 'done' : 'active') : 'pending',
-      detail: fb ? <StatusBadge kind="feedbackResult" value={fb.overallResult} /> : 'Not received',
+      detail: fb ? <StatusBadge kind="feedbackResult" value={fb.overallResult} /> : t('journeyNotReceived'),
     },
   ];
 }
@@ -1439,58 +1448,59 @@ function stageProgress(stage: string): number {
   return Math.round(((idx + 1) / STAGE_ORDER.length) * 100);
 }
 
-const FUNNEL_STAGES: { stages: string[]; label: string }[] = [
-  { label: 'Lead', stages: ['lead', 'contacted'] },
-  { label: 'Interested', stages: ['interested', 'qualified'] },
-  { label: 'NDA', stages: ['nda_in_progress', 'nda_signed'] },
-  { label: 'Sampling', stages: ['sampling'] },
-  { label: 'Testing', stages: ['testing'] },
-  { label: 'Commercial', stages: ['commercial_discussion', 'customer', 'repeat_customer'] },
+const FUNNEL_STAGES = (t: T): { stages: string[]; label: string }[] => [
+  { label: t('funnelLead'), stages: ['lead', 'contacted'] },
+  { label: t('funnelInterested'), stages: ['interested', 'qualified'] },
+  { label: t('funnelNda'), stages: ['nda_in_progress', 'nda_signed'] },
+  { label: t('funnelSampling'), stages: ['sampling'] },
+  { label: t('funnelTesting'), stages: ['testing'] },
+  { label: t('funnelCommercial'), stages: ['commercial_discussion', 'customer', 'repeat_customer'] },
 ];
 
-function buildFunnel(company: Company): { name: string; value: number }[] {
+function buildFunnel(company: Company, t: T): { name: string; value: number }[] {
   // Highlight how far this company has progressed: each reached stage = full bar.
-  const reachedIndex = FUNNEL_STAGES.findIndex((g) => g.stages.includes(company.relationshipStage));
-  const cutoff = reachedIndex < 0 ? FUNNEL_STAGES.length : reachedIndex + 1;
-  return FUNNEL_STAGES.map((g, i) => ({
+  const stages = FUNNEL_STAGES(t);
+  const reachedIndex = stages.findIndex((g) => g.stages.includes(company.relationshipStage));
+  const cutoff = reachedIndex < 0 ? stages.length : reachedIndex + 1;
+  return stages.map((g, i) => ({
     name: g.label,
-    value: i < cutoff ? Math.max(FUNNEL_STAGES.length - i, 1) : 0,
+    value: i < cutoff ? Math.max(stages.length - i, 1) : 0,
   }));
 }
 
-function buildEngagementMix(data: ProfileData): { name: string; value: number; color?: string }[] {
+function buildEngagementMix(data: ProfileData, t: T): { name: string; value: number; color?: string }[] {
   return [
-    { name: 'Activities', value: data.activities.length, color: CHART_COLORS[0] },
-    { name: 'Samples', value: data.samples.length, color: CHART_COLORS[1] },
-    { name: 'Tasks', value: data.tasks.length, color: CHART_COLORS[2] },
-    { name: 'Documents', value: data.documents.length, color: CHART_COLORS[3] },
-    { name: 'Meetings', value: data.meetings.length, color: CHART_COLORS[4] },
-    { name: 'Feedback', value: data.feedback.length, color: CHART_COLORS[5] },
+    { name: t('mixActivities'), value: data.activities.length, color: CHART_COLORS[0] },
+    { name: t('mixSamples'), value: data.samples.length, color: CHART_COLORS[1] },
+    { name: t('mixTasks'), value: data.tasks.length, color: CHART_COLORS[2] },
+    { name: t('mixDocuments'), value: data.documents.length, color: CHART_COLORS[3] },
+    { name: t('mixMeetings'), value: data.meetings.length, color: CHART_COLORS[4] },
+    { name: t('mixFeedback'), value: data.feedback.length, color: CHART_COLORS[5] },
   ].filter((d) => d.value > 0);
 }
 
 /* ────────────────────────────── form field configs ────────────────────────────── */
 
-const ACTIVITY_FIELDS: QuickField[] = [
-  { name: 'title', label: 'Summary', placeholder: 'e.g. Intro call with R&D team', required: true },
-  { name: 'body', label: 'Details', type: 'textarea', placeholder: 'What was discussed?' },
+const ACTIVITY_FIELDS = (t: T): QuickField[] => [
+  { name: 'title', label: t('fieldSummary'), placeholder: t('fieldSummaryPlaceholder'), required: true },
+  { name: 'body', label: t('fieldDetails'), type: 'textarea', placeholder: t('fieldDetailsPlaceholder') },
 ];
-const TASK_FIELDS: QuickField[] = [
-  { name: 'title', label: 'Task', placeholder: 'e.g. Send 1kg follow-up sample', required: true },
-  { name: 'description', label: 'Description', type: 'textarea' },
-  { name: 'dueDate', label: 'Due date', type: 'date' },
+const TASK_FIELDS = (t: T): QuickField[] => [
+  { name: 'title', label: t('fieldTask'), placeholder: t('fieldTaskPlaceholder'), required: true },
+  { name: 'description', label: t('fieldDescription'), type: 'textarea' },
+  { name: 'dueDate', label: t('fieldDueDate'), type: 'date' },
 ];
-const NOTE_FIELDS: QuickField[] = [
-  { name: 'body', label: 'Note', type: 'textarea', placeholder: 'Internal note…', required: true },
+const NOTE_FIELDS = (t: T): QuickField[] => [
+  { name: 'body', label: t('fieldNote'), type: 'textarea', placeholder: t('fieldNotePlaceholder'), required: true },
 ];
-const SAMPLE_FIELDS: QuickField[] = [
-  { name: 'product', label: 'Requested product', placeholder: 'e.g. Proamina® WPI 80', required: true },
-  { name: 'quantity', label: 'Quantity (kg)', type: 'number', placeholder: '1', required: true },
+const SAMPLE_FIELDS = (t: T): QuickField[] => [
+  { name: 'product', label: t('fieldRequestedProduct'), placeholder: t('fieldRequestedProductPlaceholder'), required: true },
+  { name: 'quantity', label: t('fieldQuantityKg'), type: 'number', placeholder: t('fieldQuantityPlaceholder'), required: true },
 ];
-const CONTACT_FIELDS: QuickField[] = [
-  { name: 'firstName', label: 'First name', required: true },
-  { name: 'lastName', label: 'Last name', required: true },
-  { name: 'jobTitle', label: 'Job title' },
-  { name: 'email', label: 'Email', required: true },
-  { name: 'phone', label: 'Phone' },
+const CONTACT_FIELDS = (t: T): QuickField[] => [
+  { name: 'firstName', label: t('fieldFirstName'), required: true },
+  { name: 'lastName', label: t('fieldLastName'), required: true },
+  { name: 'jobTitle', label: t('fieldJobTitle') },
+  { name: 'email', label: t('fieldEmail'), required: true },
+  { name: 'phone', label: t('fieldPhone') },
 ];

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useLocale } from 'next-intl';
 import { useRouter } from '@/lib/i18n/navigation';
 import { useSession } from '@/components/providers/session-provider';
 import { isInternal } from '@/lib/permissions';
@@ -9,10 +10,12 @@ import { Sidebar } from '@/components/navigation/sidebar';
 import { Topbar } from '@/components/navigation/topbar';
 import { Logo } from '@/components/brand/logo';
 import { cn } from '@/lib/utils';
+import { setLabelLocale } from '@/lib/labels';
 
 const COLLAPSE_KEY = 'ui:sidebar-collapsed';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  setLabelLocale(useLocale()); // keep data-value labels (statuses, stages, types) in sync with the UI locale
   const { session, account, ready } = useSession();
   const router = useRouter();
   const [collapsed, setCollapsed] = React.useState(false);

@@ -38,9 +38,9 @@ export type ExternalRole =
 export type Role = InternalRole | ExternalRole;
 export type Workspace = 'internal' | 'external';
 
-/* ────────────────────────────── Users / Demo accounts ────────────────────────────── */
+/* ────────────────────────────── Users / accounts ────────────────────────────── */
 
-export interface DemoAccount {
+export interface UserAccount {
   id: ID;
   workspace: Workspace;
   role: Role;
@@ -51,11 +51,11 @@ export interface DemoAccount {
   /** External accounts are scoped to a single company. */
   companyId?: ID;
   avatarColor?: string;
-  /** Short demo blurb shown on the account picker. */
+  /** Short blurb shown on the account picker. */
   blurb: string;
 }
 
-export interface DemoSession {
+export interface UserSession {
   accountId: ID;
   role: Role;
   workspace: Workspace;
@@ -814,7 +814,7 @@ export type SupportCategory =
   | 'account_issue'
   | 'other';
 
-export type SupportStatus = 'open' | 'in_progress' | 'waiting_on_client' | 'resolved' | 'closed';
+export type SupportStatus = 'open' | 'acknowledged' | 'in_progress' | 'waiting_on_client' | 'resolved' | 'closed';
 
 export interface SupportRequest {
   id: ID;

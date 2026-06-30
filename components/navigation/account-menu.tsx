@@ -5,7 +5,7 @@ import { ChevronsUpDown, LogOut, Repeat, Home, BadgeCheck, RotateCcw } from 'luc
 import { useRouter } from '@/lib/i18n/navigation';
 import { useSession } from '@/components/providers/session-provider';
 import { authService } from '@/lib/mock-services';
-import { resetDemoData } from '@/lib/demo';
+import { resetLocalData } from '@/lib/local-store';
 import type { Role, Workspace } from '@/lib/types';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,7 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
   const tr = useTranslations('Roles');
   const router = useRouter();
   const { account, switchRole, signOut } = useSession();
+  const isApi = (process.env.NEXT_PUBLIC_DATA_MODE ?? 'mock') === 'api';
 
   if (!account) return null;
   const roles = rolesFor(account.workspace);
@@ -63,19 +64,23 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
           </Badge>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger><Repeat className="mr-2 h-4 w-4" /> {t('demoMode')}</DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-56">
-            <DropdownMenuLabel>{account.workspace === 'internal' ? t('internalWorkspace') : t('externalWorkspace')}</DropdownMenuLabel>
-            {roles.map((role) => (
-              <DropdownMenuItem key={role} onClick={() => switchRole(role)} className={role === account.role ? 'bg-accent' : ''}>
-                {tr(role)}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+        {!isApi && (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger><Repeat className="mr-2 h-4 w-4" /> {t('switchRole')}</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-56">
+              <DropdownMenuLabel>{account.workspace === 'internal' ? t('internalWorkspace') : t('externalWorkspace')}</DropdownMenuLabel>
+              {roles.map((role) => (
+                <DropdownMenuItem key={role} onClick={() => switchRole(role)} className={role === account.role ? 'bg-accent' : ''}>
+                  {tr(role)}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        )}
         <DropdownMenuItem onClick={() => router.push('/')}><Home className="mr-2 h-4 w-4" /> {t('backToHome')}</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => resetDemoData()}><RotateCcw className="mr-2 h-4 w-4" /> Reset demo data</DropdownMenuItem>
+        {!isApi && (
+          <DropdownMenuItem onClick={() => resetLocalData()}><RotateCcw className="mr-2 h-4 w-4" /> {t('resetLocalData')}</DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => { signOut(); router.push('/login'); }} className="text-danger focus:text-danger">
           <LogOut className="mr-2 h-4 w-4" /> {t('signOut')}

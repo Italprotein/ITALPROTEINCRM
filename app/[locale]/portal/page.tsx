@@ -42,7 +42,7 @@ import {
 } from '@/lib/mock-services';
 import type {
   Company,
-  DemoAccount,
+  UserAccount,
   SampleRequest,
   Shipment,
   NDA,
@@ -79,7 +79,7 @@ const NEEDS_FEEDBACK: SampleStatus[] = ['receipt_confirmed', 'testing', 'feedbac
 
 interface DashboardData {
   company: Company;
-  owner: DemoAccount | null;
+  owner: UserAccount | null;
   samples: SampleRequest[];
   shipments: Shipment[];
   ndas: NDA[];

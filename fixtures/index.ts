@@ -5,7 +5,7 @@
  */
 
 export { COMPANIES, getCompanies } from './companies';
-export { DEMO_ACCOUNTS, getDemoAccounts } from './users';
+export { TEAM_ACCOUNTS, getTeamAccounts } from './users';
 export { CONTACTS, getContacts } from './contacts';
 export { OPPORTUNITIES, getOpportunities } from './opportunities';
 export { SAMPLES, getSamples } from './samples';

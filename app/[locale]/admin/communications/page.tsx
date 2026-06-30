@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { MessageSquareText, Inbox, Clock, CheckCircle2, Send, Mail, RotateCw } from 'lucide-react';
 import { supportService, companyService, activityService, authService } from '@/lib/mock-services';
 import type { SupportRequest, Company, Activity } from '@/lib/types';
@@ -20,6 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from '@/components/ui/use-toast';
 
 export default function CommunicationsPage() {
+  const t = useTranslations('AdminCommunications');
   const [rows, setRows] = React.useState<SupportRequest[] | null>(null);
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
   const [emails, setEmails] = React.useState<Activity[]>([]);
@@ -55,24 +57,24 @@ export default function CommunicationsPage() {
     setRows((prev) => prev ? prev.map((r) => r.id === active.id ? { ...r, conversation: next, status: 'in_progress' } : r) : prev);
     void supportService.update(active.id, { conversation: next, status: 'in_progress' });
     setReply(''); setSending(false);
-    toast({ variant: 'success', title: 'Reply sent', description: `Replied on ${active.reference}.` });
+    toast({ variant: 'success', title: t('replySentTitle'), description: t('replySentDescription', { reference: active.reference }) });
   }
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <PageHeader title="Communications" subtitle="Client requests, conversations and the outbound email log." />
+      <PageHeader title={t('title')} subtitle={t('subtitle')} />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Open requests" value={stats.open} icon={Inbox} tone="info" />
-        <StatCard label="Waiting on client" value={stats.waiting} icon={Clock} tone="warning" delay={0.05} />
-        <StatCard label="Resolved" value={stats.resolved} icon={CheckCircle2} tone="success" delay={0.1} />
-        <StatCard label="Total threads" value={stats.total} icon={MessageSquareText} tone="gold" delay={0.15} />
+        <StatCard label={t('openRequests')} value={stats.open} icon={Inbox} tone="info" />
+        <StatCard label={t('waitingOnClient')} value={stats.waiting} icon={Clock} tone="warning" delay={0.05} />
+        <StatCard label={t('resolved')} value={stats.resolved} icon={CheckCircle2} tone="success" delay={0.1} />
+        <StatCard label={t('totalThreads')} value={stats.total} icon={MessageSquareText} tone="gold" delay={0.15} />
       </div>
 
       <Tabs defaultValue="requests">
         <TabsList>
-          <TabsTrigger value="requests">Requests ({stats.total})</TabsTrigger>
-          <TabsTrigger value="email">Email log ({emails.length})</TabsTrigger>
+          <TabsTrigger value="requests">{t('requestsTab', { count: stats.total })}</TabsTrigger>
+          <TabsTrigger value="email">{t('emailLogTab', { count: emails.length })}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="requests">
@@ -83,7 +85,7 @@ export default function CommunicationsPage() {
                 {rows === null ? (
                   <div className="space-y-2 p-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton h-16 w-full" />)}</div>
                 ) : rows.length === 0 ? (
-                  <EmptyState icon={Inbox} title="No requests" />
+                  <EmptyState icon={Inbox} title={t('noRequests')} />
                 ) : rows.map((r) => (
                   <button key={r.id} onClick={() => setActiveId(r.id)} className={cn('w-full p-3 text-left transition-colors hover:bg-muted/40', activeId === r.id && 'bg-muted/60')}>
                     <div className="flex items-center justify-between gap-2">
@@ -127,7 +129,7 @@ export default function CommunicationsPage() {
                           </span>
                           <div className={cn('max-w-[80%] rounded-lg p-2.5 text-sm', isStaff ? 'bg-brand-navy text-white' : 'bg-muted')}>
                             <p>{m.body}</p>
-                            <p className={cn('mt-1 text-2xs', isStaff ? 'text-white/60' : 'text-muted-foreground')}>{isStaff && staff ? `${staff.firstName} · ` : 'Client · '}{formatRelative(m.at)}</p>
+                            <p className={cn('mt-1 text-2xs', isStaff ? 'text-white/60' : 'text-muted-foreground')}>{isStaff && staff ? `${staff.firstName} · ` : `${t('clientSender')} · `}{formatRelative(m.at)}</p>
                           </div>
                         </div>
                       );
@@ -135,12 +137,12 @@ export default function CommunicationsPage() {
                   </div>
 
                   <div className="border-t p-3">
-                    <Textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={2} placeholder="Type a reply…" className="mb-2" />
-                    <div className="flex justify-end"><Button variant="gold" size="sm" onClick={sendReply} disabled={!reply.trim() || sending}><Send /> {sending ? 'Sending…' : 'Send reply'}</Button></div>
+                    <Textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={2} placeholder={t('replyPlaceholder')} className="mb-2" />
+                    <div className="flex justify-end"><Button variant="gold" size="sm" onClick={sendReply} disabled={!reply.trim() || sending}><Send /> {sending ? t('sending') : t('sendReply')}</Button></div>
                   </div>
                 </>
               ) : (
-                <div className="flex flex-1 items-center justify-center"><EmptyState icon={MessageSquareText} title="Select a request" description="Choose a thread to view the conversation." /></div>
+                <div className="flex flex-1 items-center justify-center"><EmptyState icon={MessageSquareText} title={t('selectRequestTitle')} description={t('selectRequestDescription')} /></div>
               )}
             </Card>
           </div>
@@ -150,17 +152,17 @@ export default function CommunicationsPage() {
           <Card>
             <CardContent className="p-0">
               <Table>
-                <TableHeader><TableRow><TableHead>Subject</TableHead><TableHead>Company</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>{t('colSubject')}</TableHead><TableHead>{t('colCompany')}</TableHead><TableHead>{t('colDate')}</TableHead><TableHead className="text-right">{t('colAction')}</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {emails.length === 0 ? (
-                    <TableRow><TableCell colSpan={4}><EmptyState icon={Mail} title="No emails logged" /></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={4}><EmptyState icon={Mail} title={t('noEmailsLogged')} /></TableCell></TableRow>
                   ) : emails.map((e) => (
                     <TableRow key={e.id}>
                       <TableCell className="font-medium text-foreground">{e.title}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{e.companyId ? companyName(e.companyId) : '—'}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{formatDate(e.at)}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => toast({ title: 'Email resent', description: e.title, variant: 'info' })}><RotateCw /> Resend</Button>
+                        <Button variant="ghost" size="sm" onClick={() => toast({ title: t('emailResentTitle'), description: e.title, variant: 'info' })}><RotateCw /> {t('resend')}</Button>
                       </TableCell>
                     </TableRow>
                   ))}

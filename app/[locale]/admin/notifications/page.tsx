@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Bell, BellRing, AlertTriangle, CheckCheck, Trash2, Circle, Settings2,
@@ -40,6 +41,7 @@ function iconFor(t: NotificationType) { return ICON[t] ?? Bell; }
 const toneCls = (p: string) => p === 'urgent' ? 'bg-danger-subtle text-danger' : p === 'high' ? 'bg-warning-subtle text-warning-foreground' : p === 'medium' ? 'bg-info-subtle text-info' : 'bg-muted text-muted-foreground';
 
 export default function NotificationsPage() {
+  const t = useTranslations('AdminNotifications');
   const { session, ready } = useSession();
   const q = React.useMemo(() => ({ workspace: 'internal' as const, role: session?.role }), [session?.role]);
 
@@ -86,12 +88,12 @@ export default function NotificationsPage() {
   function markAll() {
     setRows((prev) => prev ? prev.map((x) => ({ ...x, read: true })) : prev);
     void notificationService.markAllRead(q);
-    toast({ variant: 'success', title: 'All caught up', description: 'All notifications marked as read.' });
+    toast({ variant: 'success', title: t('toastCaughtUpTitle'), description: t('toastCaughtUpDescription') });
   }
   function remove(n: AppNotification) {
     setRows((prev) => prev ? prev.filter((x) => x.id !== n.id) : prev);
     void notificationService.remove(n.id);
-    toast({ title: 'Notification removed' });
+    toast({ title: t('toastRemovedTitle') });
   }
 
   function Row({ n }: { n: AppNotification }) {
@@ -104,7 +106,7 @@ export default function NotificationsPage() {
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm font-medium text-foreground">{n.title}</p>
             <div className="flex shrink-0 items-center gap-1">
-              {!n.read && <span className="h-2 w-2 rounded-full bg-brand-gold" aria-label="unread" />}
+              {!n.read && <span className="h-2 w-2 rounded-full bg-brand-gold" aria-label={t('ariaUnread')} />}
               <span className="text-2xs text-muted-foreground">{formatRelative(n.createdAt)}</span>
             </div>
           </div>
@@ -114,8 +116,8 @@ export default function NotificationsPage() {
             {c && <span className="text-2xs font-medium text-foreground">· {c.tradingName || c.legalName}</span>}
             {(n.priority === 'high' || n.priority === 'urgent') && <PriorityBadge value={n.priority} className="ml-1" />}
             <span className="ml-auto flex items-center gap-1">
-              {!n.read && <Button variant="ghost" size="icon-sm" onClick={(e) => { e.preventDefault(); markRead(n); }} aria-label="Mark read"><Circle className="h-3.5 w-3.5" /></Button>}
-              <Button variant="ghost" size="icon-sm" onClick={(e) => { e.preventDefault(); remove(n); }} aria-label="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
+              {!n.read && <Button variant="ghost" size="icon-sm" onClick={(e) => { e.preventDefault(); markRead(n); }} aria-label={t('ariaMarkRead')}><Circle className="h-3.5 w-3.5" /></Button>}
+              <Button variant="ghost" size="icon-sm" onClick={(e) => { e.preventDefault(); remove(n); }} aria-label={t('ariaDelete')}><Trash2 className="h-3.5 w-3.5" /></Button>
             </span>
           </div>
         </div>
@@ -131,56 +133,56 @@ export default function NotificationsPage() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
-        title="Notifications"
-        subtitle="Everything that needs your attention across the pipeline."
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           <div className="flex items-center gap-2">
             <Popover>
-              <PopoverTrigger asChild><Button variant="outline" size="sm"><Settings2 /> Settings</Button></PopoverTrigger>
+              <PopoverTrigger asChild><Button variant="outline" size="sm"><Settings2 /> {t('settings')}</Button></PopoverTrigger>
               <PopoverContent align="end" className="w-64">
-                <p className="mb-2 text-sm font-semibold">Email notifications</p>
-                {['NDA updates', 'Sample requests', 'Shipment events', 'Feedback', 'Task reminders'].map((l) => (
-                  <div key={l} className="flex items-center justify-between py-1.5"><Label className="text-sm font-normal">{l}</Label><Switch defaultChecked /></div>
+                <p className="mb-2 text-sm font-semibold">{t('emailNotifications')}</p>
+                {(['emailNdaUpdates', 'emailSampleRequests', 'emailShipmentEvents', 'emailFeedback', 'emailTaskReminders'] as const).map((k) => (
+                  <div key={k} className="flex items-center justify-between py-1.5"><Label className="text-sm font-normal">{t(k)}</Label><Switch defaultChecked /></div>
                 ))}
               </PopoverContent>
             </Popover>
-            <Button variant="gold" size="sm" onClick={markAll}><CheckCheck /> Mark all as read</Button>
+            <Button variant="gold" size="sm" onClick={markAll}><CheckCheck /> {t('markAllAsRead')}</Button>
           </div>
         }
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total" value={stats.total} icon={Bell} tone="gold" />
-        <StatCard label="Unread" value={stats.unread} icon={BellRing} tone="danger" delay={0.05} />
-        <StatCard label="High priority" value={stats.high} icon={AlertTriangle} tone="warning" delay={0.1} />
-        <StatCard label={stats.topType ? getLabel('notificationType', stats.topType[0]) : 'Most common'} value={stats.topType?.[1] ?? 0} icon={MessageSquareText} tone="info" delay={0.15} />
+        <StatCard label={t('statTotal')} value={stats.total} icon={Bell} tone="gold" />
+        <StatCard label={t('statUnread')} value={stats.unread} icon={BellRing} tone="danger" delay={0.05} />
+        <StatCard label={t('statHighPriority')} value={stats.high} icon={AlertTriangle} tone="warning" delay={0.1} />
+        <StatCard label={stats.topType ? getLabel('notificationType', stats.topType[0]) : t('statMostCommon')} value={stats.topType?.[1] ?? 0} icon={MessageSquareText} tone="info" delay={0.15} />
       </div>
 
       <Card>
         <CardContent className="p-4">
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <Select value={fType} onValueChange={setFType}>
-              <SelectTrigger className="h-9 w-[200px]"><SelectValue placeholder="Category" /></SelectTrigger>
+              <SelectTrigger className="h-9 w-[200px]"><SelectValue placeholder={t('categoryPlaceholder')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL}>All categories</SelectItem>
-                {types.map((t) => <SelectItem key={t} value={t}>{getLabel('notificationType', t)}</SelectItem>)}
+                <SelectItem value={ALL}>{t('allCategories')}</SelectItem>
+                {types.map((nt) => <SelectItem key={nt} value={nt}>{getLabel('notificationType', nt)}</SelectItem>)}
               </SelectContent>
             </Select>
-            <div className="flex items-center gap-2"><Switch id="uo" checked={unreadOnly} onCheckedChange={setUnreadOnly} /><Label htmlFor="uo" className="text-sm font-normal">Unread only</Label></div>
+            <div className="flex items-center gap-2"><Switch id="uo" checked={unreadOnly} onCheckedChange={setUnreadOnly} /><Label htmlFor="uo" className="text-sm font-normal">{t('unreadOnly')}</Label></div>
           </div>
 
           {rows === null ? (
             <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton h-16 w-full" />)}</div>
           ) : filtered.length === 0 ? (
-            <EmptyState icon={Bell} title="You're all caught up" description="No notifications match the current filters." />
+            <EmptyState icon={Bell} title={t('emptyTitle')} description={t('emptyDescription')} />
           ) : (
             <div className="space-y-5">
               {today.length > 0 && (
-                <div><p className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">Today</p>
+                <div><p className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{t('sectionToday')}</p>
                   <div className="space-y-2"><AnimatePresence initial={false}>{today.map((n) => <Row key={n.id} n={n} />)}</AnimatePresence></div></div>
               )}
               {earlier.length > 0 && (
-                <div><p className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">Earlier</p>
+                <div><p className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{t('sectionEarlier')}</p>
                   <div className="space-y-2"><AnimatePresence initial={false}>{earlier.map((n) => <Row key={n.id} n={n} />)}</AnimatePresence></div></div>
               )}
             </div>

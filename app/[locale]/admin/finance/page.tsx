@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   Banknote,
   Wallet,
@@ -136,6 +136,7 @@ function lineNet(li: FinanceDocument['lineItems'][number]): number {
 /* ────────────────────────────── Page ────────────────────────────── */
 
 export default function FinancePage() {
+  const t = useTranslations('AdminFinance');
   const locale = useLocale() as Locale;
 
   const [rows, setRows] = React.useState<FinanceDocument[] | null>(null);
@@ -246,8 +247,8 @@ export default function FinancePage() {
     );
     toast({
       variant: 'success',
-      title: 'Marked as paid',
-      description: `${d.reference} settled in full.`,
+      title: t('toastMarkedPaidTitle'),
+      description: t('toastMarkedPaidDescription', { reference: d.reference }),
     });
   }
 
@@ -255,8 +256,8 @@ export default function FinancePage() {
     await new Promise((r) => setTimeout(r, 400));
     toast({
       variant: 'info',
-      title: 'PDF generated',
-      description: `${d.reference}.pdf is ready to download.`,
+      title: t('toastPdfGeneratedTitle'),
+      description: t('toastPdfGeneratedDescription', { reference: d.reference }),
     });
   }
 
@@ -264,8 +265,8 @@ export default function FinancePage() {
     await new Promise((r) => setTimeout(r, 400));
     toast({
       variant: 'warning',
-      title: 'Reminder sent',
-      description: `Payment reminder emailed for ${d.reference}.`,
+      title: t('toastReminderSentTitle'),
+      description: t('toastReminderSentDescription', { reference: d.reference }),
     });
   }
 
@@ -281,19 +282,19 @@ export default function FinancePage() {
   const columns: Column<FinanceDocument>[] = [
     {
       key: 'reference',
-      header: 'Reference',
+      header: t('columnReference'),
       sortValue: (d) => d.reference,
       cell: (d) => <span className="font-medium text-foreground">{d.reference}</span>,
     },
     {
       key: 'kind',
-      header: 'Kind',
+      header: t('columnKind'),
       sortValue: (d) => d.kind,
       cell: (d) => <StatusBadge kind="financeDocKind" value={d.kind} />,
     },
     {
       key: 'company',
-      header: 'Company',
+      header: t('columnCompany'),
       sortValue: (d) => companyName(d.companyId),
       cell: (d) => {
         const c = companyMap.get(d.companyId);
@@ -312,7 +313,7 @@ export default function FinancePage() {
     },
     {
       key: 'issueDate',
-      header: 'Issue date',
+      header: t('columnIssueDate'),
       align: 'right',
       sortable: true,
       sortValue: (d) => new Date(d.issueDate).getTime(),
@@ -321,7 +322,7 @@ export default function FinancePage() {
     },
     {
       key: 'dueDate',
-      header: 'Due date',
+      header: t('columnDueDate'),
       align: 'right',
       sortable: true,
       sortValue: (d) => (d.dueDate ? new Date(d.dueDate).getTime() : 0),
@@ -332,7 +333,7 @@ export default function FinancePage() {
     },
     {
       key: 'total',
-      header: 'Total',
+      header: t('columnTotal'),
       align: 'right',
       sortable: true,
       sortValue: (d) => d.total * (TO_EUR[d.currency] ?? 1),
@@ -344,13 +345,13 @@ export default function FinancePage() {
     },
     {
       key: 'paymentStatus',
-      header: 'Payment status',
+      header: t('columnPaymentStatus'),
       sortValue: (d) => d.paymentStatus,
       cell: (d) => <StatusBadge kind="paymentStatus" value={d.paymentStatus} />,
     },
     {
       key: 'outstanding',
-      header: 'Outstanding',
+      header: t('columnOutstanding'),
       align: 'right',
       sortable: true,
       sortValue: (d) => (d.outstandingAmount ?? 0) * (TO_EUR[d.currency] ?? 1),
@@ -371,10 +372,10 @@ export default function FinancePage() {
     <div className="flex flex-wrap items-center gap-2">
       <Select value={fKind} onValueChange={setFKind}>
         <SelectTrigger className="h-9 w-[150px]">
-          <SelectValue placeholder="Kind" />
+          <SelectValue placeholder={t('filterKindPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All kinds</SelectItem>
+          <SelectItem value={ALL}>{t('filterAllKinds')}</SelectItem>
           {KINDS.map((k) => (
             <SelectItem key={k} value={k}>
               {getLabel('financeDocKind', k)}
@@ -385,10 +386,10 @@ export default function FinancePage() {
 
       <Select value={fStatus} onValueChange={setFStatus}>
         <SelectTrigger className="h-9 w-[170px]">
-          <SelectValue placeholder="Payment status" />
+          <SelectValue placeholder={t('filterStatusPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All statuses</SelectItem>
+          <SelectItem value={ALL}>{t('filterAllStatuses')}</SelectItem>
           {PAYMENT_STATUSES.map((s) => (
             <SelectItem key={s} value={s}>
               {getLabel('paymentStatus', s)}
@@ -400,7 +401,7 @@ export default function FinancePage() {
       {activeFilterCount > 0 ? (
         <Button variant="ghost" size="sm" onClick={resetFilters}>
           <X />
-          Clear ({activeFilterCount})
+          {t('filterClear', { count: activeFilterCount })}
         </Button>
       ) : null}
     </div>
@@ -411,30 +412,30 @@ export default function FinancePage() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="Row actions">
+          <Button variant="ghost" size="icon-sm" aria-label={t('rowActions')}>
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => setViewing(d)}>
             <Eye />
-            View
+            {t('actionView')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void downloadPdf(d)}>
             <Download />
-            Download PDF
+            {t('actionDownloadPdf')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {d.paymentStatus !== 'paid' ? (
             <DropdownMenuItem onSelect={() => void markPaid(d)}>
               <CheckCircle2 />
-              Mark paid
+              {t('actionMarkPaid')}
             </DropdownMenuItem>
           ) : null}
           {d.kind === 'invoice' && (d.paymentStatus === 'overdue' || d.paymentStatus === 'pending') ? (
             <DropdownMenuItem onSelect={() => void sendReminder(d)}>
               <Send />
-              Send reminder
+              {t('actionSendReminder')}
             </DropdownMenuItem>
           ) : null}
         </DropdownMenuContent>
@@ -460,8 +461,8 @@ export default function FinancePage() {
           </span>
         </div>
         <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Issued {formatDate(d.issueDate, locale)}</span>
-          {d.dueDate ? <span>Due {formatDate(d.dueDate, locale)}</span> : null}
+          <span>{t('mobileIssued', { date: formatDate(d.issueDate, locale) })}</span>
+          {d.dueDate ? <span>{t('mobileDue', { date: formatDate(d.dueDate, locale) })}</span> : null}
         </div>
       </Card>
     );
@@ -470,12 +471,12 @@ export default function FinancePage() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
-        title="Quotes, Orders & Finance"
-        subtitle="Track every quotation, order and invoice from issue to settlement."
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <Button variant="gold" onClick={() => setCreateOpen(true)}>
             <Plus />
-            New quote
+            {t('newQuote')}
           </Button>
         }
       />
@@ -483,45 +484,45 @@ export default function FinancePage() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
-          label="Revenue (paid)"
+          label={t('kpiRevenueLabel')}
           value={stats?.revenue ?? 0}
           icon={Banknote}
           tone="gold"
           format={(n) => formatCurrency(n, 'EUR', locale, { compact: true })}
-          hint="paid invoices, EUR equiv."
+          hint={t('kpiRevenueHint')}
         />
         <StatCard
-          label="Outstanding"
+          label={t('kpiOutstandingLabel')}
           value={stats?.outstanding ?? 0}
           icon={Wallet}
           tone="warning"
           format={(n) => formatCurrency(n, 'EUR', locale, { compact: true })}
-          hint="open invoices"
+          hint={t('kpiOutstandingHint')}
           delay={0.05}
         />
         <StatCard
-          label="Overdue"
+          label={t('kpiOverdueLabel')}
           value={stats?.overdue ?? 0}
           icon={AlertTriangle}
           tone="danger"
           format={(n) => formatCurrency(n, 'EUR', locale, { compact: true })}
-          hint="past due date"
+          hint={t('kpiOverdueHint')}
           delay={0.1}
         />
         <StatCard
-          label="Quotes"
+          label={t('kpiQuotesLabel')}
           value={stats?.quotes ?? 0}
           icon={FileText}
           tone="info"
-          hint="active quotations"
+          hint={t('kpiQuotesHint')}
           delay={0.15}
         />
         <StatCard
-          label="Orders & invoices"
+          label={t('kpiOrdersInvoicesLabel')}
           value={(stats?.orders ?? 0) + (stats?.invoices ?? 0)}
           icon={ReceiptText}
           tone="default"
-          hint={`${stats?.orders ?? 0} orders · ${stats?.invoices ?? 0} invoices`}
+          hint={t('kpiOrdersInvoicesHint', { orders: stats?.orders ?? 0, invoices: stats?.invoices ?? 0 })}
           delay={0.2}
         />
       </div>
@@ -529,35 +530,35 @@ export default function FinancePage() {
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
-          title="Invoiced revenue"
-          description="Monthly invoice totals (EUR equivalent)"
+          title={t('chartRevenueTitle')}
+          description={t('chartRevenueDescription')}
           loading={rows === null}
           isEmpty={revenueTrend.every((d) => d.value === 0)}
         >
           <TrendChart
             data={revenueTrend}
             xKey="label"
-            series={[{ key: 'value', name: 'Invoiced', type: 'area', color: CHART_COLORS[1] }]}
+            series={[{ key: 'value', name: t('chartRevenueSeries'), type: 'area', color: CHART_COLORS[1] }]}
           />
         </ChartCard>
 
         <ChartCard
-          title="Documents by payment status"
-          description="Distribution across the finance book"
+          title={t('chartStatusTitle')}
+          description={t('chartStatusDescription')}
           loading={rows === null}
           isEmpty={statusDonut.length === 0}
         >
-          <DonutChart data={statusDonut} centerLabel="documents" />
+          <DonutChart data={statusDonut} centerLabel={t('chartStatusCenterLabel')} />
         </ChartCard>
       </div>
 
       {/* Tabs + table */}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
-          <TabsTrigger value="quote">Quotes ({counts.quote})</TabsTrigger>
-          <TabsTrigger value="order">Orders ({counts.order})</TabsTrigger>
-          <TabsTrigger value="invoice">Invoices ({counts.invoice})</TabsTrigger>
+          <TabsTrigger value="all">{t('tabAll', { count: counts.all })}</TabsTrigger>
+          <TabsTrigger value="quote">{t('tabQuotes', { count: counts.quote })}</TabsTrigger>
+          <TabsTrigger value="order">{t('tabOrders', { count: counts.order })}</TabsTrigger>
+          <TabsTrigger value="invoice">{t('tabInvoices', { count: counts.invoice })}</TabsTrigger>
         </TabsList>
 
         <TabsContent value={tab}>
@@ -567,7 +568,7 @@ export default function FinancePage() {
             getRowId={(d) => d.id}
             loading={rows === null}
             searchable
-            searchPlaceholder="Search reference or company…"
+            searchPlaceholder={t('searchPlaceholder')}
             searchValue={(d) => [d.reference, companyName(d.companyId)].join(' ')}
             pageSize={12}
             rowActions={rowActions}
@@ -576,8 +577,8 @@ export default function FinancePage() {
             enableColumnVisibility
             enableDensityToggle
             mobileCard={mobileCard}
-            emptyTitle="No documents match"
-            emptyDescription="Adjust the filters or create a new quote."
+            emptyTitle={t('emptyTitle')}
+            emptyDescription={t('emptyDescription')}
             exportFilename="finance"
             storageKey="finance-table"
           />
@@ -623,6 +624,7 @@ function DocumentSheet({
   onDownload: (d: FinanceDocument) => void | Promise<void>;
   onSendReminder: (d: FinanceDocument) => void | Promise<void>;
 }) {
+  const t = useTranslations('AdminFinance');
   return (
     <Sheet open={!!doc} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="max-w-lg overflow-y-auto">
@@ -634,13 +636,21 @@ function DocumentSheet({
                 <StatusBadge kind="financeDocKind" value={doc.kind} />
               </div>
               <SheetDescription>
-                {companyName} · Issued {formatDate(doc.issueDate, locale)}
-                {doc.dueDate ? ` · Due ${formatDate(doc.dueDate, locale)}` : ''}
+                {doc.dueDate
+                  ? t('sheetDescriptionWithDue', {
+                      company: companyName,
+                      issueDate: formatDate(doc.issueDate, locale),
+                      dueDate: formatDate(doc.dueDate, locale),
+                    })
+                  : t('sheetDescription', {
+                      company: companyName,
+                      issueDate: formatDate(doc.issueDate, locale),
+                    })}
               </SheetDescription>
             </SheetHeader>
 
             <div className="flex items-center justify-between rounded-lg border bg-muted/40 p-3">
-              <span className="text-sm font-medium text-muted-foreground">Payment status</span>
+              <span className="text-sm font-medium text-muted-foreground">{t('sheetPaymentStatus')}</span>
               <StatusBadge kind="paymentStatus" value={doc.paymentStatus} />
             </div>
 
@@ -649,10 +659,10 @@ function DocumentSheet({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Item</TableHead>
-                    <TableHead className="text-right">Qty</TableHead>
-                    <TableHead className="text-right">Unit price</TableHead>
-                    <TableHead className="text-right">Net</TableHead>
+                    <TableHead>{t('sheetColItem')}</TableHead>
+                    <TableHead className="text-right">{t('sheetColQty')}</TableHead>
+                    <TableHead className="text-right">{t('sheetColUnitPrice')}</TableHead>
+                    <TableHead className="text-right">{t('sheetColNet')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -680,33 +690,33 @@ function DocumentSheet({
             {/* Totals */}
             <div className="space-y-1.5 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
+                <span className="text-muted-foreground">{t('sheetSubtotal')}</span>
                 <span className="tabular text-foreground">{formatCurrency(doc.subtotal, doc.currency, locale)}</span>
               </div>
               {doc.discountTotal && doc.discountTotal > 0 ? (
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Discount</span>
+                  <span className="text-muted-foreground">{t('sheetDiscount')}</span>
                   <span className="tabular text-success">−{formatCurrency(doc.discountTotal, doc.currency, locale)}</span>
                 </div>
               ) : null}
               {doc.shippingCost && doc.shippingCost > 0 ? (
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Shipping</span>
+                  <span className="text-muted-foreground">{t('sheetShipping')}</span>
                   <span className="tabular text-foreground">{formatCurrency(doc.shippingCost, doc.currency, locale)}</span>
                 </div>
               ) : null}
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">VAT</span>
+                <span className="text-muted-foreground">{t('sheetVat')}</span>
                 <span className="tabular text-foreground">{formatCurrency(doc.vatTotal ?? 0, doc.currency, locale)}</span>
               </div>
               <Separator className="my-1.5" />
               <div className="flex items-center justify-between text-base font-semibold">
-                <span className="text-foreground">Total</span>
+                <span className="text-foreground">{t('sheetTotal')}</span>
                 <span className="tabular text-foreground">{formatCurrency(doc.total, doc.currency, locale)}</span>
               </div>
               {doc.outstandingAmount && doc.outstandingAmount > 0 ? (
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Outstanding</span>
+                  <span className="text-muted-foreground">{t('sheetOutstanding')}</span>
                   <span className="tabular text-warning-foreground">
                     {formatCurrency(doc.outstandingAmount, doc.currency, locale)}
                   </span>
@@ -715,7 +725,7 @@ function DocumentSheet({
             </div>
 
             {doc.paymentTerms ? (
-              <p className="text-xs text-muted-foreground">Terms: {doc.paymentTerms}</p>
+              <p className="text-xs text-muted-foreground">{t('sheetTerms', { terms: doc.paymentTerms })}</p>
             ) : null}
             {doc.notes ? (
               <p className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">{doc.notes}</p>
@@ -725,18 +735,18 @@ function DocumentSheet({
             <div className="mt-auto flex flex-wrap gap-2 pt-2">
               <Button variant="outline" className="flex-1" onClick={() => void onDownload(doc)}>
                 <Download />
-                Download PDF
+                {t('actionDownloadPdf')}
               </Button>
               {doc.kind === 'invoice' && (doc.paymentStatus === 'overdue' || doc.paymentStatus === 'pending') ? (
                 <Button variant="outline" className="flex-1" onClick={() => void onSendReminder(doc)}>
                   <Send />
-                  Send reminder
+                  {t('actionSendReminder')}
                 </Button>
               ) : null}
               {doc.paymentStatus !== 'paid' ? (
                 <Button variant="success" className="flex-1" onClick={() => void onMarkPaid(doc)}>
                   <CheckCircle2 />
-                  Mark paid
+                  {t('actionMarkPaid')}
                 </Button>
               ) : null}
             </div>
@@ -760,6 +770,7 @@ function CreateQuoteDialog({
   companies: Company[];
   onCreated: (d: FinanceDocument) => void;
 }) {
+  const t = useTranslations('AdminFinance');
   const [companyId, setCompanyId] = React.useState('');
   const [currency, setCurrency] = React.useState<Currency>('EUR');
   const [productName, setProductName] = React.useState('Proamina® 100% Protein Sweetener');
@@ -829,7 +840,7 @@ function CreateQuoteDialog({
 
     await financeService.create(doc);
     onCreated(doc);
-    toast({ variant: 'success', title: 'Quote created', description: `${doc.reference} added as a draft.` });
+    toast({ variant: 'success', title: t('toastQuoteCreatedTitle'), description: t('toastQuoteCreatedDescription', { reference: doc.reference }) });
     setSubmitting(false);
     reset();
     onOpenChange(false);
@@ -845,16 +856,16 @@ function CreateQuoteDialog({
     >
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>New quote</DialogTitle>
-          <DialogDescription>Draft a quotation for a company. Totals compute automatically.</DialogDescription>
+          <DialogTitle>{t('dialogTitle')}</DialogTitle>
+          <DialogDescription>{t('dialogDescription')}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label>Company *</Label>
+            <Label>{t('fieldCompany')}</Label>
             <Select value={companyId} onValueChange={setCompanyId}>
               <SelectTrigger>
-                <SelectValue placeholder="Select company" />
+                <SelectValue placeholder={t('fieldCompanyPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
                 {companies
@@ -870,7 +881,7 @@ function CreateQuoteDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Currency</Label>
+            <Label>{t('fieldCurrency')}</Label>
             <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
               <SelectTrigger>
                 <SelectValue />
@@ -886,12 +897,12 @@ function CreateQuoteDialog({
           </div>
 
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="productName">Product / line item *</Label>
+            <Label htmlFor="productName">{t('fieldProduct')}</Label>
             <Input id="productName" value={productName} onChange={(e) => setProductName(e.target.value)} />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="quantity">Quantity (kg) *</Label>
+            <Label htmlFor="quantity">{t('fieldQuantity')}</Label>
             <Input
               id="quantity"
               type="number"
@@ -902,7 +913,7 @@ function CreateQuoteDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="pricePerUnit">Price / kg *</Label>
+            <Label htmlFor="pricePerUnit">{t('fieldPrice')}</Label>
             <Input
               id="pricePerUnit"
               type="number"
@@ -913,44 +924,44 @@ function CreateQuoteDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="vatPct">VAT %</Label>
+            <Label htmlFor="vatPct">{t('fieldVat')}</Label>
             <Input id="vatPct" type="number" min={0} value={vatPct} onChange={(e) => setVatPct(e.target.value)} />
           </div>
 
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="notes">Notes</Label>
+            <Label htmlFor="notes">{t('fieldNotes')}</Label>
             <Textarea
               id="notes"
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Indicative pricing, valid 30 days…"
+              placeholder={t('fieldNotesPlaceholder')}
             />
           </div>
         </div>
 
         <div className="space-y-1 rounded-lg border bg-muted/40 p-3 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Subtotal</span>
+            <span className="text-muted-foreground">{t('dialogSubtotal')}</span>
             <span className="tabular text-foreground">{formatCurrency(subtotal, currency)}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">VAT</span>
+            <span className="text-muted-foreground">{t('dialogVat')}</span>
             <span className="tabular text-foreground">{formatCurrency(vatTotal, currency)}</span>
           </div>
           <Separator className="my-1" />
           <div className="flex items-center justify-between font-semibold">
-            <span className="text-foreground">Total</span>
+            <span className="text-foreground">{t('dialogTotal')}</span>
             <span className="tabular text-foreground">{formatCurrency(total, currency)}</span>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button variant="gold" onClick={submit} disabled={!valid || submitting}>
-            {submitting ? 'Creating…' : 'Create quote'}
+            {submitting ? t('creating') : t('createQuote')}
           </Button>
         </DialogFooter>
       </DialogContent>

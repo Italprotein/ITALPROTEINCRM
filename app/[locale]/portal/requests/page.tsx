@@ -26,7 +26,7 @@ import {
 import type {
   Company,
   Contact,
-  DemoAccount,
+  UserAccount,
   SupportRequest,
   SupportCategory,
   SampleRequest,
@@ -104,7 +104,7 @@ export default function PortalRequestsPage() {
   const role = session?.role;
 
   const [company, setCompany] = React.useState<Company | null>(null);
-  const [owner, setOwner] = React.useState<DemoAccount | null>(null);
+  const [owner, setOwner] = React.useState<UserAccount | null>(null);
   const [threads, setThreads] = React.useState<SupportRequest[]>([]);
   const [samples, setSamples] = React.useState<SampleRequest[]>([]);
   const [shipments, setShipments] = React.useState<Shipment[]>([]);
@@ -430,7 +430,7 @@ function ThreadDetail({
   onBack,
 }: {
   thread: SupportRequest;
-  owner: DemoAccount | null;
+  owner: UserAccount | null;
   meName: string;
   reply: string;
   setReply: (v: string) => void;
@@ -586,7 +586,7 @@ function ComposeDialog({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  owner: DemoAccount | null;
+  owner: UserAccount | null;
   samples: SampleRequest[];
   shipments: Shipment[];
   onCreate: (payload: {

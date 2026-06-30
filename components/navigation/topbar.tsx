@@ -7,7 +7,6 @@ import { LanguageSwitcher } from '@/components/i18n/language-switcher';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { AccountMenu } from '@/components/navigation/account-menu';
 import { GlobalSearch } from '@/components/navigation/global-search';
-import { Badge } from '@/components/ui/badge';
 
 export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const tc = useTranslations('Common');
@@ -26,7 +25,6 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
       <GlobalSearch />
 
       <div className="ml-auto flex items-center gap-1.5">
-        <Badge variant="muted" className="hidden lg:inline-flex">{tc('demoMode')}</Badge>
         <ThemeToggle tone="dark" />
         <LanguageSwitcher tone="dark" />
         <Link

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   FlaskConical,
   Clock,
@@ -123,6 +123,7 @@ type Stats = Awaited<ReturnType<typeof sampleService.getStatistics>>;
 /* ────────────────────────────── Page ────────────────────────────── */
 
 export default function SamplesPage() {
+  const t = useTranslations('AdminSamples');
   const locale = useLocale() as Locale;
   const router = useRouter();
 
@@ -193,14 +194,14 @@ export default function SamplesPage() {
     const bs = stats?.byStatus ?? ({} as Record<SampleStatus, number>);
     const sum = (...st: SampleStatus[]) => st.reduce((acc, s) => acc + (bs[s] ?? 0), 0);
     const buckets = [
-      { name: 'Requested', value: sum('draft', 'submitted', 'under_review', 'more_info_required'), color: CHART_COLORS[3] },
-      { name: 'Approved', value: sum('approved', 'preparing', 'ready_to_ship'), color: CHART_COLORS[1] },
-      { name: 'Shipped', value: sum('shipped', 'in_transit', 'customs_hold', 'delivery_attempted'), color: CHART_COLORS[2] },
-      { name: 'Delivered', value: sum('delivered', 'receipt_confirmed'), color: CHART_COLORS[7] },
-      { name: 'Feedback', value: sum('testing', 'feedback_requested', 'feedback_received', 'closed'), color: CHART_COLORS[6] },
+      { name: t('bucketRequested'), value: sum('draft', 'submitted', 'under_review', 'more_info_required'), color: CHART_COLORS[3] },
+      { name: t('bucketApproved'), value: sum('approved', 'preparing', 'ready_to_ship'), color: CHART_COLORS[1] },
+      { name: t('bucketShipped'), value: sum('shipped', 'in_transit', 'customs_hold', 'delivery_attempted'), color: CHART_COLORS[2] },
+      { name: t('bucketDelivered'), value: sum('delivered', 'receipt_confirmed'), color: CHART_COLORS[7] },
+      { name: t('bucketFeedback'), value: sum('testing', 'feedback_requested', 'feedback_received', 'closed'), color: CHART_COLORS[6] },
     ];
     return buckets.filter((b) => b.value > 0);
-  }, [stats]);
+  }, [stats, t]);
 
   /* ── mutations (mock) ── */
   function applyStatus(id: string, status: SampleStatus, extra?: Partial<SampleRequest>) {
@@ -243,33 +244,33 @@ export default function SamplesPage() {
   function advance(s: SampleRequest) {
     const next = nextStatus(s.status);
     if (!next) {
-      toast({ variant: 'info', title: 'No further stage', description: `${s.reference} is already at ${getLabel('sampleStatus', s.status)}.` });
+      toast({ variant: 'info', title: t('toastNoFurtherStageTitle'), description: t('toastNoFurtherStageDescription', { reference: s.reference, status: getLabel('sampleStatus', s.status) }) });
       return;
     }
     applyStatus(s.id, next);
-    toast({ variant: 'success', title: 'Status advanced', description: `${s.reference} → ${getLabel('sampleStatus', next)}.` });
+    toast({ variant: 'success', title: t('toastStatusAdvancedTitle'), description: t('toastStatusChangedDescription', { reference: s.reference, status: getLabel('sampleStatus', next) }) });
   }
 
   function approve(s: SampleRequest) {
     applyStatus(s.id, 'approved', { approvedQuantity: s.requestedQuantity, approvalDate: '2026-06-17' });
-    toast({ variant: 'success', title: 'Sample approved', description: `${s.reference} approved for ${formatQuantity(s.requestedQuantity, s.unit, locale)}.` });
+    toast({ variant: 'success', title: t('toastSampleApprovedTitle'), description: t('toastSampleApprovedDescription', { reference: s.reference, quantity: formatQuantity(s.requestedQuantity, s.unit, locale) }) });
   }
 
   function reject(s: SampleRequest) {
     applyStatus(s.id, 'rejected');
-    toast({ variant: 'warning', title: 'Sample rejected', description: `${s.reference} was rejected.` });
+    toast({ variant: 'warning', title: t('toastSampleRejectedTitle'), description: t('toastSampleRejectedDescription', { reference: s.reference }) });
   }
 
   function mark(s: SampleRequest, status: SampleStatus) {
     applyStatus(s.id, status);
-    toast({ variant: 'success', title: 'Status updated', description: `${s.reference} → ${getLabel('sampleStatus', status)}.` });
+    toast({ variant: 'success', title: t('toastStatusUpdatedTitle'), description: t('toastStatusChangedDescription', { reference: s.reference, status: getLabel('sampleStatus', status) }) });
   }
 
   /* ── table columns ── */
   const columns: Column<SampleRequest>[] = [
     {
       key: 'reference',
-      header: 'Reference',
+      header: t('columnReference'),
       sortValue: (s) => s.reference,
       cell: (s) => <span className="font-mono text-sm font-medium text-foreground">{s.reference}</span>,
     },

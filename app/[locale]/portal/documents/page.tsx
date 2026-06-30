@@ -535,7 +535,7 @@ function PreviewSheet({ doc, onOpenChange }: { doc: DocumentRecord | null; onOpe
               <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-xl bg-brand-navy/5 text-brand-navy">
                 <Icon className="h-8 w-8" />
               </span>
-              <p className="text-sm font-medium">Preview not available in the demo</p>
+              <p className="text-sm font-medium">Preview not available yet</p>
               <p className="mt-1 max-w-xs text-xs text-muted-foreground">
                 Download the file to view its full contents. A live preview will be available in the production portal.
               </p>
@@ -711,7 +711,7 @@ function UploadDialog({ companyId, onUploaded }: { companyId: string; onUploaded
             />
           </div>
           <p className="rounded-md border border-dashed bg-muted/40 p-2 text-xs text-muted-foreground">
-            This is a demo: no real file is uploaded. The document record is added to your library.
+            Preview mode: no real file is uploaded. The document record is added to your library.
           </p>
         </div>
         <DialogFooter>

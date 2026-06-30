@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   ArrowLeft,
   Handshake,
@@ -57,17 +58,17 @@ const AGREEMENT_TONE: Record<AgreementStatus, Parameters<typeof Badge>[0]['varia
   expired: 'danger',
 };
 
-const AGREEMENT_LABEL: Record<AgreementStatus, string> = {
-  none: 'No agreement',
-  draft: 'Draft',
-  active: 'Active',
-  expired: 'Expired',
+const AGREEMENT_LABEL_KEY: Record<AgreementStatus, string> = {
+  none: 'agreementNone',
+  draft: 'agreementDraft',
+  active: 'agreementActive',
+  expired: 'agreementExpired',
 };
 
-function ownerName(id?: string): string {
-  if (!id) return 'Unassigned';
+function ownerName(id?: string, unassignedLabel = 'Unassigned'): string {
+  if (!id) return unassignedLabel;
   const a = authService.getAccount(id);
-  return a ? `${a.firstName} ${a.lastName}` : 'Unassigned';
+  return a ? `${a.firstName} ${a.lastName}` : unassignedLabel;
 }
 
 function pct(value: number): string {
@@ -75,6 +76,7 @@ function pct(value: number): string {
 }
 
 export default function AgencyDetailPage({ params }: { params: { id: string } }) {
+  const t = useTranslations('AdminAgencyDetail');
   const router = useRouter();
   const [agency, setAgency] = useState<Agency | null | undefined>(undefined);
   const [introduced, setIntroduced] = useState<Company[]>([]);
@@ -133,12 +135,12 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         <EmptyState
           icon={Handshake}
-          title="Partner not found"
-          description="This agency or distributor does not exist or has been removed."
+          title={t('partnerNotFoundTitle')}
+          description={t('partnerNotFoundDescription')}
           action={
             <Button variant="outline" onClick={() => router.push('/admin/agencies')}>
               <ArrowLeft className="h-4 w-4" />
-              Back to partners
+              {t('backToPartners')}
             </Button>
           }
         />
@@ -153,7 +155,7 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Link href="/admin/agencies" className="inline-flex items-center gap-1 transition-colors hover:text-foreground">
           <ArrowLeft className="h-4 w-4" />
-          Agencies & Distributors
+          {t('agenciesAndDistributors')}
         </Link>
       </div>
 
@@ -163,12 +165,12 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">{humanize(a.meta.agencyType)}</Badge>
-            <Badge variant={AGREEMENT_TONE[a.meta.agreementStatus]}>{AGREEMENT_LABEL[a.meta.agreementStatus]}</Badge>
+            <Badge variant={AGREEMENT_TONE[a.meta.agreementStatus]}>{t(AGREEMENT_LABEL_KEY[a.meta.agreementStatus])}</Badge>
             {a.website && (
               <Button variant="outline" size="sm" asChild>
                 <a href={a.website} target="_blank" rel="noreferrer">
                   <ExternalLink className="h-4 w-4" />
-                  Website
+                  {t('website')}
                 </a>
               </Button>
             )}
@@ -177,14 +179,14 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
               size="sm"
               onClick={() =>
                 toast({
-                  title: 'Partner updated',
-                  description: 'Changes have been saved to the partner record.',
+                  title: t('partnerUpdatedToastTitle'),
+                  description: t('partnerUpdatedToastDescription'),
                   variant: 'success',
                 })
               }
             >
               <Pencil className="h-4 w-4" />
-              Edit partner
+              {t('editPartner')}
             </Button>
           </div>
         }
@@ -201,37 +203,37 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
         </span>
         <span className="inline-flex items-center gap-1.5">
           <Users className="h-4 w-4" />
-          Owner: <span className="font-medium text-foreground">{ownerName(a.accountOwnerId)}</span>
+          {t('ownerLabel')} <span className="font-medium text-foreground">{ownerName(a.accountOwnerId, t('unassigned'))}</span>
         </span>
         <span className="inline-flex items-center gap-1.5">
           <CalendarClock className="h-4 w-4" />
-          Last interaction {formatRelative(a.meta.lastInteractionAt)}
+          {t('lastInteraction', { time: formatRelative(a.meta.lastInteractionAt) })}
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Companies introduced" value={a.meta.companiesIntroducedIds.length} icon={Building2} tone="info" />
-        <StatCard label="Active leads" value={a.meta.activeLeads} icon={Handshake} tone="gold" delay={0.05} />
+        <StatCard label={t('companiesIntroduced')} value={a.meta.companiesIntroducedIds.length} icon={Building2} tone="info" />
+        <StatCard label={t('activeLeads')} value={a.meta.activeLeads} icon={Handshake} tone="gold" delay={0.05} />
         <StatCard
-          label="Conversion rate"
+          label={t('conversionRate')}
           value={Math.round(a.meta.conversionRate * 100)}
           icon={TrendingUp}
           tone="warning"
           format={(n) => `${n}%`}
           delay={0.1}
         />
-        <StatCard label="NDA status" value={getLabel('ndaStatus', a.ndaStatus)} icon={FileSignature} tone="success" delay={0.15} />
+        <StatCard label={t('ndaStatus')} value={getLabel('ndaStatus', a.ndaStatus)} icon={FileSignature} tone="success" delay={0.15} />
       </div>
 
       <Tabs defaultValue="overview">
         <TabsList className="flex w-full flex-wrap justify-start gap-1 sm:w-auto">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="introduced">Introduced ({introduced.length})</TabsTrigger>
-          <TabsTrigger value="contacts">Contacts ({contacts.length})</TabsTrigger>
-          <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
-          <TabsTrigger value="activities">Activities ({activities.length})</TabsTrigger>
-          <TabsTrigger value="nda">NDA ({ndas.length})</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks ({tasks.length})</TabsTrigger>
+          <TabsTrigger value="overview">{t('tabOverview')}</TabsTrigger>
+          <TabsTrigger value="introduced">{t('tabIntroduced', { count: introduced.length })}</TabsTrigger>
+          <TabsTrigger value="contacts">{t('tabContacts', { count: contacts.length })}</TabsTrigger>
+          <TabsTrigger value="documents">{t('tabDocuments', { count: documents.length })}</TabsTrigger>
+          <TabsTrigger value="activities">{t('tabActivities', { count: activities.length })}</TabsTrigger>
+          <TabsTrigger value="nda">{t('tabNda', { count: ndas.length })}</TabsTrigger>
+          <TabsTrigger value="tasks">{t('tabTasks', { count: tasks.length })}</TabsTrigger>
         </TabsList>
 
         {/* ── Overview ── */}
@@ -239,25 +241,25 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
           <div className="grid gap-4 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle className="text-base">Partnership profile</CardTitle>
+                <CardTitle className="text-base">{t('partnershipProfile')}</CardTitle>
                 {a.description && <CardDescription>{a.description}</CardDescription>}
               </CardHeader>
               <CardContent className="space-y-5">
                 <dl className="grid gap-4 sm:grid-cols-2">
-                  <Fact icon={MapPin} label="Territory" value={a.meta.territory} />
-                  <Fact icon={Handshake} label="Partner type" value={humanize(a.meta.agencyType)} />
+                  <Fact icon={MapPin} label={t('territory')} value={a.meta.territory} />
+                  <Fact icon={Handshake} label={t('partnerType')} value={humanize(a.meta.agencyType)} />
                   <Fact
                     icon={Building2}
-                    label="Cooperation model"
+                    label={t('cooperationModel')}
                     value={a.cooperationModel ? getLabel('cooperationModel', a.cooperationModel) : '—'}
                   />
-                  <Fact icon={Users} label="Account owner" value={ownerName(a.accountOwnerId)} />
+                  <Fact icon={Users} label={t('accountOwner')} value={ownerName(a.accountOwnerId, t('unassigned'))} />
                   <Fact
                     icon={CalendarClock}
-                    label="First contact"
+                    label={t('firstContact')}
                     value={`${formatDate(a.firstContact.date)} · ${getLabel('firstContactChannel', a.firstContact.channel)}`}
                   />
-                  <Fact icon={Building2} label="Company size" value={a.size ? getLabel('companySize', a.size) : '—'} />
+                  <Fact icon={Building2} label={t('companySize')} value={a.size ? getLabel('companySize', a.size) : '—'} />
                 </dl>
 
                 <Separator />
@@ -265,7 +267,7 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
                 <div>
                   <p className="mb-2 flex items-center gap-1.5 text-sm font-medium">
                     <Globe2 className="h-4 w-4 text-muted-foreground" />
-                    Countries covered
+                    {t('countriesCovered')}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {a.meta.countriesCovered.map((c) => (
@@ -279,11 +281,11 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
 
                 {a.tags && a.tags.length > 0 && (
                   <div>
-                    <p className="mb-2 text-sm font-medium">Tags</p>
+                    <p className="mb-2 text-sm font-medium">{t('tags')}</p>
                     <div className="flex flex-wrap gap-2">
-                      {a.tags.map((t) => (
-                        <Badge key={t} variant="muted">
-                          {humanize(t)}
+                      {a.tags.map((tag) => (
+                        <Badge key={tag} variant="muted">
+                          {humanize(tag)}
                         </Badge>
                       ))}
                     </div>
@@ -295,12 +297,12 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
             <div className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Partner metrics</CardTitle>
+                  <CardTitle className="text-base">{t('partnerMetrics')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <MetricBar label="Conversion rate" value={a.meta.conversionRate * 100} display={pct(a.meta.conversionRate)} />
+                  <MetricBar label={t('conversionRate')} value={a.meta.conversionRate * 100} display={pct(a.meta.conversionRate)} />
                   <MetricBar
-                    label="Lead-to-intro ratio"
+                    label={t('leadToIntroRatio')}
                     value={
                       a.meta.activeLeads + a.meta.companiesIntroducedIds.length > 0
                         ? (a.meta.companiesIntroducedIds.length /
@@ -313,31 +315,31 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
                     }`}
                   />
                   <div className="grid grid-cols-2 gap-3 pt-1">
-                    <MiniStat label="Introduced" value={a.meta.companiesIntroducedIds.length} />
-                    <MiniStat label="Active leads" value={a.meta.activeLeads} />
+                    <MiniStat label={t('introduced')} value={a.meta.companiesIntroducedIds.length} />
+                    <MiniStat label={t('activeLeads')} value={a.meta.activeLeads} />
                   </div>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Agreement & NDA</CardTitle>
+                  <CardTitle className="text-base">{t('agreementAndNda')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Agreement</span>
-                    <Badge variant={AGREEMENT_TONE[a.meta.agreementStatus]}>{AGREEMENT_LABEL[a.meta.agreementStatus]}</Badge>
+                    <span className="text-muted-foreground">{t('agreement')}</span>
+                    <Badge variant={AGREEMENT_TONE[a.meta.agreementStatus]}>{t(AGREEMENT_LABEL_KEY[a.meta.agreementStatus])}</Badge>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">NDA</span>
+                    <span className="text-muted-foreground">{t('nda')}</span>
                     <StatusBadge kind="ndaStatus" value={a.ndaStatus} />
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Relationship</span>
+                    <span className="text-muted-foreground">{t('relationship')}</span>
                     <StatusBadge kind="relationshipStage" value={a.relationshipStage} />
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Priority</span>
+                    <span className="text-muted-foreground">{t('priority')}</span>
                     <PriorityBadge value={a.priority} />
                   </div>
                 </CardContent>
@@ -346,13 +348,16 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
               {a.meta.nextAction && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">Next action</CardTitle>
+                    <CardTitle className="text-base">{t('nextAction')}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm font-medium">{a.meta.nextAction.label}</p>
                     {a.meta.nextAction.dueDate && (
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        Due {formatDate(a.meta.nextAction.dueDate)} · {formatRelative(a.meta.nextAction.dueDate)}
+                        {t('dueWithRelative', {
+                          date: formatDate(a.meta.nextAction.dueDate),
+                          relative: formatRelative(a.meta.nextAction.dueDate),
+                        })}
                       </p>
                     )}
                   </CardContent>
@@ -366,25 +371,25 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
         <TabsContent value="introduced">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Companies introduced</CardTitle>
-              <CardDescription>Pipeline companies this partner brought to Proamina®.</CardDescription>
+              <CardTitle className="text-base">{t('companiesIntroduced')}</CardTitle>
+              <CardDescription>{t('companiesIntroducedDescription')}</CardDescription>
             </CardHeader>
             <CardContent>
               {introduced.length === 0 ? (
                 <EmptyState
                   icon={Building2}
-                  title="No companies introduced yet"
-                  description="When this partner introduces a company, it will be linked here."
+                  title={t('noCompaniesIntroducedTitle')}
+                  description={t('noCompaniesIntroducedDescription')}
                 />
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Company</TableHead>
-                      <TableHead>Country</TableHead>
-                      <TableHead>Stage</TableHead>
-                      <TableHead>NDA</TableHead>
-                      <TableHead className="text-right">Potential</TableHead>
+                      <TableHead>{t('colCompany')}</TableHead>
+                      <TableHead>{t('colCountry')}</TableHead>
+                      <TableHead>{t('colStage')}</TableHead>
+                      <TableHead>{t('colNda')}</TableHead>
+                      <TableHead className="text-right">{t('colPotential')}</TableHead>
                       <TableHead className="w-px" />
                     </TableRow>
                   </TableHeader>
@@ -439,11 +444,11 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
         <TabsContent value="contacts">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Contacts</CardTitle>
+              <CardTitle className="text-base">{t('contacts')}</CardTitle>
             </CardHeader>
             <CardContent>
               {contacts.length === 0 ? (
-                <EmptyState icon={Users} title="No contacts" description="No people are linked to this partner yet." />
+                <EmptyState icon={Users} title={t('noContactsTitle')} description={t('noContactsDescription')} />
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {contacts.map((c) => (
@@ -455,7 +460,7 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
                           </p>
                           {c.jobTitle && <p className="truncate text-xs text-muted-foreground">{c.jobTitle}</p>}
                         </div>
-                        {c.isPrimary && <Badge variant="gold">Primary</Badge>}
+                        {c.isPrimary && <Badge variant="gold">{t('primary')}</Badge>}
                       </div>
                       <div className="mt-3 space-y-1.5 text-sm">
                         <a
@@ -489,20 +494,20 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
         <TabsContent value="documents">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Documents</CardTitle>
+              <CardTitle className="text-base">{t('documents')}</CardTitle>
             </CardHeader>
             <CardContent>
               {documents.length === 0 ? (
-                <EmptyState icon={FileText} title="No documents" description="No documents have been shared with this partner." />
+                <EmptyState icon={FileText} title={t('noDocumentsTitle')} description={t('noDocumentsDescription')} />
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Access</TableHead>
-                      <TableHead className="text-right">Size</TableHead>
-                      <TableHead>Uploaded</TableHead>
+                      <TableHead>{t('colName')}</TableHead>
+                      <TableHead>{t('colCategory')}</TableHead>
+                      <TableHead>{t('colAccess')}</TableHead>
+                      <TableHead className="text-right">{t('colSize')}</TableHead>
+                      <TableHead>{t('colUploaded')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -540,11 +545,11 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
         <TabsContent value="activities">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Activity timeline</CardTitle>
+              <CardTitle className="text-base">{t('activityTimeline')}</CardTitle>
             </CardHeader>
             <CardContent>
               {activities.length === 0 ? (
-                <EmptyState icon={ActivityIcon} title="No activity" description="No activity has been logged for this partner yet." />
+                <EmptyState icon={ActivityIcon} title={t('noActivityTitle')} description={t('noActivityDescription')} />
               ) : (
                 <ol className="relative space-y-5 border-l border-border pl-6">
                   {activities.map((act) => (
@@ -557,7 +562,7 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
                       </div>
                       {act.body && <p className="mt-1 text-sm text-muted-foreground">{act.body}</p>}
                       {act.byUserId && (
-                        <p className="mt-1 text-xs text-muted-foreground">by {ownerName(act.byUserId)}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{t('byUser', { user: ownerName(act.byUserId, t('unassigned')) })}</p>
                       )}
                     </li>
                   ))}
@@ -571,24 +576,24 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
         <TabsContent value="nda">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Non-disclosure agreements</CardTitle>
+              <CardTitle className="text-base">{t('nonDisclosureAgreements')}</CardTitle>
             </CardHeader>
             <CardContent>
               {ndas.length === 0 ? (
                 <EmptyState
                   icon={FileSignature}
-                  title="No NDA on record"
-                  description="No NDA has been prepared for this partner yet."
+                  title={t('noNdaTitle')}
+                  description={t('noNdaDescription')}
                 />
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Reference</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Sent</TableHead>
-                      <TableHead>Expiry</TableHead>
+                      <TableHead>{t('colReference')}</TableHead>
+                      <TableHead>{t('colType')}</TableHead>
+                      <TableHead>{t('colStatus')}</TableHead>
+                      <TableHead>{t('colSent')}</TableHead>
+                      <TableHead>{t('colExpiry')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -616,38 +621,38 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
         <TabsContent value="tasks">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Tasks</CardTitle>
+              <CardTitle className="text-base">{t('tasks')}</CardTitle>
             </CardHeader>
             <CardContent>
               {tasks.length === 0 ? (
-                <EmptyState icon={ListChecks} title="No tasks" description="No tasks are linked to this partner yet." />
+                <EmptyState icon={ListChecks} title={t('noTasksTitle')} description={t('noTasksDescription')} />
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Task</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Owner</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Due</TableHead>
+                      <TableHead>{t('colTask')}</TableHead>
+                      <TableHead>{t('colType')}</TableHead>
+                      <TableHead>{t('colOwner')}</TableHead>
+                      <TableHead>{t('colPriority')}</TableHead>
+                      <TableHead>{t('colStatus')}</TableHead>
+                      <TableHead>{t('colDue')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {tasks.map((t) => (
-                      <TableRow key={t.id}>
-                        <TableCell className="font-medium">{t.title}</TableCell>
+                    {tasks.map((task) => (
+                      <TableRow key={task.id}>
+                        <TableCell className="font-medium">{task.title}</TableCell>
                         <TableCell>
-                          <StatusBadge kind="taskType" value={t.type} />
+                          <StatusBadge kind="taskType" value={task.type} />
                         </TableCell>
-                        <TableCell className="text-sm">{ownerName(t.ownerId)}</TableCell>
+                        <TableCell className="text-sm">{ownerName(task.ownerId, t('unassigned'))}</TableCell>
                         <TableCell>
-                          <PriorityBadge value={t.priority} />
+                          <PriorityBadge value={task.priority} />
                         </TableCell>
                         <TableCell>
-                          <StatusBadge kind="taskStatus" value={t.status} />
+                          <StatusBadge kind="taskStatus" value={task.status} />
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{formatDate(t.dueDate)}</TableCell>
+                        <TableCell className="text-muted-foreground">{formatDate(task.dueDate)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

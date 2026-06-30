@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Activity as ActivityIcon, Mail, Phone, Users, FileSignature, FlaskConical,
   Truck, MessageSquareText, FileText, StickyNote, Plus, Search, Receipt, UserPlus,
@@ -48,6 +49,7 @@ function meta(t: ActivityType) { return TYPE_META[t] ?? { icon: ActivityIcon, cl
 const TYPE_OPTIONS: ActivityType[] = ['email', 'call', 'meeting', 'note', 'nda_event', 'sample_event', 'shipment_event', 'feedback', 'document'];
 
 export default function ActivitiesPage() {
+  const t = useTranslations('AdminActivities');
   const [rows, setRows] = React.useState<Activity[] | null>(null);
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
   const [stats, setStats] = React.useState<Awaited<ReturnType<typeof activityService.getStatistics>> | null>(null);
@@ -62,7 +64,7 @@ export default function ActivitiesPage() {
   }, []);
 
   const userName = (id?: string) => {
-    if (!id) return 'System';
+    if (!id) return t('systemUser');
     const a = authService.getAccount(id);
     return a ? `${a.firstName} ${a.lastName}` : humanize(id.replace('u_', ''));
   };
@@ -102,21 +104,21 @@ export default function ActivitiesPage() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
-        title="Activities"
-        subtitle="Every interaction across the Proamina® pipeline — emails, calls, meetings and system events."
-        actions={<Button variant="gold" onClick={() => setLogOpen(true)}><Plus /> Log activity</Button>}
+        title={t('title')}
+        subtitle={t('subtitle')}
+        actions={<Button variant="gold" onClick={() => setLogOpen(true)}><Plus /> {t('logActivity')}</Button>}
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total activities" value={stats?.total ?? 0} icon={ActivityIcon} tone="gold" />
-        <StatCard label="Emails" value={byType.email ?? 0} icon={Mail} tone="info" delay={0.05} />
-        <StatCard label="Calls" value={byType.call ?? 0} icon={Phone} tone="success" delay={0.1} />
-        <StatCard label="Meetings" value={byType.meeting ?? 0} icon={Users} tone="warning" delay={0.15} />
+        <StatCard label={t('statTotal')} value={stats?.total ?? 0} icon={ActivityIcon} tone="gold" />
+        <StatCard label={t('statEmails')} value={byType.email ?? 0} icon={Mail} tone="info" delay={0.05} />
+        <StatCard label={t('statCalls')} value={byType.call ?? 0} icon={Phone} tone="success" delay={0.1} />
+        <StatCard label={t('statMeetings')} value={byType.meeting ?? 0} icon={Users} tone="warning" delay={0.15} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <ChartCard title="Activity mix" description="By interaction type" loading={rows === null} isEmpty={typeDonut.length === 0}>
-          <DonutChart data={typeDonut} centerLabel="logged" />
+        <ChartCard title={t('chartTitle')} description={t('chartDescription')} loading={rows === null} isEmpty={typeDonut.length === 0}>
+          <DonutChart data={typeDonut} centerLabel={t('donutCenterLabel')} />
         </ChartCard>
 
         <Card className="lg:col-span-2">
@@ -124,12 +126,12 @@ export default function ActivitiesPage() {
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <div className="relative flex-1 min-w-[180px]">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search activities…" className="pl-8" />
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('searchPlaceholder')} className="pl-8" />
               </div>
               <Select value={fType} onValueChange={setFType}>
-                <SelectTrigger className="h-10 w-[170px]"><SelectValue placeholder="Type" /></SelectTrigger>
+                <SelectTrigger className="h-10 w-[170px]"><SelectValue placeholder={t('typePlaceholder')} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL}>All types</SelectItem>
+                  <SelectItem value={ALL}>{t('allTypes')}</SelectItem>
                   {TYPE_OPTIONS.map((t) => <SelectItem key={t} value={t}>{getLabel('activityType', t)}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -138,7 +140,7 @@ export default function ActivitiesPage() {
             {rows === null ? (
               <div className="space-y-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-12 w-full" />)}</div>
             ) : filtered.length === 0 ? (
-              <EmptyState icon={ActivityIcon} title="No activities" description="Adjust filters or log a new activity." />
+              <EmptyState icon={ActivityIcon} title={t('emptyTitle')} description={t('emptyDescription')} />
             ) : (
               <div className="max-h-[560px] space-y-5 overflow-y-auto scrollbar-thin pr-1">
                 {groups.map(([day, items]) => (
@@ -187,6 +189,7 @@ export default function ActivitiesPage() {
 function LogActivityDialog({ open, onOpenChange, companies, onLogged }: {
   open: boolean; onOpenChange: (o: boolean) => void; companies: Company[]; onLogged: (a: Activity) => void;
 }) {
+  const t = useTranslations('AdminActivities');
   const [type, setType] = React.useState<ActivityType>('call');
   const [companyId, setCompanyId] = React.useState('');
   const [title, setTitle] = React.useState('');
@@ -205,7 +208,7 @@ function LogActivityDialog({ open, onOpenChange, companies, onLogged }: {
     };
     await activityService.create(a);
     onLogged(a);
-    toast({ variant: 'success', title: 'Activity logged', description: title.trim() });
+    toast({ variant: 'success', title: t('toastLogged'), description: title.trim() });
     setSubmitting(false); setTitle(''); setBody(''); setCompanyId('');
     onOpenChange(false);
   }
@@ -214,20 +217,20 @@ function LogActivityDialog({ open, onOpenChange, companies, onLogged }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Log activity</DialogTitle>
-          <DialogDescription>Record an interaction with a company.</DialogDescription>
+          <DialogTitle>{t('logActivity')}</DialogTitle>
+          <DialogDescription>{t('dialogDescription')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5"><Label>Type</Label>
+            <div className="space-y-1.5"><Label>{t('fieldType')}</Label>
               <Select value={type} onValueChange={(v) => setType(v as ActivityType)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{TYPE_OPTIONS.map((t) => <SelectItem key={t} value={t}>{getLabel('activityType', t)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5"><Label>Company</Label>
+            <div className="space-y-1.5"><Label>{t('fieldCompany')}</Label>
               <Select value={companyId} onValueChange={setCompanyId}>
-                <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('selectCompany')} /></SelectTrigger>
                 <SelectContent>
                   {companies.slice().sort((a, b) => (a.tradingName || a.legalName).localeCompare(b.tradingName || b.legalName)).map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.tradingName || c.legalName}</SelectItem>
@@ -236,12 +239,12 @@ function LogActivityDialog({ open, onOpenChange, companies, onLogged }: {
               </Select>
             </div>
           </div>
-          <div className="space-y-1.5"><Label htmlFor="at">Title *</Label><Input id="at" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Intro call with R&D team" /></div>
-          <div className="space-y-1.5"><Label htmlFor="ab">Notes</Label><Textarea id="ab" rows={3} value={body} onChange={(e) => setBody(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label htmlFor="at">{t('fieldTitle')}</Label><Input id="at" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('titlePlaceholder')} /></div>
+          <div className="space-y-1.5"><Label htmlFor="ab">{t('fieldNotes')}</Label><Textarea id="ab" rows={3} value={body} onChange={(e) => setBody(e.target.value)} /></div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>Cancel</Button>
-          <Button variant="gold" onClick={submit} disabled={!valid || submitting}>{submitting ? 'Saving…' : 'Log activity'}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>{t('cancel')}</Button>
+          <Button variant="gold" onClick={submit} disabled={!valid || submitting}>{submitting ? t('saving') : t('logActivity')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

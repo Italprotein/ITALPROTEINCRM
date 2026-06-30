@@ -5,10 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import {
   ArrowRight, ShieldAlert, ChevronLeft, Mail, Lock,
-  CheckCircle2, XCircle, Loader2, ChevronDown,
+  CheckCircle2, XCircle, Loader2,
 } from 'lucide-react';
 import { Link, useRouter } from '@/lib/i18n/navigation';
 import { useSession } from '@/components/providers/session-provider';
+import { signIn } from 'next-auth/react';
 import { authService } from '@/lib/mock-services';
 import type { Workspace } from '@/lib/types';
 import { Logo } from '@/components/brand/logo';
@@ -67,22 +68,48 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
   const router = useRouter();
   const { signInAs } = useSession();
   const emailId = useId();
+  const passwordId = useId();
 
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [state, setState] = useState<FormState>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [wrongWorkspace, setWrongWorkspace] = useState(false);
-  const [showHints, setShowHints] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isTeam = variant === 'team';
+  // Real auth (Auth.js Credentials) activates when NEXT_PUBLIC_DATA_MODE=api;
+  // otherwise the local preview login is used.
+  const isApi = (process.env.NEXT_PUBLIC_DATA_MODE ?? 'mock') === 'api';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim() || state === 'submitting' || state === 'success') return;
+    if (isApi && !password) return;
 
     setState('submitting');
     setWrongWorkspace(false);
+
+    // ── Real auth (Auth.js Credentials provider) ──
+    if (isApi) {
+      const res = await signIn('credentials', {
+        email: email.trim().toLowerCase(),
+        password,
+        redirect: false,
+      });
+      if (!res || res.error) {
+        setState('error');
+        setErrorMsg(t('errorInvalid'));
+        setTimeout(() => setState('idle'), 3200);
+        return;
+      }
+      setState('success');
+      await new Promise((r) => setTimeout(r, 400));
+      router.push(redirectTo);
+      return;
+    }
+
+    // ── Local preview login (sign in to a seeded account by email) ──
     await new Promise((r) => setTimeout(r, 750));
 
     const account = authService.getAccountByEmail(email);
@@ -105,9 +132,6 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
     signInAs(account.id);
     router.push(redirectTo);
   }
-
-  const hintAccounts =
-    workspace === 'internal' ? authService.listInternalAccounts() : authService.listExternalAccounts();
 
   const borderClass =
     state === 'error'
@@ -263,7 +287,31 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
                 </AnimatePresence>
               </div>
 
-              <Button type="submit" disabled={!email.trim() || state === 'submitting' || state === 'success'} className="h-12 w-full gap-2 text-sm font-semibold">
+              {isApi && (
+                <div className="space-y-1.5">
+                  <label htmlFor={passwordId} className="flex items-center gap-1.5 text-sm font-medium">
+                    <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                    {t('passwordLabel')}
+                  </label>
+                  <div className={cn('relative overflow-hidden rounded-lg border transition-all duration-200', borderClass)}>
+                    <input
+                      id={passwordId}
+                      type="password"
+                      value={password}
+                      autoComplete="current-password"
+                      disabled={state === 'submitting' || state === 'success'}
+                      placeholder={t('passwordPlaceholder')}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (state === 'error') setState('idle');
+                      }}
+                      className="h-12 w-full bg-transparent px-4 text-sm placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <Button type="submit" disabled={!email.trim() || (isApi && !password) || state === 'submitting' || state === 'success'} className="h-12 w-full gap-2 text-sm font-semibold">
                 <AnimatePresence mode="wait" initial={false}>
                   {state === 'submitting' ? (
                     <motion.span key="loading" className="flex items-center gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -292,49 +340,7 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
               </Link>
             </div>
 
-            {/* Demo hints */}
-            <div className="mt-6 space-y-2">
-              <button
-                type="button"
-                onClick={() => setShowHints((p) => !p)}
-                className="flex items-center gap-1 text-xs text-muted-foreground/70 transition-colors hover:text-muted-foreground"
-              >
-                <motion.span animate={{ rotate: showHints ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                  <ChevronDown className="h-3.5 w-3.5" />
-                </motion.span>
-                {showHints ? t('demoHintsHide') : t('demoHintsShow')}
-              </button>
-
-              <AnimatePresence>
-                {showHints && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }} className="overflow-hidden">
-                    <div className="space-y-0.5 rounded-lg border border-dashed bg-muted/30 p-3">
-                      {hintAccounts.map((a) => (
-                        <button
-                          key={a.id}
-                          type="button"
-                          onClick={() => {
-                            setEmail(a.email);
-                            setState('idle');
-                            setWrongWorkspace(false);
-                            setShowHints(false);
-                            setTimeout(() => inputRef.current?.focus(), 50);
-                          }}
-                          className="group flex w-full items-center justify-between gap-3 rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent"
-                        >
-                          <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground group-hover:text-foreground">
-                            {a.email}
-                          </span>
-                          <span className="shrink-0 text-muted-foreground/50">{a.firstName} {a.lastName}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <p className="mt-4 rounded-lg border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">{t('futureNote')}</p>
+            <p className="mt-6 rounded-lg border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">{t('futureNote')}</p>
           </motion.div>
         </div>
       </main>

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Bell } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/lib/i18n/navigation';
 import { useSession } from '@/components/providers/session-provider';
@@ -15,8 +15,10 @@ import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { AccountMenu } from '@/components/navigation/account-menu';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { setLabelLocale } from '@/lib/labels';
 
 export function PortalShell({ children }: { children: React.ReactNode }) {
+  setLabelLocale(useLocale()); // keep data-value labels (statuses, stages, types) in sync with the UI locale
   const t = useTranslations('PortalNav');
   const tc = useTranslations('Common');
   const { session, account, ready } = useSession();
@@ -60,7 +62,6 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
             </span>
           )}
           <div className="ml-auto flex items-center gap-1.5">
-            <Badge variant="muted" className="hidden lg:inline-flex">{tc('demoMode')}</Badge>
             <ThemeToggle tone="dark" />
             <LanguageSwitcher tone="dark" />
             <Link href="/portal/notifications" className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent" aria-label={tc('notifications')}>
@@ -101,7 +102,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
 
       <footer className="border-t bg-background py-6">
         <div className="container text-2xs text-muted-foreground">
-          {tc('company')} · {tc('demoData')} — Proamina® {new Date().getFullYear()}
+          {tc('company')} — Proamina® {new Date().getFullYear()}
         </div>
       </footer>
     </div>

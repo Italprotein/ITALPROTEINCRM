@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Users,
   Star,
@@ -100,15 +101,25 @@ const fullName = (c: Contact) => `${c.firstName} ${c.lastName}`.trim();
 
 type RoleFlag = 'all' | 'primary' | 'technical' | 'commercial' | 'logistics' | 'finance' | 'legal';
 
-const ROLE_FLAG_OPTIONS: { value: RoleFlag; label: string }[] = [
-  { value: 'all', label: 'All roles' },
-  { value: 'primary', label: 'Primary' },
-  { value: 'technical', label: 'Technical' },
-  { value: 'commercial', label: 'Commercial' },
-  { value: 'logistics', label: 'Logistics' },
-  { value: 'finance', label: 'Finance' },
-  { value: 'legal', label: 'Legal' },
+const ROLE_FLAG_VALUES: RoleFlag[] = [
+  'all',
+  'primary',
+  'technical',
+  'commercial',
+  'logistics',
+  'finance',
+  'legal',
 ];
+
+const ROLE_FLAG_LABEL_KEYS: Record<RoleFlag, string> = {
+  all: 'roleAll',
+  primary: 'rolePrimary',
+  technical: 'roleTechnical',
+  commercial: 'roleCommercial',
+  logistics: 'roleLogistics',
+  finance: 'roleFinance',
+  legal: 'roleLegal',
+};
 
 function matchesFlag(c: Contact, flag: RoleFlag): boolean {
   switch (flag) {
@@ -131,46 +142,47 @@ function matchesFlag(c: Contact, flag: RoleFlag): boolean {
 
 /** Small inline flag chips (primary star / technical / logistics / finance / legal). */
 function FlagChips({ c, className }: { c: Contact; className?: string }) {
+  const t = useTranslations('AdminContacts');
   const chips: { key: string; label: string; tone: string; icon: React.ReactNode }[] = [];
   if (c.isPrimary)
     chips.push({
       key: 'primary',
-      label: 'Primary',
+      label: t('rolePrimary'),
       tone: 'bg-brand-gold/15 text-brand-goldDark',
       icon: <Star className="h-3 w-3 fill-current" />,
     });
   if (c.isTechnical)
     chips.push({
       key: 'tech',
-      label: 'Technical',
+      label: t('roleTechnical'),
       tone: 'bg-info-subtle text-info',
       icon: <FlaskConical className="h-3 w-3" />,
     });
   if (c.isCommercial)
     chips.push({
       key: 'comm',
-      label: 'Commercial',
+      label: t('roleCommercial'),
       tone: 'bg-success-subtle text-success',
       icon: <Briefcase className="h-3 w-3" />,
     });
   if (c.isLogistics)
     chips.push({
       key: 'logi',
-      label: 'Logistics',
+      label: t('roleLogistics'),
       tone: 'bg-warning-subtle text-warning-foreground',
       icon: <Truck className="h-3 w-3" />,
     });
   if (c.isFinance)
     chips.push({
       key: 'fin',
-      label: 'Finance',
+      label: t('roleFinance'),
       tone: 'bg-brand-navy/10 text-brand-navy',
       icon: <Banknote className="h-3 w-3" />,
     });
   if (c.isLegal)
     chips.push({
       key: 'legal',
-      label: 'Legal',
+      label: t('roleLegal'),
       tone: 'bg-danger-subtle text-danger',
       icon: <Scale className="h-3 w-3" />,
     });
@@ -212,6 +224,7 @@ function ContactAvatar({ c, size = 'h-9 w-9' }: { c: Contact; size?: string }) {
 export default function ContactsPage({ params }: { params: { locale: string } }) {
   const locale = params.locale as 'en' | 'it';
   const router = useRouter();
+  const t = useTranslations('AdminContacts');
 
   const [contacts, setContacts] = React.useState<Contact[] | null>(null);
   const [companies, setCompanies] = React.useState<Company[]>([]);
@@ -267,9 +280,9 @@ export default function ContactsPage({ params }: { params: { locale: string } })
   const companyName = React.useCallback(
     (id: string) => {
       const co = companyMap.get(id);
-      return co ? co.tradingName ?? co.legalName : 'Unknown company';
+      return co ? co.tradingName ?? co.legalName : t('unknownCompany');
     },
-    [companyMap],
+    [companyMap, t],
   );
 
   const ownerName = React.useCallback((id?: string) => {
@@ -322,8 +335,8 @@ export default function ContactsPage({ params }: { params: { locale: string } })
   function emailContact(c: Contact) {
     window.location.href = `mailto:${c.email}`;
     toast({
-      title: 'Opening email',
-      description: `Drafting a message to ${fullName(c)}.`,
+      title: t('toastEmailTitle'),
+      description: t('toastEmailDescription', { name: fullName(c) }),
       variant: 'info',
     });
   }
@@ -331,8 +344,11 @@ export default function ContactsPage({ params }: { params: { locale: string } })
   async function createTaskFor(c: Contact) {
     await new Promise((r) => setTimeout(r, 500));
     toast({
-      title: 'Task created',
-      description: `Follow-up task assigned for ${fullName(c)} at ${companyName(c.companyId)}.`,
+      title: t('toastTaskTitle'),
+      description: t('toastTaskDescription', {
+        name: fullName(c),
+        company: companyName(c.companyId),
+      }),
       variant: 'success',
     });
   }
@@ -344,8 +360,8 @@ export default function ContactsPage({ params }: { params: { locale: string } })
   async function logActivity(c: Contact) {
     await new Promise((r) => setTimeout(r, 500));
     toast({
-      title: 'Activity logged',
-      description: `Interaction recorded for ${fullName(c)}.`,
+      title: t('toastActivityTitle'),
+      description: t('toastActivityDescription', { name: fullName(c) }),
       variant: 'success',
     });
   }
@@ -390,10 +406,11 @@ export default function ContactsPage({ params }: { params: { locale: string } })
     });
     load();
     toast({
-      title: 'Contact added',
-      description: `${newContact.firstName} ${newContact.lastName} added to ${companyName(
-        newContact.companyId,
-      )}.`,
+      title: t('toastContactAddedTitle'),
+      description: t('toastContactAddedDescription', {
+        name: `${newContact.firstName} ${newContact.lastName}`,
+        company: companyName(newContact.companyId),
+      }),
       variant: 'success',
     });
   }
@@ -403,7 +420,7 @@ export default function ContactsPage({ params }: { params: { locale: string } })
   const columns: Column<Contact>[] = [
     {
       key: 'name',
-      header: 'Name',
+      header: t('colName'),
       sortable: true,
       sortValue: (c) => fullName(c).toLowerCase(),
       cell: (c) => (
@@ -420,7 +437,7 @@ export default function ContactsPage({ params }: { params: { locale: string } })
     },
     {
       key: 'company',
-      header: 'Company',
+      header: t('colCompany'),
       sortable: true,
       sortValue: (c) => companyName(c.companyId).toLowerCase(),
       cell: (c) => (
@@ -436,21 +453,21 @@ export default function ContactsPage({ params }: { params: { locale: string } })
     },
     {
       key: 'jobTitle',
-      header: 'Job title',
+      header: t('colJobTitle'),
       sortable: true,
       sortValue: (c) => c.jobTitle ?? '',
       cell: (c) => <span className="text-sm">{c.jobTitle ?? '—'}</span>,
     },
     {
       key: 'department',
-      header: 'Department',
+      header: t('colDepartment'),
       hideable: true,
       sortValue: (c) => c.department ?? '',
       cell: (c) => <span className="text-sm text-muted-foreground">{c.department ?? '—'}</span>,
     },
     {
       key: 'email',
-      header: 'Email',
+      header: t('colEmail'),
       sortValue: (c) => c.email,
       cell: (c) => (
         <a
@@ -465,7 +482,7 @@ export default function ContactsPage({ params }: { params: { locale: string } })
     },
     {
       key: 'phone',
-      header: 'Phone',
+      header: t('colPhone'),
       hideable: true,
       sortValue: (c) => c.phone ?? '',
       cell: (c) =>
@@ -484,12 +501,12 @@ export default function ContactsPage({ params }: { params: { locale: string } })
     },
     {
       key: 'flags',
-      header: 'Flags',
+      header: t('colFlags'),
       cell: (c) => <FlagChips c={c} />,
     },
     {
       key: 'lastContact',
-      header: 'Last contact',
+      header: t('colLastContact'),
       align: 'right',
       sortable: true,
       sortValue: (c) => (c.lastContactAt ? new Date(c.lastContactAt).getTime() : 0),
@@ -504,7 +521,7 @@ export default function ContactsPage({ params }: { params: { locale: string } })
   const rowActions = (c: Contact) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="Row actions">
+        <Button variant="ghost" size="icon-sm" aria-label={t('rowActions')}>
           <MoreHorizontal />
         </Button>
       </DropdownMenuTrigger>
@@ -512,13 +529,13 @@ export default function ContactsPage({ params }: { params: { locale: string } })
         <DropdownMenuLabel>{fullName(c)}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => emailContact(c)}>
-          <Mail className="h-4 w-4" /> Email
+          <Mail className="h-4 w-4" /> {t('email')}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => createTaskFor(c)}>
-          <CheckSquare className="h-4 w-4" /> Create task
+          <CheckSquare className="h-4 w-4" /> {t('createTask')}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => openCompany(c)}>
-          <ExternalLink className="h-4 w-4" /> Open company
+          <ExternalLink className="h-4 w-4" /> {t('openCompany')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -548,7 +565,7 @@ export default function ContactsPage({ params }: { params: { locale: string } })
             <FlagChips c={c} />
           </div>
           <div className="mt-2 text-2xs text-muted-foreground">
-            Last contact: {c.lastContactAt ? formatRelative(c.lastContactAt, locale) : '—'}
+            {t('lastContactLabel')} {c.lastContactAt ? formatRelative(c.lastContactAt, locale) : '—'}
           </div>
         </div>
       </div>
@@ -559,10 +576,10 @@ export default function ContactsPage({ params }: { params: { locale: string } })
     <div className="flex flex-wrap items-center gap-2">
       <Select value={companyFilter} onValueChange={setCompanyFilter}>
         <SelectTrigger className="h-9 w-[200px]">
-          <SelectValue placeholder="Company" />
+          <SelectValue placeholder={t('companyPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All companies</SelectItem>
+          <SelectItem value="all">{t('allCompanies')}</SelectItem>
           {companyOptions.map((co) => (
             <SelectItem key={co.id} value={co.id}>
               {co.name}
@@ -572,12 +589,12 @@ export default function ContactsPage({ params }: { params: { locale: string } })
       </Select>
       <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as RoleFlag)}>
         <SelectTrigger className="h-9 w-[150px]">
-          <SelectValue placeholder="Role" />
+          <SelectValue placeholder={t('rolePlaceholder')} />
         </SelectTrigger>
         <SelectContent>
-          {ROLE_FLAG_OPTIONS.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
+          {ROLE_FLAG_VALUES.map((value) => (
+            <SelectItem key={value} value={value}>
+              {t(ROLE_FLAG_LABEL_KEYS[value])}
             </SelectItem>
           ))}
         </SelectContent>
@@ -588,11 +605,11 @@ export default function ContactsPage({ params }: { params: { locale: string } })
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
-        title="Contacts"
-        subtitle="Every decision-maker, technical lead and buyer across your accounts."
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <Button variant="gold" onClick={() => setAddOpen(true)}>
-            <Plus className="h-4 w-4" /> Add contact
+            <Plus className="h-4 w-4" /> {t('addContact')}
           </Button>
         }
       />
@@ -600,47 +617,47 @@ export default function ContactsPage({ params }: { params: { locale: string } })
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
-          label="Total contacts"
+          label={t('statTotalLabel')}
           value={stats?.total ?? 0}
           icon={Users}
           tone="gold"
-          hint="Across all companies"
+          hint={t('statTotalHint')}
         />
         <StatCard
-          label="Primary"
+          label={t('rolePrimary')}
           value={stats?.primary ?? 0}
           icon={Star}
           tone="info"
-          hint="Main point of contact"
+          hint={t('statPrimaryHint')}
           delay={0.05}
         />
         <StatCard
-          label="Technical"
+          label={t('roleTechnical')}
           value={stats?.technical ?? 0}
           icon={FlaskConical}
           tone="success"
-          hint="R&D / application leads"
+          hint={t('statTechnicalHint')}
           delay={0.1}
         />
         <StatCard
-          label="Commercial"
+          label={t('roleCommercial')}
           value={stats?.commercial ?? 0}
           icon={Briefcase}
           tone="warning"
-          hint="Buyers & decision makers"
+          hint={t('statCommercialHint')}
           delay={0.15}
         />
       </div>
 
       {/* Chart */}
       <ChartCard
-        title="Contacts by decision role"
-        description="How your network maps to the buying committee."
+        title={t('chartTitle')}
+        description={t('chartDescription')}
         loading={contacts === null}
         isEmpty={roleDistribution.length === 0}
         height={260}
       >
-        <DonutChart data={roleDistribution} centerLabel="contacts" height={260} />
+        <DonutChart data={roleDistribution} centerLabel={t('chartCenterLabel')} height={260} />
       </ChartCard>
 
       {/* Table */}
@@ -650,7 +667,7 @@ export default function ContactsPage({ params }: { params: { locale: string } })
         getRowId={(c) => c.id}
         loading={contacts === null}
         searchable
-        searchPlaceholder="Search name, email or company…"
+        searchPlaceholder={t('searchPlaceholder')}
         searchValue={(c) =>
           `${fullName(c)} ${c.email} ${c.jobTitle ?? ''} ${c.department ?? ''} ${companyName(
             c.companyId,
@@ -665,8 +682,8 @@ export default function ContactsPage({ params }: { params: { locale: string } })
         exportFilename="contacts"
         storageKey="contacts"
         pageSize={10}
-        emptyTitle="No contacts found"
-        emptyDescription="Try adjusting your filters or add a new contact."
+        emptyTitle={t('emptyTitle')}
+        emptyDescription={t('emptyDescription')}
       />
 
       {/* ── Detail drawer ── */}
@@ -680,7 +697,7 @@ export default function ContactsPage({ params }: { params: { locale: string } })
                   <div className="min-w-0">
                     <SheetTitle className="truncate">{fullName(active)}</SheetTitle>
                     <SheetDescription className="truncate">
-                      {active.jobTitle ?? 'Contact'} · {companyName(active.companyId)}
+                      {active.jobTitle ?? t('contact')} · {companyName(active.companyId)}
                     </SheetDescription>
                   </div>
                 </div>
@@ -694,7 +711,7 @@ export default function ContactsPage({ params }: { params: { locale: string } })
               <Separator />
 
               <div className="space-y-4 text-sm">
-                <DetailRow icon={Building2} label="Company">
+                <DetailRow icon={Building2} label={t('detailCompany')}>
                   <Link
                     href={`/admin/companies/${active.companyId}`}
                     className="font-medium text-brand-navy underline-offset-2 hover:underline dark:text-info"
@@ -703,7 +720,7 @@ export default function ContactsPage({ params }: { params: { locale: string } })
                   </Link>
                 </DetailRow>
 
-                <DetailRow icon={Mail} label="Email">
+                <DetailRow icon={Mail} label={t('detailEmail')}>
                   <a
                     href={`mailto:${active.email}`}
                     className="break-all text-brand-navy underline-offset-2 hover:underline dark:text-info"
@@ -713,7 +730,7 @@ export default function ContactsPage({ params }: { params: { locale: string } })
                 </DetailRow>
 
                 {active.secondaryEmail && (
-                  <DetailRow icon={Mail} label="Secondary email">
+                  <DetailRow icon={Mail} label={t('detailSecondaryEmail')}>
                     <a
                       href={`mailto:${active.secondaryEmail}`}
                       className="break-all text-brand-navy underline-offset-2 hover:underline dark:text-info"
@@ -724,7 +741,7 @@ export default function ContactsPage({ params }: { params: { locale: string } })
                 )}
 
                 {active.phone && (
-                  <DetailRow icon={Phone} label="Phone">
+                  <DetailRow icon={Phone} label={t('detailPhone')}>
                     <a href={`tel:${active.phone}`} className="tabular hover:underline">
                       {active.phone}
                     </a>
@@ -732,7 +749,7 @@ export default function ContactsPage({ params }: { params: { locale: string } })
                 )}
 
                 {active.mobile && (
-                  <DetailRow icon={Smartphone} label="Mobile">
+                  <DetailRow icon={Smartphone} label={t('detailMobile')}>
                     <a href={`tel:${active.mobile}`} className="tabular hover:underline">
                       {active.mobile}
                     </a>
@@ -740,43 +757,43 @@ export default function ContactsPage({ params }: { params: { locale: string } })
                 )}
 
                 {active.department && (
-                  <DetailRow icon={ClipboardList} label="Department">
+                  <DetailRow icon={ClipboardList} label={t('detailDepartment')}>
                     {active.department}
                   </DetailRow>
                 )}
 
                 {active.businessRole && (
-                  <DetailRow icon={Briefcase} label="Business role">
+                  <DetailRow icon={Briefcase} label={t('detailBusinessRole')}>
                     {active.businessRole}
                   </DetailRow>
                 )}
 
                 {active.linkedin && (
-                  <DetailRow icon={Linkedin} label="LinkedIn">
+                  <DetailRow icon={Linkedin} label={t('detailLinkedin')}>
                     <a
                       href={active.linkedin}
                       target="_blank"
                       rel="noreferrer"
                       className="break-all text-brand-navy underline-offset-2 hover:underline dark:text-info"
                     >
-                      View profile
+                      {t('viewProfile')}
                     </a>
                   </DetailRow>
                 )}
 
                 {ownerName(active.ownerId) && (
-                  <DetailRow icon={Users} label="Owner">
+                  <DetailRow icon={Users} label={t('detailOwner')}>
                     {ownerName(active.ownerId)}
                   </DetailRow>
                 )}
 
                 {active.preferredLanguage && (
-                  <DetailRow icon={ClipboardList} label="Preferred language">
-                    {active.preferredLanguage === 'it' ? 'Italian' : 'English'}
+                  <DetailRow icon={ClipboardList} label={t('detailPreferredLanguage')}>
+                    {active.preferredLanguage === 'it' ? t('languageItalian') : t('languageEnglish')}
                   </DetailRow>
                 )}
 
-                <DetailRow icon={ClipboardList} label="Last contact">
+                <DetailRow icon={ClipboardList} label={t('detailLastContact')}>
                   {active.lastContactAt
                     ? `${formatDate(active.lastContactAt, locale)} (${formatRelative(
                         active.lastContactAt,
@@ -786,10 +803,10 @@ export default function ContactsPage({ params }: { params: { locale: string } })
                 </DetailRow>
 
                 {active.nextAction && (
-                  <DetailRow icon={CheckSquare} label="Next action">
+                  <DetailRow icon={CheckSquare} label={t('detailNextAction')}>
                     {active.nextAction.label}
                     {active.nextAction.dueDate
-                      ? ` · due ${formatDate(active.nextAction.dueDate, locale)}`
+                      ? ` · ${t('dueDate', { date: formatDate(active.nextAction.dueDate, locale) })}`
                       : ''}
                   </DetailRow>
                 )}
@@ -797,13 +814,13 @@ export default function ContactsPage({ params }: { params: { locale: string } })
                 {active.notes && (
                   <div className="rounded-lg border bg-muted/40 p-3">
                     <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      <StickyNote className="h-3.5 w-3.5" /> Notes
+                      <StickyNote className="h-3.5 w-3.5" /> {t('notes')}
                     </div>
                     <p className="text-sm text-foreground">{active.notes}</p>
                   </div>
                 )}
 
-                <DetailRow icon={ClipboardList} label="Created">
+                <DetailRow icon={ClipboardList} label={t('detailCreated')}>
                   {formatDate(active.createdAt, locale)}
                 </DetailRow>
               </div>
@@ -814,14 +831,14 @@ export default function ContactsPage({ params }: { params: { locale: string } })
                   onClick={() => active && emailContact(active)}
                   className="flex-1"
                 >
-                  <Mail className="h-4 w-4" /> Email
+                  <Mail className="h-4 w-4" /> {t('email')}
                 </Button>
                 <Button
                   variant="gold"
                   onClick={() => active && logActivity(active)}
                   className="flex-1"
                 >
-                  <ClipboardList className="h-4 w-4" /> Log activity
+                  <ClipboardList className="h-4 w-4" /> {t('logActivity')}
                 </Button>
               </SheetFooter>
             </>
@@ -833,42 +850,40 @@ export default function ContactsPage({ params }: { params: { locale: string } })
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add contact</DialogTitle>
-            <DialogDescription>
-              Create a new contact and link them to one of your companies.
-            </DialogDescription>
+            <DialogTitle>{t('addContact')}</DialogTitle>
+            <DialogDescription>{t('addContactDescription')}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="c-first">First name *</Label>
+                <Label htmlFor="c-first">{t('firstNameLabel')}</Label>
                 <Input
                   id="c-first"
                   value={form.firstName}
                   onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
-                  placeholder="Maria"
+                  placeholder={t('firstNamePlaceholder')}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="c-last">Last name *</Label>
+                <Label htmlFor="c-last">{t('lastNameLabel')}</Label>
                 <Input
                   id="c-last"
                   value={form.lastName}
                   onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
-                  placeholder="Rossi"
+                  placeholder={t('lastNamePlaceholder')}
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label>Company *</Label>
+              <Label>{t('companyLabel')}</Label>
               <Select
                 value={form.companyId}
                 onValueChange={(v) => setForm((f) => ({ ...f, companyId: v }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a company" />
+                  <SelectValue placeholder={t('selectCompanyPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {[...companies]
@@ -885,49 +900,49 @@ export default function ContactsPage({ params }: { params: { locale: string } })
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="c-email">Email *</Label>
+              <Label htmlFor="c-email">{t('emailLabel')}</Label>
               <Input
                 id="c-email"
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                placeholder="maria.rossi@company.com"
+                placeholder={t('emailPlaceholder')}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="c-job">Job title</Label>
+                <Label htmlFor="c-job">{t('jobTitleLabel')}</Label>
                 <Input
                   id="c-job"
                   value={form.jobTitle}
                   onChange={(e) => setForm((f) => ({ ...f, jobTitle: e.target.value }))}
-                  placeholder="Head of R&D"
+                  placeholder={t('jobTitlePlaceholder')}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="c-dept">Department</Label>
+                <Label htmlFor="c-dept">{t('departmentLabel')}</Label>
                 <Input
                   id="c-dept"
                   value={form.department}
                   onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))}
-                  placeholder="R&D"
+                  placeholder={t('departmentPlaceholder')}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="c-phone">Phone</Label>
+                <Label htmlFor="c-phone">{t('phoneLabel')}</Label>
                 <Input
                   id="c-phone"
                   value={form.phone}
                   onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                  placeholder="+39 02 1234 567"
+                  placeholder={t('phonePlaceholder')}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Decision role</Label>
+                <Label>{t('decisionRoleLabel')}</Label>
                 <Select
                   value={form.decisionRole}
                   onValueChange={(v) =>
@@ -951,10 +966,10 @@ export default function ContactsPage({ params }: { params: { locale: string } })
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)} disabled={saving}>
-              Cancel
+              {t('cancel')}
             </Button>
             <Button variant="gold" onClick={submitContact} disabled={!canSubmit || saving}>
-              {saving ? 'Saving…' : 'Add contact'}
+              {saving ? t('saving') : t('addContact')}
             </Button>
           </DialogFooter>
         </DialogContent>
