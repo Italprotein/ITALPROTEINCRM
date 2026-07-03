@@ -97,9 +97,10 @@ const config: Config = {
           navy800: '#0d1f38',
           navy700: '#112840',
           navy600: '#1b3a5b',
-          gold: '#c9a227',
-          goldLight: '#e8c84a',
-          goldDark: '#a07c1a',
+          // Accent re-themed from gold → light blue (token names kept so the whole app re-themes from here).
+          gold: '#38bdf8',
+          goldLight: '#7dd3fc',
+          goldDark: '#0284c7',
           teal: '#0eb89a',
           tealDark: '#0a9980',
           cream: '#f8f4ed',
@@ -129,7 +130,7 @@ const config: Config = {
         md: '0 6px 16px -4px rgb(10 22 40 / 0.10), 0 2px 6px -2px rgb(10 22 40 / 0.06)',
         lg: '0 12px 32px -8px rgb(10 22 40 / 0.14), 0 4px 10px -4px rgb(10 22 40 / 0.08)',
         ring: '0 0 0 1px rgb(10 22 40 / 0.06)',
-        'gold-glow': '0 0 24px rgb(201 162 39 / 0.35)',
+        'gold-glow': '0 0 24px rgb(56 189 248 / 0.40)',
       },
       keyframes: {
         'accordion-down': {
