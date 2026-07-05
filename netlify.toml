@@ -1,5 +1,8 @@
 [build]
-  command = "npm run build"
+  # Generate the Prisma client during deploy because lib/generated is gitignored.
+  # A harmless build-only DATABASE_URL lets frontend preview builds compile even
+  # before a real production database URL is added in Netlify.
+  command = "if [ -z \"$DATABASE_URL\" ]; then export DATABASE_URL=\"postgresql://italprotein_crm:netlify-build-only@localhost:5432/italprotein_crm\"; fi; npx prisma generate && npm run build"
   publish = ".next"
 
 [build.environment]
