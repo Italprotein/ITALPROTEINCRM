@@ -5,7 +5,7 @@
   "description": "ITALPROTEIN CRM — bilingual B2B CRM prototype for Italprotein Srl & Proamina® (frontend-first, mock data).",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
