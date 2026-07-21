@@ -2,7 +2,7 @@
 
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser } from "@/lib/backend/session";
+import { getCurrentUser, requireUser, requireInternal } from "@/lib/backend/session";
 import type { SupportRequest, SupportStatus } from "@/lib/types";
 import {
   supportToDTO,
@@ -19,6 +19,8 @@ async function scopeWhere(): Promise<Prisma.SupportRequestWhereInput> {
 }
 
 export async function listSupportRequests(): Promise<SupportRequest[]> {
+  // Communications inbox; scopeWhere() filters external callers to their company.
+  await requireUser();
   const rows = await prisma.supportRequest.findMany({
     where: await scopeWhere(),
     include: { messages: true },
@@ -28,6 +30,7 @@ export async function listSupportRequests(): Promise<SupportRequest[]> {
 }
 
 export async function getSupportRequest(id: string): Promise<SupportRequest | undefined> {
+  await requireUser();
   const rows = await prisma.supportRequest.findMany({
     where: { AND: [await scopeWhere(), { id }] },
     include: { messages: true },
@@ -37,12 +40,13 @@ export async function getSupportRequest(id: string): Promise<SupportRequest | un
 }
 
 export async function createSupportRequest(input: SupportRequest): Promise<SupportRequest> {
-  const user = await getCurrentUser();
+  // Portal-originated write: clients raise tickets from /portal/requests.
+  const user = await requireUser();
   const row = await prisma.supportRequest.create({
     data: {
-      ...supportWriteData(input, user?.id ?? null),
+      ...supportWriteData(input, user.id),
       id: input.id,
-      createdById: user?.id ?? null,
+      createdById: user.id,
       messages: { create: conversationCreateData(input) },
     },
     include: { messages: true },
@@ -54,7 +58,10 @@ export async function updateSupportRequest(
   id: string,
   patch: Partial<SupportRequest>,
 ): Promise<SupportRequest | undefined> {
-  const user = await getCurrentUser();
+  // Both sides of the conversation write here: the client replies from
+  // /portal/requests and staff reply from /admin/communications. Keep it at the
+  // authenticated bar — an internal-only guard would break client replies.
+  const user = await requireUser();
   const existing = await prisma.supportRequest.findUnique({
     where: { id },
     include: { messages: true },
@@ -67,7 +74,7 @@ export async function updateSupportRequest(
   const row = await prisma.supportRequest.update({
     where: { id },
     data: {
-      ...supportWriteData(merged, user?.id ?? null),
+      ...supportWriteData(merged, user.id),
       ...(replaceConversation
         ? { messages: { deleteMany: {}, create: conversationCreateData(merged) } }
         : {}),
@@ -78,10 +85,15 @@ export async function updateSupportRequest(
 }
 
 export async function removeSupportRequest(id: string): Promise<void> {
+  // Deletes by raw id with no company scope; `requests` is a portal-only section
+  // (hidden for every internal role) so a section guard would lock staff out.
+  await requireInternal();
   await prisma.supportRequest.delete({ where: { id } }).catch(() => undefined);
 }
 
 export async function supportRequestsByCompany(companyId: string): Promise<SupportRequest[]> {
+  // Portal requests list + portal dashboard.
+  await requireUser();
   const rows = await prisma.supportRequest.findMany({
     where: { AND: [await scopeWhere(), { companyId }] },
     include: { messages: true },
@@ -91,6 +103,8 @@ export async function supportRequestsByCompany(companyId: string): Promise<Suppo
 }
 
 export async function supportStatistics() {
+  // Shared counts widget — authenticated bar (scoped by scopeWhere).
+  await requireUser();
   const rows = await prisma.supportRequest.findMany({
     where: await scopeWhere(),
     select: { status: true },

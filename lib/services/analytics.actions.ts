@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/backend/prisma";
+import { requireSection } from "@/lib/backend/session";
 import type {
   ApplicationCategory,
   CompanyType,
@@ -22,10 +23,24 @@ import {
 // NOT company-scoped. Agencies are Company rows with type = "agency"; the mock's
 // ALL_COMPANIES = every company, while COMPANIES (companiesOverTime) excludes
 // agencies — reproduced here with a type filter.
+//
+// AUTHZ: every export here returns cross-company aggregate business intelligence
+// (pipeline shape, conversion rates, customer counts, staff productivity) and is
+// reachable as a POST endpoint by any caller that knows the action id, so each
+// one opens with requireSection('analytics').
+//
+// requireSection is the right granularity, verified against the consumers: these
+// functions are only ever called from /admin pages (analytics, overview, samples,
+// feedback, ndas, shipments) — NO portal page imports analyticsService, so none
+// of them feeds a company-scoped dashboard and none needs company scoping. Every
+// internal role has analytics at 'view' or 'full', so no internal role loses a
+// chart; 'analytics' is not a PORTAL_SECTION, so canView() is false for all five
+// external roles and the guard shuts the portal out of internal BI entirely.
 
 export async function companiesOverTime(): Promise<
   { month: string; label: string; count: number; cumulative: number }[]
 > {
+  await requireSection("analytics");
   const rows = await prisma.company.findMany({
     where: { type: { not: "agency" } },
     select: { createdAt: true },
@@ -41,6 +56,7 @@ export async function companiesOverTime(): Promise<
 export async function companiesByCountry(): Promise<
   { country: string; countryCode: string; count: number }[]
 > {
+  await requireSection("analytics");
   const rows = await prisma.company.findMany({ select: { country: true, countryCode: true } });
   const map = new Map<string, { country: string; countryCode: string; count: number }>();
   for (const c of rows) {
@@ -52,6 +68,7 @@ export async function companiesByCountry(): Promise<
 }
 
 export async function companiesByCategory(): Promise<{ type: CompanyType; count: number }[]> {
+  await requireSection("analytics");
   const grouped = await prisma.company.groupBy({ by: ["type"], _count: { _all: true } });
   return grouped
     .map((g) => ({ type: g.type as CompanyType, count: g._count._all }))
@@ -61,6 +78,7 @@ export async function companiesByCategory(): Promise<{ type: CompanyType; count:
 export async function pipelineDistribution(): Promise<
   { stage: RelationshipStage; count: number }[]
 > {
+  await requireSection("analytics");
   const order: RelationshipStage[] = [
     "lead", "contacted", "interested", "qualified", "nda_in_progress", "nda_signed",
     "sampling", "testing", "commercial_discussion", "customer", "repeat_customer", "dormant", "lost",
@@ -77,6 +95,7 @@ export async function pipelineDistribution(): Promise<
 }
 
 export async function ndaFunnel(): Promise<{ name: string; value: number }[]> {
+  await requireSection("analytics");
   const rows = await prisma.nDA.findMany({ select: { status: true, dateSent: true } });
   const sentStatuses = [
     "sent", "under_review", "changes_requested", "approved",
@@ -94,6 +113,7 @@ export async function ndaFunnel(): Promise<{ name: string; value: number }[]> {
 }
 
 export async function sampleFunnel(): Promise<{ name: string; value: number }[]> {
+  await requireSection("analytics");
   const rows = await prisma.sampleRequest.findMany({ select: { status: true } });
   const atLeast = (status: string) =>
     rows.filter(
@@ -114,6 +134,7 @@ export async function sampleFunnel(): Promise<{ name: string; value: number }[]>
 export async function samplesOverTime(): Promise<
   { month: string; label: string; count: number }[]
 > {
+  await requireSection("analytics");
   const rows = await prisma.sampleRequest.findMany({ select: { requestDate: true } });
   return MONTHS.map((k) => ({
     month: k,
@@ -125,6 +146,7 @@ export async function samplesOverTime(): Promise<
 export async function ndaCompletionTrend(): Promise<
   { month: string; label: string; signed: number; sent: number }[]
 > {
+  await requireSection("analytics");
   const rows = await prisma.nDA.findMany({
     select: { status: true, effectiveDate: true, dateSent: true },
   });
@@ -141,6 +163,7 @@ export async function ndaCompletionTrend(): Promise<
 }
 
 export async function shipmentStatusBreakdown(): Promise<{ name: string; value: number }[]> {
+  await requireSection("analytics");
   const rows = await prisma.shipment.findMany({
     select: { actualDelivery: true, shipmentDate: true, customsStatus: true },
   });
@@ -164,6 +187,7 @@ export async function shipmentPerformance(): Promise<{
   delayedCount: number;
   totalDelivered: number;
 }> {
+  await requireSection("analytics");
   const rows = await prisma.shipment.findMany({
     select: {
       actualDelivery: true,
@@ -193,6 +217,7 @@ export async function shipmentPerformance(): Promise<{
 }
 
 export async function avgFirstContactToNda(): Promise<number> {
+  await requireSection("analytics");
   const ndas = await prisma.nDA.findMany({
     where: { status: "fully_signed" },
     select: { companyId: true, effectiveDate: true, dateSent: true },
@@ -209,6 +234,7 @@ export async function avgFirstContactToNda(): Promise<number> {
 }
 
 export async function avgNdaToShipment(): Promise<number> {
+  await requireSection("analytics");
   const shipments = await prisma.shipment.findMany({
     select: { companyId: true, shipmentDate: true },
   });
@@ -234,6 +260,7 @@ export async function avgNdaToShipment(): Promise<number> {
 export async function teamActivity(): Promise<
   { userId: string; name: string; role: InternalRole; activities: number; tasks: number; companies: number }[]
 > {
+  await requireSection("analytics");
   // STAFF in the mock = internal users. name from User.name, role from role.key,
   // companies = companies the user owns (ownerUserId), activities/tasks counted
   // from their respective tables.
@@ -264,6 +291,7 @@ export async function teamActivity(): Promise<
 }
 
 export async function taskCompletionRate(): Promise<{ done: number; total: number; rate: number }> {
+  await requireSection("analytics");
   const [done, total] = await Promise.all([
     prisma.task.count({ where: { status: "done" } }),
     prisma.task.count(),
@@ -274,12 +302,16 @@ export async function taskCompletionRate(): Promise<{ done: number; total: numbe
 export async function topMarkets(): Promise<
   { country: string; countryCode: string; count: number }[]
 > {
+  // companiesByCountry() re-checks the same guard; the duplicate check is cheap
+  // and keeps this action safe on its own if that delegation ever changes.
+  await requireSection("analytics");
   return (await companiesByCountry()).slice(0, 8);
 }
 
 export async function topApplications(): Promise<
   { category: ApplicationCategory; count: number }[]
 > {
+  await requireSection("analytics");
   const grouped = await prisma.sampleRequest.groupBy({
     by: ["applicationCategory"],
     _count: { _all: true },
@@ -293,6 +325,7 @@ export async function topApplications(): Promise<
 export async function feedbackResults(): Promise<
   { name: "positive" | "mixed" | "negative" | "inconclusive"; value: number }[]
 > {
+  await requireSection("analytics");
   const results = ["positive", "mixed", "negative", "inconclusive"] as const;
   const grouped = await prisma.feedback.groupBy({
     by: ["overallResult"],

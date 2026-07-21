@@ -106,17 +106,24 @@ export async function requestPasswordReset(emailRaw: string): Promise<AuthAction
   ]);
   if (!byIp.ok || !byEmail.ok) return { ok: false, error: "rate_limited" };
 
+  // Check the mail transport BEFORE looking the user up. Doing it afterwards
+  // made the response depend on whether the account existed: a real admin
+  // address returned "email_unavailable" while an unknown one returned ok —
+  // a clean oracle for "is this an admin account?", which is precisely what
+  // the always-ok branch below exists to prevent. It leaks today, because the
+  // Gmail mailbox has not been connected yet.
+  const auth = await getGmailAuth();
+  if (!auth) {
+    // Config problem, not an account probe — safe to surface, and now returned
+    // identically for existing and non-existing addresses.
+    return { ok: false, error: "email_unavailable" };
+  }
+
   const user = await prisma.user.findUnique({ where: { email }, include: { role: true } });
   // Only active admin accounts can reset — but always answer "ok" so the
   // endpoint cannot be used to probe which emails exist.
   if (!user?.passwordHash || user.status !== "active" || !ADMIN_ROLES.includes(user.role.key)) {
     return { ok: true };
-  }
-
-  const auth = await getGmailAuth();
-  if (!auth) {
-    // Config problem, not an account probe — safe to surface.
-    return { ok: false, error: "email_unavailable" };
   }
 
   const code = generateResetCode();
@@ -213,12 +220,23 @@ export async function confirmPasswordReset(
   });
   if (!entry) return { ok: false, error: "invalid_code" };
   if (entry.expiresAt.getTime() < Date.now()) return { ok: false, error: "expired_code" };
-  if (entry.attempts >= RESET_MAX_ATTEMPTS) return { ok: false, error: "too_many_attempts" };
+
+  // Claim an attempt slot ATOMICALLY, before verifying the code. Reading
+  // `attempts` and incrementing it afterwards was a read-then-write race: many
+  // concurrent requests all saw attempts=0 and each got a free guess, so the
+  // 5-guess cap could be bypassed at will from enough connections. A conditional
+  // updateMany makes the database enforce the cap — every guess costs a slot,
+  // and because all guesses target this one row the budget holds no matter how
+  // many IPs an attacker spreads across (the per-IP limit above only shapes
+  // volume). With requestPasswordReset capped at 3 codes per email per window,
+  // that bounds an attacker to 15 guesses per 15 minutes against a 6-digit code.
+  const claimed = await prisma.passwordResetCode.updateMany({
+    where: { id: entry.id, usedAt: null, attempts: { lt: RESET_MAX_ATTEMPTS } },
+    data: { attempts: { increment: 1 } },
+  });
+  if (claimed.count === 0) return { ok: false, error: "too_many_attempts" };
 
   if (!/^\d{6}$/.test(code.trim()) || !verifyOneTimeCode(code.trim(), entry.codeHash)) {
-    await prisma.passwordResetCode
-      .update({ where: { id: entry.id }, data: { attempts: { increment: 1 } } })
-      .catch(() => undefined);
     await audit("auth.password_reset_failed", "Wrong password reset code entered", entry.userId, "denied");
     return { ok: false, error: "invalid_code" };
   }

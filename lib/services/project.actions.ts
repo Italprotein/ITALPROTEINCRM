@@ -2,7 +2,7 @@
 
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser } from "@/lib/backend/session";
+import { getCurrentUser, requireUser, requireSectionEdit } from "@/lib/backend/session";
 import type { ApplicationProject, DevelopmentStage } from "@/lib/types";
 import { projectToDTO, projectWriteData } from "./project.mapper";
 
@@ -17,6 +17,7 @@ async function scopeWhere(): Promise<Prisma.ApplicationProjectWhereInput> {
 }
 
 export async function listProjects(): Promise<ApplicationProject[]> {
+  await requireUser();
   const rows = await prisma.applicationProject.findMany({
     where: await scopeWhere(),
     orderBy: { createdAt: "desc" },
@@ -25,6 +26,7 @@ export async function listProjects(): Promise<ApplicationProject[]> {
 }
 
 export async function getProject(id: string): Promise<ApplicationProject | undefined> {
+  await requireUser();
   const rows = await prisma.applicationProject.findMany({
     where: { AND: [await scopeWhere(), { id }] },
     take: 1,
@@ -32,10 +34,13 @@ export async function getProject(id: string): Promise<ApplicationProject | undef
   return rows[0] ? projectToDTO(rows[0]) : undefined;
 }
 
+// `projects` exists in BOTH section unions, so section-edit resolves per
+// workspace: internal business_dev/rnd/admins, and portal company_owner /
+// company_technical (who own application projects and upload results).
 export async function createProject(input: ApplicationProject): Promise<ApplicationProject> {
-  const user = await getCurrentUser();
+  const user = await requireSectionEdit("projects");
   const row = await prisma.applicationProject.create({
-    data: { ...projectWriteData(input, user?.id ?? null), id: input.id, createdById: user?.id ?? null },
+    data: { ...projectWriteData(input, user.id), id: input.id, createdById: user.id },
   });
   return projectToDTO(row);
 }
@@ -44,22 +49,24 @@ export async function updateProject(
   id: string,
   patch: Partial<ApplicationProject>,
 ): Promise<ApplicationProject | undefined> {
-  const user = await getCurrentUser();
+  const user = await requireSectionEdit("projects");
   const existing = await prisma.applicationProject.findUnique({ where: { id } });
   if (!existing) return undefined;
   const merged: ApplicationProject = { ...projectToDTO(existing), ...patch };
   const row = await prisma.applicationProject.update({
     where: { id },
-    data: projectWriteData(merged, user?.id ?? null),
+    data: projectWriteData(merged, user.id),
   });
   return projectToDTO(row);
 }
 
 export async function removeProject(id: string): Promise<void> {
+  await requireSectionEdit("projects");
   await prisma.applicationProject.delete({ where: { id } }).catch(() => undefined);
 }
 
 export async function projectsByCompany(companyId: string): Promise<ApplicationProject[]> {
+  await requireUser();
   const rows = await prisma.applicationProject.findMany({
     where: { AND: [await scopeWhere(), { companyId }] },
     orderBy: { createdAt: "desc" },
@@ -68,6 +75,7 @@ export async function projectsByCompany(companyId: string): Promise<ApplicationP
 }
 
 export async function projectStatistics() {
+  await requireUser();
   const rows = await prisma.applicationProject.findMany({
     where: await scopeWhere(),
     select: { developmentStage: true },

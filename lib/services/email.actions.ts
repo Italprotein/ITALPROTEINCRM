@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser, type SessionUser } from "@/lib/backend/session";
+import { requireAction, requireInternal, requireSectionEdit } from "@/lib/backend/session";
 import { checkRateLimit, clientIpFromHeaders } from "@/lib/backend/rate-limit";
 import { runGmailSync } from "@/lib/backend/gmail-sync";
 import {
@@ -26,17 +26,16 @@ import type {
 const EMPTY_SYNC = { fetched: 0, created: 0, ndasCreated: 0, leadsCreated: 0, leadsUpdated: 0 };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-async function internalUser(): Promise<SessionUser | null> {
-  const user = await getCurrentUser();
-  return user && user.kind === "internal" ? user : null;
-}
+// AUTHZ: the shared Italprotein mailbox is an internal communications log — no
+// portal or anonymous caller may reach any action in this file. Each export
+// opens with a guard that throws, replacing the previous "resolve the session,
+// bail out quietly if it is missing" pattern.
 
 export async function listEmailMessages(
   direction?: "inbound" | "outbound",
   limit = 200,
 ): Promise<EmailMessageRecord[]> {
-  const user = await internalUser();
-  if (!user) return [];
+  await requireInternal();
   const rows = await prisma.emailMessage.findMany({
     where: direction ? { direction } : {},
     orderBy: { internalDate: "desc" },
@@ -46,8 +45,9 @@ export async function listEmailMessages(
 }
 
 export async function syncGmailInbox(): Promise<GmailSyncResult> {
-  const user = await internalUser();
-  if (!user) return { ok: false, error: "unauthenticated", ...EMPTY_SYNC };
+  // Triggered from both /admin/communications and /admin/settings, so it stays
+  // open to every internal role rather than being gated on either section.
+  await requireInternal();
   // One mailbox for everyone — keep sync polite regardless of who clicks.
   const limit = await checkRateLimit("gmail:sync", 4, 60);
   if (!limit.ok) return { ok: false, error: "rate_limited", ...EMPTY_SYNC };
@@ -55,8 +55,9 @@ export async function syncGmailInbox(): Promise<GmailSyncResult> {
 }
 
 export async function sendAdminEmail(input: OutboundEmailInput): Promise<SendEmailResult> {
-  const user = await internalUser();
-  if (!user) return { ok: false, error: "unauthenticated" };
+  // Outbound mail leaves the company under the Italprotein mailbox — the send
+  // itself needs edit rights on communications, not just an internal session.
+  const user = await requireSectionEdit("communications");
 
   const to = (input.to ?? []).map((a) => a.trim().toLowerCase()).filter(Boolean);
   const cc = (input.cc ?? []).map((a) => a.trim().toLowerCase()).filter(Boolean);
@@ -170,8 +171,7 @@ export async function sendAdminEmail(input: OutboundEmailInput): Promise<SendEma
 }
 
 export async function gmailConnectionStatus(): Promise<GmailConnectionStatus> {
-  const user = await internalUser();
-  if (!user) return { connected: false };
+  await requireInternal();
   const connection = await getMailboxConnection();
   if (!connection.email) return { connected: false };
   const [latest, inboxCount] = await Promise.all([
@@ -188,8 +188,11 @@ export async function gmailConnectionStatus(): Promise<GmailConnectionStatus> {
 }
 
 export async function disconnectGmail(): Promise<void> {
-  const user = await internalUser();
-  if (!user) return;
+  // Revokes the single shared mailbox for the whole company. The control lives
+  // on /admin/settings, which only super_admin and crm_admin can open (settings
+  // is 'hidden' for every other role) — both hold 'settings.edit', so this
+  // matches the UI exactly without locking out a legitimate role.
+  const user = await requireAction("settings.edit");
   await revokeMailbox();
   await prisma.auditEvent
     .create({

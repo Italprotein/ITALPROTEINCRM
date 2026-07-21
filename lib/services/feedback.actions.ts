@@ -2,7 +2,13 @@
 
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser } from "@/lib/backend/session";
+import {
+  getCurrentUser,
+  requireUser,
+  requireInternal,
+  requireAction,
+  requireSectionEdit,
+} from "@/lib/backend/session";
 import type { Feedback, FeedbackResult, FeedbackStatus } from "@/lib/types";
 import {
   feedbackToDTO,
@@ -32,6 +38,8 @@ function maybeSendTechnicalReplyEmail(feedback: Feedback): void {
 }
 
 export async function listFeedback(): Promise<Feedback[]> {
+  // Shared read (admin list + overview widgets); scopeWhere() does the filtering.
+  await requireUser();
   const rows = await prisma.feedback.findMany({
     where: await scopeWhere(),
     include: withComments,
@@ -41,6 +49,7 @@ export async function listFeedback(): Promise<Feedback[]> {
 }
 
 export async function getFeedback(id: string): Promise<Feedback | undefined> {
+  await requireUser();
   const rows = await prisma.feedback.findMany({
     where: { AND: [await scopeWhere(), { id }] },
     include: withComments,
@@ -50,8 +59,12 @@ export async function getFeedback(id: string): Promise<Feedback | undefined> {
 }
 
 export async function createFeedback(input: Feedback): Promise<Feedback> {
-  const user = await getCurrentUser();
-  const actorId = user?.id ?? null;
+  // Portal-originated write (/portal/feedback/new) — authenticated bar. Not
+  // gated on 'portal.submit_feedback': internal staff also record feedback and
+  // hold no portal actions, and company_logistics/company_finance would lose a
+  // surface the portal already offers them.
+  const user = await requireUser();
+  const actorId = user.id;
   const row = await prisma.feedback.create({
     data: {
       ...feedbackWriteData(input, actorId),
@@ -70,8 +83,11 @@ export async function updateFeedback(
   id: string,
   patch: Partial<Feedback>,
 ): Promise<Feedback | undefined> {
-  const user = await getCurrentUser();
-  const actorId = user?.id ?? null;
+  // Internal triage / technical reply (admin feedback console). 'feedback.reply'
+  // resolves to exactly the roles with edit rights on the feedback section
+  // (super_admin, crm_admin, rnd_technical).
+  const user = await requireAction("feedback.reply");
+  const actorId = user.id;
   const existing = await prisma.feedback.findUnique({
     where: { id },
     include: withComments,
@@ -98,10 +114,17 @@ export async function updateFeedback(
 }
 
 export async function removeFeedback(id: string): Promise<void> {
+  // `feedback` exists in BOTH the internal and the portal section lists, so the
+  // section guard alone would let portal roles delete by raw id (no scope on the
+  // delete). Require internal first, then edit rights on the section.
+  await requireInternal();
+  await requireSectionEdit("feedback");
   await prisma.feedback.delete({ where: { id } }).catch(() => undefined);
 }
 
 export async function feedbackByCompany(companyId: string): Promise<Feedback[]> {
+  // Portal feedback list — scopeWhere() keeps external users in their company.
+  await requireUser();
   const rows = await prisma.feedback.findMany({
     where: { AND: [await scopeWhere(), { companyId }] },
     include: withComments,
@@ -111,6 +134,8 @@ export async function feedbackByCompany(companyId: string): Promise<Feedback[]> 
 }
 
 export async function feedbackBySample(sampleRequestId: string): Promise<Feedback[]> {
+  // Portal sample detail page reads this.
+  await requireUser();
   const rows = await prisma.feedback.findMany({
     where: { AND: [await scopeWhere(), { sampleRequestId }] },
     include: withComments,
@@ -120,6 +145,8 @@ export async function feedbackBySample(sampleRequestId: string): Promise<Feedbac
 }
 
 export async function feedbackStatistics() {
+  // Shared counts widget — authenticated bar (scoped by scopeWhere).
+  await requireUser();
   const rows = await prisma.feedback.findMany({
     where: await scopeWhere(),
     select: { status: true, overallResult: true, overallRating: true },

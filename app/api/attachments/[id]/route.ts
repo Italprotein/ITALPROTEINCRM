@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/backend/prisma";
+import { canEdit, canView } from "@/lib/permissions";
+import type { SessionUser } from "@/lib/backend/session";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();
-  const user = session?.user;
+  const user = session?.user as SessionUser | undefined;
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 
   const attachment = await prisma.attachment.findUnique({
@@ -20,7 +22,21 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   });
   if (!attachment?.bytes) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-  if (user.kind !== "internal") {
+  if (user.kind === "internal") {
+    // Being internal is not by itself entitlement. Honour the permission matrix
+    // here too: the document library lives under the `ndas` section, and
+    // internal-classified files (signed NDAs, investor/financial material)
+    // additionally require edit-or-full — view-only roles are refused.
+    if (!canView(user.role, "ndas")) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+    if (
+      attachment.document?.confidentialityClass === "internal" &&
+      !canEdit(user.role, "ndas")
+    ) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+  } else {
     const allowed =
       attachment.document?.companyId != null &&
       attachment.document.companyId === user.companyId &&

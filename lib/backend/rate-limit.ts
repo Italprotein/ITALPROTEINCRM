@@ -47,6 +47,41 @@ export async function checkRateLimit(
   return { ok: false, remaining: 0, retryAfterSeconds: windowSeconds };
 }
 
+/**
+ * Read the current window WITHOUT consuming quota. Use this to gate an attempt
+ * before you know whether it will fail, then call checkRateLimit() only on the
+ * failure path — so a successful login never spends quota and an admin cannot
+ * lock themselves out by signing in normally. Fails CLOSED like checkRateLimit.
+ */
+export async function peekRateLimit(
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<RateLimitResult> {
+  const windowMs = windowSeconds * 1000;
+  const windowStart = new Date(Math.floor(Date.now() / windowMs) * windowMs);
+
+  try {
+    const entry = await prisma.rateLimitEntry.findUnique({
+      where: { key_windowStart: { key, windowStart } },
+    });
+    const count = entry?.count ?? 0;
+    const ok = count < limit;
+    return {
+      ok,
+      remaining: Math.max(0, limit - count),
+      retryAfterSeconds: ok ? 0 : Math.ceil((windowStart.getTime() + windowMs - Date.now()) / 1000),
+    };
+  } catch {
+    return { ok: false, remaining: 0, retryAfterSeconds: windowSeconds };
+  }
+}
+
+/** Clear a counter across all windows (e.g. on a successful login). Best effort. */
+export async function resetRateLimit(key: string): Promise<void> {
+  await prisma.rateLimitEntry.deleteMany({ where: { key } }).catch(() => undefined);
+}
+
 /** Best-effort client IP from proxy headers (Vercel/Netlify set x-forwarded-for). */
 export function clientIpFromHeaders(headers: Pick<Headers, "get"> | null | undefined): string {
   const forwarded = headers?.get("x-forwarded-for");

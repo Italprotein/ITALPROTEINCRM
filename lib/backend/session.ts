@@ -25,6 +25,20 @@ export async function requireUser(): Promise<SessionUser> {
 }
 
 /**
+ * Server-side guard for internal-only data (e.g. the staff directory used for
+ * owner name/avatar resolution and assignment pickers). Every internal role may
+ * read it — that is a lookup, not user administration, so do NOT gate this on
+ * the `users` section: business_dev/logistics/finance/rnd have it hidden and
+ * would silently lose owner names across the whole app. External (client
+ * portal) users are refused outright.
+ */
+export async function requireInternal(): Promise<SessionUser> {
+  const user = await requireUser();
+  if (!isInternal(user.role)) throw new Error("FORBIDDEN");
+  return user;
+}
+
+/**
  * Server-side action guard. Mirrors the lib/permissions matrix on the server —
  * the UI hides what a role cannot do, but the server is the authority.
  */
@@ -34,9 +48,20 @@ export async function requireAction(action: Action): Promise<SessionUser> {
   return user;
 }
 
-/** Server-side section guard (route/handler authorization). */
+/** Server-side section guard (route/handler authorization). Read access. */
 export async function requireSection(section: Section): Promise<SessionUser> {
   const user = await requireUser();
   if (!canView(user.role, section)) throw new Error("FORBIDDEN");
+  return user;
+}
+
+/**
+ * Write guard for domains with no matching `Action` in the permissions enum
+ * (tasks, products, activities, …). Requires edit-or-full on the section, so
+ * management_readonly and view-only roles are refused.
+ */
+export async function requireSectionEdit(section: Section): Promise<SessionUser> {
+  const user = await requireUser();
+  if (!canEdit(user.role, section)) throw new Error("FORBIDDEN");
   return user;
 }

@@ -2,7 +2,12 @@
 
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser } from "@/lib/backend/session";
+import {
+  getCurrentUser,
+  requireAction,
+  requireSectionEdit,
+  requireUser,
+} from "@/lib/backend/session";
 import type { Opportunity } from "@/lib/types";
 import { PIPELINE_STAGES } from "@/lib/types";
 import {
@@ -23,6 +28,7 @@ async function scopeWhere(): Promise<Prisma.OpportunityWhereInput> {
 const includeHistory = { stageHistory: true } as const;
 
 export async function listOpportunities(): Promise<Opportunity[]> {
+  await requireUser();
   const rows = await prisma.opportunity.findMany({
     where: await scopeWhere(),
     include: includeHistory,
@@ -32,6 +38,7 @@ export async function listOpportunities(): Promise<Opportunity[]> {
 }
 
 export async function getOpportunity(id: string): Promise<Opportunity | undefined> {
+  await requireUser();
   const rows = await prisma.opportunity.findMany({
     where: { AND: [await scopeWhere(), { id }] },
     include: includeHistory,
@@ -41,12 +48,12 @@ export async function getOpportunity(id: string): Promise<Opportunity | undefine
 }
 
 export async function createOpportunity(input: Opportunity): Promise<Opportunity> {
-  const user = await getCurrentUser();
+  const user = await requireSectionEdit("pipeline");
   const row = await prisma.opportunity.create({
     data: {
-      ...opportunityWriteData(input, user?.id ?? null),
+      ...opportunityWriteData(input, user.id),
       id: input.id,
-      createdById: user?.id ?? null,
+      createdById: user.id,
       stageHistory: { create: stageHistoryCreateData(input.stageHistory ?? []) },
     },
     include: includeHistory,
@@ -58,7 +65,13 @@ export async function updateOpportunity(
   id: string,
   patch: Partial<Opportunity>,
 ): Promise<Opportunity | undefined> {
-  const user = await getCurrentUser();
+  // A patch that moves the stage is the stage-change action; anything else is a
+  // plain pipeline edit. (Both sets resolve to the same roles today — this stays
+  // correct if the matrix later separates them.)
+  const user =
+    patch.stage !== undefined
+      ? await requireAction("pipeline.stage_change")
+      : await requireSectionEdit("pipeline");
   const existing = await prisma.opportunity.findUnique({
     where: { id },
     include: includeHistory,
@@ -69,7 +82,7 @@ export async function updateOpportunity(
   const row = await prisma.opportunity.update({
     where: { id },
     data: {
-      ...opportunityWriteData(merged, user?.id ?? null),
+      ...opportunityWriteData(merged, user.id),
       stageHistory: {
         deleteMany: {},
         create: stageHistoryCreateData(merged.stageHistory ?? []),
@@ -81,11 +94,13 @@ export async function updateOpportunity(
 }
 
 export async function removeOpportunity(id: string): Promise<void> {
+  await requireSectionEdit("pipeline");
   await prisma.opportunityStageHistory.deleteMany({ where: { opportunityId: id } }).catch(() => undefined);
   await prisma.opportunity.delete({ where: { id } }).catch(() => undefined);
 }
 
 export async function opportunitiesByCompany(companyId: string): Promise<Opportunity[]> {
+  await requireUser();
   const rows = await prisma.opportunity.findMany({
     where: { AND: [await scopeWhere(), { companyId }] },
     include: includeHistory,
@@ -95,6 +110,7 @@ export async function opportunitiesByCompany(companyId: string): Promise<Opportu
 }
 
 export async function opportunitiesByStage(): Promise<Record<string, Opportunity[]>> {
+  await requireUser();
   const rows = await prisma.opportunity.findMany({
     where: await scopeWhere(),
     include: includeHistory,
@@ -110,6 +126,9 @@ export async function opportunitiesByStage(): Promise<Record<string, Opportunity
 }
 
 export async function opportunityStatistics() {
+  // `requireUser()` only: the admin dashboard loads this for every internal role
+  // in one Promise.all, and logistics has the pipeline section hidden.
+  await requireUser();
   const rows = await prisma.opportunity.findMany({
     where: await scopeWhere(),
     select: { stage: true, expectedValueMinor: true, probability: true },

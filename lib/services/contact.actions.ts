@@ -2,7 +2,8 @@
 
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser } from "@/lib/backend/session";
+import { getCurrentUser, requireUser, requireAction } from "@/lib/backend/session";
+import { can } from "@/lib/permissions";
 import type { Contact } from "@/lib/types";
 import { contactToDTO, contactWriteData } from "./contact.mapper";
 
@@ -19,6 +20,9 @@ async function scopeWhere(): Promise<Prisma.ContactWhereInput> {
 const include = { portalUser: { select: { id: true } } } satisfies Prisma.ContactInclude;
 
 export async function listContacts(): Promise<Contact[]> {
+  // Authenticated-only: the `contacts` section is hidden for external roles, but
+  // portal users read their own company's team here. scopeWhere() limits them.
+  await requireUser();
   const rows = await prisma.contact.findMany({
     where: await scopeWhere(),
     include,
@@ -28,6 +32,7 @@ export async function listContacts(): Promise<Contact[]> {
 }
 
 export async function getContact(id: string): Promise<Contact | undefined> {
+  await requireUser();
   const rows = await prisma.contact.findMany({
     where: { AND: [await scopeWhere(), { id }] },
     include,
@@ -37,9 +42,15 @@ export async function getContact(id: string): Promise<Contact | undefined> {
 }
 
 export async function createContact(input: Contact): Promise<Contact> {
-  const user = await getCurrentUser();
+  // Internal staff use `contact.edit`; portal company owners add teammates from
+  // their profile page, which is gated on `portal.edit_company`. Requiring
+  // `contact.edit` alone would silently break that portal flow.
+  const actor = await requireUser();
+  if (!can(actor.role, "contact.edit") && !can(actor.role, "portal.edit_company")) {
+    throw new Error("FORBIDDEN");
+  }
   const row = await prisma.contact.create({
-    data: { ...contactWriteData(input, user?.id ?? null), id: input.id, createdById: user?.id ?? null },
+    data: { ...contactWriteData(input, actor.id), id: input.id, createdById: actor.id },
     include,
   });
   return contactToDTO(row);
@@ -49,23 +60,25 @@ export async function updateContact(
   id: string,
   patch: Partial<Contact>,
 ): Promise<Contact | undefined> {
-  const user = await getCurrentUser();
+  const actor = await requireAction("contact.edit");
   const existing = await prisma.contact.findUnique({ where: { id }, include });
   if (!existing) return undefined;
   const merged: Contact = { ...contactToDTO(existing), ...patch };
   const row = await prisma.contact.update({
     where: { id },
-    data: contactWriteData(merged, user?.id ?? null),
+    data: contactWriteData(merged, actor.id),
     include,
   });
   return contactToDTO(row);
 }
 
 export async function removeContact(id: string): Promise<void> {
+  await requireAction("contact.edit");
   await prisma.contact.delete({ where: { id } }).catch(() => undefined);
 }
 
 export async function contactsByCompany(companyId: string): Promise<Contact[]> {
+  await requireUser();
   const rows = await prisma.contact.findMany({
     where: { AND: [await scopeWhere(), { companyId }] },
     include,
@@ -75,6 +88,7 @@ export async function contactsByCompany(companyId: string): Promise<Contact[]> {
 }
 
 export async function searchContacts(q: string): Promise<Contact[]> {
+  await requireUser();
   const s = q.trim();
   if (!s) return listContacts();
   const where: Prisma.ContactWhereInput = {
@@ -100,6 +114,7 @@ export async function searchContacts(q: string): Promise<Contact[]> {
 }
 
 export async function contactStatistics() {
+  await requireUser();
   const rows = await prisma.contact.findMany({
     where: await scopeWhere(),
     select: { isPrimary: true, isTechnical: true, isCommercial: true },

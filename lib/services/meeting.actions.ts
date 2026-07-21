@@ -2,7 +2,7 @@
 
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser } from "@/lib/backend/session";
+import { getCurrentUser, requireSectionEdit, requireUser } from "@/lib/backend/session";
 import type { Meeting } from "@/lib/types";
 import { meetingToDTO, meetingWriteData } from "./meeting.mapper";
 
@@ -31,6 +31,7 @@ async function syncParticipants(meetingId: string, contactIds: string[] | undefi
 }
 
 export async function listMeetings(): Promise<Meeting[]> {
+  await requireUser();
   const rows = await prisma.meeting.findMany({
     where: await scopeWhere(),
     include,
@@ -40,6 +41,7 @@ export async function listMeetings(): Promise<Meeting[]> {
 }
 
 export async function getMeeting(id: string): Promise<Meeting | undefined> {
+  await requireUser();
   const rows = await prisma.meeting.findMany({
     where: { AND: [await scopeWhere(), { id }] },
     include,
@@ -49,12 +51,12 @@ export async function getMeeting(id: string): Promise<Meeting | undefined> {
 }
 
 export async function createMeeting(input: Meeting): Promise<Meeting> {
-  const user = await getCurrentUser();
+  const user = await requireSectionEdit("calendar");
   await prisma.meeting.create({
     data: {
-      ...meetingWriteData(input, user?.id ?? null),
+      ...meetingWriteData(input, user.id),
       id: input.id,
-      createdById: user?.id ?? null,
+      createdById: user.id,
     },
   });
   await syncParticipants(input.id, input.contactIds);
@@ -67,21 +69,23 @@ export async function updateMeeting(
   id: string,
   patch: Partial<Meeting>,
 ): Promise<Meeting | undefined> {
-  const user = await getCurrentUser();
+  const user = await requireSectionEdit("calendar");
   const existing = await prisma.meeting.findUnique({ where: { id }, include });
   if (!existing) return undefined;
   const merged: Meeting = { ...meetingToDTO(existing), ...patch };
-  await prisma.meeting.update({ where: { id }, data: meetingWriteData(merged, user?.id ?? null) });
+  await prisma.meeting.update({ where: { id }, data: meetingWriteData(merged, user.id) });
   if (patch.contactIds !== undefined) await syncParticipants(id, merged.contactIds);
   const row = await prisma.meeting.findUnique({ where: { id }, include });
   return meetingToDTO(row!);
 }
 
 export async function removeMeeting(id: string): Promise<void> {
+  await requireSectionEdit("calendar");
   await prisma.meeting.delete({ where: { id } }).catch(() => undefined);
 }
 
 export async function meetingsByCompany(companyId: string): Promise<Meeting[]> {
+  await requireUser();
   const rows = await prisma.meeting.findMany({
     where: { AND: [await scopeWhere(), { companyId }] },
     include,
@@ -91,6 +95,10 @@ export async function meetingsByCompany(companyId: string): Promise<Meeting[]> {
 }
 
 export async function upcomingMeetings(now: Date = new Date()): Promise<Meeting[]> {
+  // `requireUser()` only: the client portal dashboard calls this for external
+  // users, who have no `calendar` section at all. Company scoping below is the
+  // boundary that keeps them to their own meetings.
+  await requireUser();
   const rows = await prisma.meeting.findMany({
     where: { AND: [await scopeWhere(), { status: "scheduled", start: { gte: now } }] },
     include,
@@ -104,6 +112,7 @@ export async function meetingStatistics(): Promise<{
   scheduled: number;
   completed: number;
 }> {
+  await requireUser();
   const rows = await prisma.meeting.findMany({
     where: await scopeWhere(),
     select: { status: true },

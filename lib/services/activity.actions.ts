@@ -2,7 +2,7 @@
 
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser } from "@/lib/backend/session";
+import { getCurrentUser, requireUser, requireSectionEdit } from "@/lib/backend/session";
 import type { Activity, ActivityType } from "@/lib/types";
 import { activityToDTO, activityWriteData } from "./activity.mapper";
 
@@ -17,6 +17,9 @@ async function scopeWhere(): Promise<Prisma.ActivityWhereInput> {
 }
 
 export async function listActivities(): Promise<Activity[]> {
+  // Authenticated-only: `activities` is hidden for external roles, but the portal
+  // timeline reads through these helpers; scopeWhere() confines it to own company.
+  await requireUser();
   const rows = await prisma.activity.findMany({
     where: await scopeWhere(),
     orderBy: { occurredAt: "desc" },
@@ -25,6 +28,7 @@ export async function listActivities(): Promise<Activity[]> {
 }
 
 export async function getActivity(id: string): Promise<Activity | undefined> {
+  await requireUser();
   const rows = await prisma.activity.findMany({
     where: { AND: [await scopeWhere(), { id }] },
     take: 1,
@@ -33,6 +37,8 @@ export async function getActivity(id: string): Promise<Activity | undefined> {
 }
 
 export async function createActivity(input: Activity): Promise<Activity> {
+  // No `activity.*` Action exists, so gate on edit-or-full of the section.
+  await requireSectionEdit("activities");
   const row = await prisma.activity.create({
     data: { ...activityWriteData(input), id: input.id },
   });
@@ -43,6 +49,7 @@ export async function updateActivity(
   id: string,
   patch: Partial<Activity>,
 ): Promise<Activity | undefined> {
+  await requireSectionEdit("activities");
   const existing = await prisma.activity.findUnique({ where: { id } });
   if (!existing) return undefined;
   const merged: Activity = { ...activityToDTO(existing), ...patch };
@@ -51,10 +58,12 @@ export async function updateActivity(
 }
 
 export async function removeActivity(id: string): Promise<void> {
+  await requireSectionEdit("activities");
   await prisma.activity.delete({ where: { id } }).catch(() => undefined);
 }
 
 export async function activitiesByCompany(companyId: string): Promise<Activity[]> {
+  await requireUser();
   const rows = await prisma.activity.findMany({
     where: { AND: [await scopeWhere(), { companyId }] },
     orderBy: { occurredAt: "desc" },
@@ -63,6 +72,7 @@ export async function activitiesByCompany(companyId: string): Promise<Activity[]
 }
 
 export async function recentActivities(limit = 12): Promise<Activity[]> {
+  await requireUser();
   const rows = await prisma.activity.findMany({
     where: await scopeWhere(),
     orderBy: { occurredAt: "desc" },
@@ -72,6 +82,7 @@ export async function recentActivities(limit = 12): Promise<Activity[]> {
 }
 
 export async function activitiesByType(type: ActivityType): Promise<Activity[]> {
+  await requireUser();
   const rows = await prisma.activity.findMany({
     where: { AND: [await scopeWhere(), { type }] },
     orderBy: { occurredAt: "desc" },
@@ -81,6 +92,7 @@ export async function activitiesByType(type: ActivityType): Promise<Activity[]> 
 
 /** Client-visible activities for a portal company. */
 export async function activitiesForPortal(companyId: string): Promise<Activity[]> {
+  await requireUser();
   const rows = await prisma.activity.findMany({
     where: { AND: [await scopeWhere(), { companyId, visibility: "client" }] },
     orderBy: { occurredAt: "desc" },
@@ -89,6 +101,7 @@ export async function activitiesForPortal(companyId: string): Promise<Activity[]
 }
 
 export async function activityStatistics() {
+  await requireUser();
   const rows = await prisma.activity.findMany({
     where: await scopeWhere(),
     select: { type: true },

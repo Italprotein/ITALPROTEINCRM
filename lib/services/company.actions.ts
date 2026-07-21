@@ -2,7 +2,8 @@
 
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser } from "@/lib/backend/session";
+import { getCurrentUser, requireUser, requireAction } from "@/lib/backend/session";
+import { can } from "@/lib/permissions";
 import type { Company } from "@/lib/types";
 import type { CompanyQuery } from "@/lib/mock-services/companyService";
 import { companyToDTO, companyWriteData } from "./company.mapper";
@@ -38,44 +39,61 @@ function queryWhere(q: CompanyQuery): Prisma.CompanyWhereInput {
 }
 
 export async function listCompanies(query: CompanyQuery = {}): Promise<Company[]> {
+  // Authenticated-only, not section-gated: the `companies` section is hidden for
+  // external roles, but portal users legitimately read their own company here —
+  // scopeWhere() below is what limits them to it.
+  await requireUser();
   const where: Prisma.CompanyWhereInput = { AND: [await scopeWhere(), queryWhere(query)] };
   const rows = await prisma.company.findMany({ where, orderBy: { legalName: "asc" } });
   return rows.map(companyToDTO);
 }
 
 export async function getCompany(id: string): Promise<Company | undefined> {
+  await requireUser();
   const rows = await prisma.company.findMany({ where: { AND: [await scopeWhere(), { id }] }, take: 1 });
   return rows[0] ? companyToDTO(rows[0]) : undefined;
 }
 
 export async function createCompany(input: Company): Promise<Company> {
-  const user = await getCurrentUser();
+  const actor = await requireAction("company.create");
   const row = await prisma.company.create({
-    data: { ...companyWriteData(input, user?.id ?? null), id: input.id, createdById: user?.id ?? null },
+    data: { ...companyWriteData(input, actor.id), id: input.id, createdById: actor.id },
   });
   return companyToDTO(row);
 }
 
 export async function updateCompany(id: string, patch: Partial<Company>): Promise<Company | undefined> {
-  const user = await getCurrentUser();
+  // Two legitimate callers: internal staff with `company.edit`, and portal
+  // company owners editing their own profile via `portal.edit_company`
+  // (app/[locale]/portal/profile gates its form on exactly that action).
+  // Gating on `company.edit` alone would silently break the portal form.
+  const actor = await requireUser();
+  if (!can(actor.role, "company.edit") && !can(actor.role, "portal.edit_company")) {
+    throw new Error("FORBIDDEN");
+  }
   const existing = await prisma.company.findUnique({ where: { id } });
   if (!existing) return undefined;
   const merged: Company = { ...companyToDTO(existing), ...patch };
-  const row = await prisma.company.update({ where: { id }, data: companyWriteData(merged, user?.id ?? null) });
+  const row = await prisma.company.update({ where: { id }, data: companyWriteData(merged, actor.id) });
   return companyToDTO(row);
 }
 
 export async function removeCompany(id: string): Promise<void> {
+  // No `company.delete` action exists; deletion is at least as privileged as
+  // editing, and `company.edit` is internal-only, which is the intent here.
+  await requireAction("company.edit");
   await prisma.company.delete({ where: { id } }).catch(() => undefined);
 }
 
 export async function countCompanies(): Promise<number> {
+  await requireUser();
   return prisma.company.count({ where: await scopeWhere() });
 }
 
 export async function companiesByCountry(): Promise<
   { country: string; countryCode: string; count: number }[]
 > {
+  await requireUser();
   const rows = await prisma.company.findMany({
     where: await scopeWhere(),
     select: { country: true, countryCode: true },
@@ -90,6 +108,7 @@ export async function companiesByCountry(): Promise<
 }
 
 export async function companiesByType(): Promise<{ type: Company["type"]; count: number }[]> {
+  await requireUser();
   const grouped = await prisma.company.groupBy({
     by: ["type"],
     where: await scopeWhere(),
@@ -101,6 +120,7 @@ export async function companiesByType(): Promise<{ type: Company["type"]; count:
 }
 
 export async function companyStatistics() {
+  await requireUser();
   const rows = await prisma.company.findMany({
     where: await scopeWhere(),
     select: {

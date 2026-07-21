@@ -2,7 +2,7 @@
 
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser } from "@/lib/backend/session";
+import { getCurrentUser, requireUser, requireAction } from "@/lib/backend/session";
 import type { Shipment } from "@/lib/types";
 import { deriveShipmentStatus } from "@/lib/mock-services/shipmentService";
 import { shipmentToDTO, shipmentWriteData } from "./shipment.mapper";
@@ -22,7 +22,11 @@ function daysBetween(a?: string, b?: string): number | null {
   return Number.isFinite(d) ? Math.round(d) : null;
 }
 
+// Reads are `requireUser()`, never `requireSection('shipments')`: the portal
+// tracks shipments but `shipments` is not a PortalSection, so a section gate
+// would silently blank shipment tracking for every external user.
 export async function listShipments(): Promise<Shipment[]> {
+  await requireUser();
   const rows = await prisma.shipment.findMany({
     where: await scopeWhere(),
     orderBy: { createdAt: "desc" },
@@ -31,6 +35,7 @@ export async function listShipments(): Promise<Shipment[]> {
 }
 
 export async function getShipment(id: string): Promise<Shipment | undefined> {
+  await requireUser();
   const rows = await prisma.shipment.findMany({
     where: { AND: [await scopeWhere(), { id }] },
     take: 1,
@@ -38,13 +43,15 @@ export async function getShipment(id: string): Promise<Shipment | undefined> {
   return rows[0] ? shipmentToDTO(rows[0]) : undefined;
 }
 
+// Shipment writes are internal logistics work — the portal only ever reads
+// shipments, so `shipment.update` (super_admin, crm_admin, logistics) is safe.
 export async function createShipment(input: Shipment): Promise<Shipment> {
-  const user = await getCurrentUser();
+  const user = await requireAction("shipment.update");
   const row = await prisma.shipment.create({
     data: {
-      ...shipmentWriteData(input, user?.id ?? null),
+      ...shipmentWriteData(input, user.id),
       id: input.id,
-      createdById: user?.id ?? null,
+      createdById: user.id,
     },
   });
   return shipmentToDTO(row);
@@ -54,22 +61,24 @@ export async function updateShipment(
   id: string,
   patch: Partial<Shipment>,
 ): Promise<Shipment | undefined> {
-  const user = await getCurrentUser();
+  const user = await requireAction("shipment.update");
   const existing = await prisma.shipment.findUnique({ where: { id } });
   if (!existing) return undefined;
   const merged: Shipment = { ...shipmentToDTO(existing), ...patch };
   const row = await prisma.shipment.update({
     where: { id },
-    data: shipmentWriteData(merged, user?.id ?? null),
+    data: shipmentWriteData(merged, user.id),
   });
   return shipmentToDTO(row);
 }
 
 export async function removeShipment(id: string): Promise<void> {
+  await requireAction("shipment.update");
   await prisma.shipment.delete({ where: { id } }).catch(() => undefined);
 }
 
 export async function shipmentsByCompany(companyId: string): Promise<Shipment[]> {
+  await requireUser();
   const rows = await prisma.shipment.findMany({
     where: { AND: [await scopeWhere(), { companyId }] },
     orderBy: { createdAt: "desc" },
@@ -78,6 +87,7 @@ export async function shipmentsByCompany(companyId: string): Promise<Shipment[]>
 }
 
 export async function shipmentsBySample(sampleRequestId: string): Promise<Shipment[]> {
+  await requireUser();
   const rows = await prisma.shipment.findMany({
     where: { AND: [await scopeWhere(), { sampleRequestId }] },
     orderBy: { createdAt: "desc" },
@@ -86,6 +96,7 @@ export async function shipmentsBySample(sampleRequestId: string): Promise<Shipme
 }
 
 export async function shipmentStatistics() {
+  await requireUser();
   const rows = await prisma.shipment.findMany({ where: await scopeWhere() });
   const all = rows.map(shipmentToDTO);
   const delivered = all.filter((s) => !!s.actualDelivery);

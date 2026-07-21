@@ -2,7 +2,13 @@
 
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser } from "@/lib/backend/session";
+import {
+  getCurrentUser,
+  requireUser,
+  requireInternal,
+  requireAction,
+  requireSectionEdit,
+} from "@/lib/backend/session";
 import type { NDA, NDAStatus } from "@/lib/types";
 import { ndaToDTO, ndaWriteData } from "./nda.mapper";
 
@@ -30,7 +36,13 @@ const NOTIFY_STATUSES: NDAStatus[] = [
   "fully_signed",
 ];
 
+// Recording a signature is the transition the permissions matrix reserves for
+// `nda.mark_signed` (business_dev may prepare/send but never mark signed).
+const SIGNATURE_STATUSES: NDAStatus[] = ["partially_signed", "fully_signed"];
+
 export async function listNdas(): Promise<NDA[]> {
+  // Internal NDA register — no portal surface reads the unscoped list.
+  await requireInternal();
   const rows = await prisma.nDA.findMany({
     where: await scopeWhere(),
     include: INCLUDE,
@@ -40,6 +52,8 @@ export async function listNdas(): Promise<NDA[]> {
 }
 
 export async function getNda(id: string): Promise<NDA | undefined> {
+  // Scoped read: `scopeWhere()` already limits external users to their company.
+  await requireUser();
   const rows = await prisma.nDA.findMany({
     where: { AND: [await scopeWhere(), { id }] },
     include: INCLUDE,
@@ -49,9 +63,9 @@ export async function getNda(id: string): Promise<NDA | undefined> {
 }
 
 export async function createNda(input: NDA): Promise<NDA> {
-  const user = await getCurrentUser();
+  const user = await requireAction("nda.prepare");
   const row = await prisma.nDA.create({
-    data: { ...ndaWriteData(input, user?.id ?? null), id: input.id, createdById: user?.id ?? null },
+    data: { ...ndaWriteData(input, user.id), id: input.id, createdById: user.id },
     include: INCLUDE,
   });
   // TODO: if input.status is in NOTIFY_STATUSES, dispatch the e-signature / email
@@ -60,14 +74,20 @@ export async function createNda(input: NDA): Promise<NDA> {
 }
 
 export async function updateNda(id: string, patch: Partial<NDA>): Promise<NDA | undefined> {
-  const user = await getCurrentUser();
+  // Baseline: only internal roles with edit rights on the NDA register may write.
+  const user = await requireSectionEdit("ndas");
   const existing = await prisma.nDA.findUnique({ where: { id }, include: INCLUDE });
   if (!existing) return undefined;
   const previousStatus = existing.status;
   const merged: NDA = { ...ndaToDTO(existing), ...patch };
+  // Lifecycle transitions carry their own action rights on top of the baseline.
+  if (merged.status !== previousStatus) {
+    if (merged.status === "sent") await requireAction("nda.send");
+    if (SIGNATURE_STATUSES.includes(merged.status)) await requireAction("nda.mark_signed");
+  }
   const row = await prisma.nDA.update({
     where: { id },
-    data: ndaWriteData(merged, user?.id ?? null),
+    data: ndaWriteData(merged, user.id),
     include: INCLUDE,
   });
   // TODO: a transition into a NOTIFY_STATUSES status (e.g. `sent`, `fully_signed`)
@@ -80,10 +100,14 @@ export async function updateNda(id: string, patch: Partial<NDA>): Promise<NDA | 
 }
 
 export async function removeNda(id: string): Promise<void> {
+  await requireSectionEdit("ndas");
   await prisma.nDA.delete({ where: { id } }).catch(() => undefined);
 }
 
 export async function ndasByCompany(companyId: string): Promise<NDA[]> {
+  // Portal-facing (dashboard + profile show the company's own NDA state);
+  // `scopeWhere()` keeps external users inside their own company.
+  await requireUser();
   const rows = await prisma.nDA.findMany({
     where: { AND: [await scopeWhere(), { companyId }] },
     include: INCLUDE,
@@ -93,6 +117,8 @@ export async function ndasByCompany(companyId: string): Promise<NDA[]> {
 }
 
 export async function ndaStatistics() {
+  // Shared counts widget — keep at the authenticated bar (scoped by scopeWhere).
+  await requireUser();
   const NOW = new Date();
   const AWAITING: NDAStatus[] = [
     "sent",

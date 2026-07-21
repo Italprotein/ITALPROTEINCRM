@@ -2,7 +2,7 @@
 
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser } from "@/lib/backend/session";
+import { requireAction, requireInternal, requireSection } from "@/lib/backend/session";
 import type { InternalRole } from "@/lib/types";
 import type { StaffMember } from "@/fixtures";
 import { userInclude, userToDTO, userWriteData } from "./user.mapper";
@@ -21,6 +21,7 @@ async function roleIdForKey(key: InternalRole): Promise<string | null> {
 }
 
 export async function listUsers(): Promise<StaffMember[]> {
+  await requireInternal();
   const rows = await prisma.user.findMany({
     where: staffWhere(),
     include: userInclude,
@@ -30,6 +31,7 @@ export async function listUsers(): Promise<StaffMember[]> {
 }
 
 export async function getUser(id: string): Promise<StaffMember | undefined> {
+  await requireSection("users");
   const rows = await prisma.user.findMany({
     where: { AND: [staffWhere(), { id }] },
     include: userInclude,
@@ -39,7 +41,7 @@ export async function getUser(id: string): Promise<StaffMember | undefined> {
 }
 
 export async function createUser(input: StaffMember): Promise<StaffMember> {
-  const actor = await getCurrentUser();
+  const actor = await requireAction("user.manage");
   const roleId = await roleIdForKey(input.role);
   if (!roleId) {
     // No matching role row — surface the input back rather than throwing so the
@@ -49,11 +51,11 @@ export async function createUser(input: StaffMember): Promise<StaffMember> {
   }
   const row = await prisma.user.create({
     data: {
-      ...userWriteData(input, actor?.id ?? null),
+      ...userWriteData(input, actor.id),
       id: input.id,
       kind: "internal",
       role: { connect: { id: roleId } },
-      createdById: actor?.id ?? null,
+      createdById: actor.id,
     },
     include: userInclude,
   });
@@ -65,7 +67,7 @@ export async function updateUser(
   id: string,
   patch: Partial<StaffMember>,
 ): Promise<StaffMember | undefined> {
-  const actor = await getCurrentUser();
+  const actor = await requireAction("user.manage");
   const existing = await prisma.user.findFirst({
     where: { AND: [staffWhere(), { id }] },
     include: userInclude,
@@ -76,7 +78,7 @@ export async function updateUser(
   const row = await prisma.user.update({
     where: { id },
     data: {
-      ...userWriteData(merged, actor?.id ?? null),
+      ...userWriteData(merged, actor.id),
       ...(roleId ? { role: { connect: { id: roleId } } } : {}),
     },
     include: userInclude,
@@ -85,10 +87,12 @@ export async function updateUser(
 }
 
 export async function removeUser(id: string): Promise<void> {
+  await requireAction("user.manage");
   await prisma.user.delete({ where: { id } }).catch(() => undefined);
 }
 
 export async function usersByRole(role: InternalRole): Promise<StaffMember[]> {
+  await requireInternal();
   const rows = await prisma.user.findMany({
     where: { AND: [staffWhere(), { role: { key: role } }] },
     include: userInclude,
@@ -98,10 +102,12 @@ export async function usersByRole(role: InternalRole): Promise<StaffMember[]> {
 }
 
 export async function assignedCompanyCount(id: string): Promise<number> {
+  await requireSection("users");
   return prisma.company.count({ where: { ownerUserId: id } });
 }
 
 export async function userStatistics() {
+  await requireSection("users");
   const rows = await prisma.user.findMany({
     where: staffWhere(),
     select: { status: true, role: { select: { key: true } } },

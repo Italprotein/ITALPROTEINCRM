@@ -2,7 +2,7 @@
 
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser } from "@/lib/backend/session";
+import { getCurrentUser, requireAction, requireSection, requireUser } from "@/lib/backend/session";
 import type { FinanceDocument, FinanceDocKind, PaymentStatus } from "@/lib/types";
 import {
   makeId,
@@ -91,6 +91,7 @@ function sortByIssueDesc(docs: FinanceDocument[]): FinanceDocument[] {
 }
 
 export async function listFinanceDocuments(): Promise<FinanceDocument[]> {
+  await requireSection("finance");
   const scope = await companyScope();
   const [quotes, orders, invoices, creditNotes] = await Promise.all([
     loadQuotes(scope),
@@ -102,6 +103,7 @@ export async function listFinanceDocuments(): Promise<FinanceDocument[]> {
 }
 
 export async function getFinanceDocument(id: string): Promise<FinanceDocument | undefined> {
+  await requireSection("finance");
   const parsed = parseId(id);
   if (!parsed) return undefined;
   const scope = await companyScope();
@@ -137,8 +139,8 @@ export async function getFinanceDocument(id: string): Promise<FinanceDocument | 
 
 // ── Create ───────────────────────────────────────────────────────────────────
 export async function createFinanceDocument(input: FinanceDocument): Promise<FinanceDocument> {
-  const user = await getCurrentUser();
-  const actorId = user?.id ?? null;
+  const user = await requireAction("finance.edit");
+  const actorId = user.id;
   const kind: FinanceDocKind = input.kind;
   const parsed = parseId(input.id);
   const rowId = parsed?.rowId ?? input.id; // accept composite or raw id
@@ -211,10 +213,10 @@ export async function updateFinanceDocument(
   id: string,
   patch: Partial<FinanceDocument>,
 ): Promise<FinanceDocument | undefined> {
+  const user = await requireAction("finance.edit");
   const parsed = parseId(id);
   if (!parsed) return undefined;
-  const user = await getCurrentUser();
-  const actorId = user?.id ?? null;
+  const actorId = user.id;
   const { kind, rowId } = parsed;
 
   const existing = await getFinanceDocument(id);
@@ -264,6 +266,7 @@ export async function updateFinanceDocument(
 
 // ── Remove ───────────────────────────────────────────────────────────────────
 export async function removeFinanceDocument(id: string): Promise<void> {
+  await requireAction("finance.edit");
   const parsed = parseId(id);
   if (!parsed) return;
   const { kind, rowId } = parsed;
@@ -280,6 +283,13 @@ export async function removeFinanceDocument(id: string): Promise<void> {
 
 // ── Derived collections ──────────────────────────────────────────────────────
 export async function financeDocumentsByCompany(companyId: string): Promise<FinanceDocument[]> {
+  // Deliberately only `requireUser()`, NOT `requireSection('finance')`: the company
+  // detail page loads this in an unconditional Promise.all alongside contacts,
+  // samples, shipments … for every internal role. rnd_technical and logistics have
+  // finance hidden, so a section guard here would reject and take the whole page
+  // down with it. Company scoping below is what keeps external users to their own
+  // documents (and is what serves the portal's own quote/payment views).
+  await requireUser();
   const scope = await companyScope();
   // Honor scoping: an external user may only read their own company.
   if (scope !== undefined && scope !== companyId) return [];
@@ -294,6 +304,7 @@ export async function financeDocumentsByCompany(companyId: string): Promise<Fina
 }
 
 export async function financeDocumentsByKind(kind: FinanceDocKind): Promise<FinanceDocument[]> {
+  await requireSection("finance");
   const scope = await companyScope();
   const map: Record<FinanceDocKind, (s: string | null | undefined) => Promise<FinanceDocument[]>> = {
     quote: loadQuotes,
@@ -306,6 +317,7 @@ export async function financeDocumentsByKind(kind: FinanceDocKind): Promise<Fina
 
 // ── Statistics (mirror of the mock aggregation) ──────────────────────────────
 export async function financeStatistics() {
+  await requireSection("finance");
   const all = await listFinanceDocuments();
   const invoices = all.filter((d) => d.kind === "invoice");
   const byStatus = {} as Record<PaymentStatus, number>;

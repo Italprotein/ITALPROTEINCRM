@@ -2,7 +2,7 @@
 
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser } from "@/lib/backend/session";
+import { getCurrentUser, requireUser } from "@/lib/backend/session";
 import type { Agency } from "@/lib/mock-services/agencyService";
 import { agencyToDTO } from "./agency.mapper";
 
@@ -24,12 +24,18 @@ async function scopeWhere(): Promise<Prisma.CompanyWhereInput> {
 }
 
 export async function listAgencies(): Promise<Agency[]> {
+  // Authenticated-only rather than requireSection('agencies'): that section is
+  // hidden for external roles, and scopeWhere() below deliberately supports an
+  // external partner reading its own record. Section-gating would make that
+  // branch dead code and change existing scoping behaviour.
+  await requireUser();
   const where: Prisma.CompanyWhereInput = { AND: [await scopeWhere(), PARTNER_TYPES] };
   const rows = await prisma.company.findMany({ where, orderBy: { legalName: "asc" } });
   return rows.map(agencyToDTO);
 }
 
 export async function getAgency(id: string): Promise<Agency | undefined> {
+  await requireUser();
   const rows = await prisma.company.findMany({
     where: { AND: [await scopeWhere(), PARTNER_TYPES, { id }] },
     take: 1,
@@ -44,6 +50,7 @@ export async function agencyStatistics(): Promise<{
   totalLeads: number;
   avgConversionRate: number;
 }> {
+  await requireUser();
   const all = await listAgencies();
   const active = all.filter((a) => a.meta.agreementStatus === "active").length;
   const totalCompaniesIntroduced = all.reduce(

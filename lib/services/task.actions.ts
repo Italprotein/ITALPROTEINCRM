@@ -2,7 +2,7 @@
 
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser } from "@/lib/backend/session";
+import { getCurrentUser, requireSectionEdit, requireUser } from "@/lib/backend/session";
 import type { Task } from "@/lib/types";
 import { taskToDTO, taskWriteData } from "./task.mapper";
 
@@ -26,6 +26,7 @@ const sameDay = (a: Date, b: Date) =>
   a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
 
 export async function listTasks(): Promise<Task[]> {
+  await requireUser();
   const rows = await prisma.task.findMany({
     where: await scopeWhere(),
     include: INCLUDE,
@@ -35,6 +36,7 @@ export async function listTasks(): Promise<Task[]> {
 }
 
 export async function getTask(id: string): Promise<Task | undefined> {
+  await requireUser();
   const rows = await prisma.task.findMany({
     where: { AND: [await scopeWhere(), { id }] },
     include: INCLUDE,
@@ -44,12 +46,12 @@ export async function getTask(id: string): Promise<Task | undefined> {
 }
 
 export async function createTask(input: Task): Promise<Task> {
-  const user = await getCurrentUser();
+  const user = await requireSectionEdit("tasks");
   const row = await prisma.task.create({
     data: {
-      ...taskWriteData(input, user?.id ?? null),
+      ...taskWriteData(input, user.id),
       id: input.id,
-      createdById: user?.id ?? null,
+      createdById: user.id,
       collaborators: input.collaboratorIds?.length
         ? { create: input.collaboratorIds.map((userId) => ({ userId })) }
         : undefined,
@@ -59,7 +61,7 @@ export async function createTask(input: Task): Promise<Task> {
               authorUserId: c.byUserId,
               body: c.body,
               createdAt: new Date(c.at),
-              createdById: user?.id ?? null,
+              createdById: user.id,
             })),
           }
         : undefined,
@@ -70,7 +72,7 @@ export async function createTask(input: Task): Promise<Task> {
 }
 
 export async function updateTask(id: string, patch: Partial<Task>): Promise<Task | undefined> {
-  const user = await getCurrentUser();
+  const user = await requireSectionEdit("tasks");
   const existing = await prisma.task.findUnique({ where: { id }, include: INCLUDE });
   if (!existing) return undefined;
   const merged: Task = { ...taskToDTO(existing), ...patch };
@@ -93,24 +95,26 @@ export async function updateTask(id: string, patch: Partial<Task>): Promise<Task
             authorUserId: c.byUserId,
             body: c.body,
             createdAt: new Date(c.at),
-            createdById: user?.id ?? null,
+            createdById: user.id,
           })),
         }
       : undefined;
 
   const row = await prisma.task.update({
     where: { id },
-    data: { ...taskWriteData(merged, user?.id ?? null), collaborators, comments },
+    data: { ...taskWriteData(merged, user.id), collaborators, comments },
     include: INCLUDE,
   });
   return taskToDTO(row);
 }
 
 export async function removeTask(id: string): Promise<void> {
+  await requireSectionEdit("tasks");
   await prisma.task.delete({ where: { id } }).catch(() => undefined);
 }
 
 export async function tasksByOwner(ownerId: string): Promise<Task[]> {
+  await requireUser();
   const rows = await prisma.task.findMany({
     where: { AND: [await scopeWhere(), { ownerUserId: ownerId }] },
     include: INCLUDE,
@@ -120,6 +124,7 @@ export async function tasksByOwner(ownerId: string): Promise<Task[]> {
 }
 
 export async function tasksByCompany(companyId: string): Promise<Task[]> {
+  await requireUser();
   const rows = await prisma.task.findMany({
     where: { AND: [await scopeWhere(), { companyId }] },
     include: INCLUDE,
@@ -129,6 +134,7 @@ export async function tasksByCompany(companyId: string): Promise<Task[]> {
 }
 
 export async function tasksOverdue(now: Date = new Date()): Promise<Task[]> {
+  await requireUser();
   const startOfDay = new Date(now.toISOString().slice(0, 10) + "T00:00:00.000Z");
   const rows = await prisma.task.findMany({
     where: {
@@ -145,6 +151,7 @@ export async function tasksOverdue(now: Date = new Date()): Promise<Task[]> {
 }
 
 export async function tasksDueToday(now: Date = new Date()): Promise<Task[]> {
+  await requireUser();
   const start = new Date(now.toISOString().slice(0, 10) + "T00:00:00.000Z");
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   const rows = await prisma.task.findMany({
@@ -162,6 +169,7 @@ export async function tasksDueToday(now: Date = new Date()): Promise<Task[]> {
 }
 
 export async function tasksUpcoming(now: Date = new Date()): Promise<Task[]> {
+  await requireUser();
   const endOfDay = new Date(now.toISOString().slice(0, 10) + "T00:00:00.000Z");
   endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
   const rows = await prisma.task.findMany({
@@ -179,6 +187,7 @@ export async function tasksUpcoming(now: Date = new Date()): Promise<Task[]> {
 }
 
 export async function taskStatistics(now: Date = new Date()) {
+  await requireUser();
   const rows = await prisma.task.findMany({
     where: await scopeWhere(),
     select: { status: true, dueDate: true, ownerUserId: true },

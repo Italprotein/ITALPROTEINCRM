@@ -31,6 +31,16 @@ const BodySchema = z.object({
 /** How many turns of history we replay. Bounds both the prompt and the query. */
 const HISTORY_LIMIT = 20;
 
+/**
+ * The public (marketing) assistant is not exposed on the site yet and the model
+ * call is still stubbed, so anonymous access buys nothing and costs something:
+ * an unauthenticated POST creates assistant threads and messages in the
+ * database from anyone on the internet — and would become real model spend the
+ * moment the runtime is wired. Refuse anonymous callers until that ships.
+ * Flip to true, deliberately, when the public assistant goes live.
+ */
+const ALLOW_PUBLIC_ASSISTANT = false;
+
 interface Actor {
   audience: AssistantAudience;
   userId: string | null;
@@ -48,6 +58,10 @@ export async function POST(request: Request) {
 
   const session = await auth();
   const user = session?.user ?? null;
+
+  if (!user && !ALLOW_PUBLIC_ASSISTANT) {
+    return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
+  }
 
   // The audience is resolved from the verified session — a caller cannot ask for
   // a wider one. No session at all means the public (marketing) assistant.

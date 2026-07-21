@@ -4,7 +4,12 @@ import bcrypt from "bcryptjs";
 
 import { authConfig } from "@/auth.config";
 import { prisma } from "@/lib/backend/prisma";
-import { checkRateLimit, clientIpFromHeaders } from "@/lib/backend/rate-limit";
+import {
+  checkRateLimit,
+  clientIpFromHeaders,
+  peekRateLimit,
+  resetRateLimit,
+} from "@/lib/backend/rate-limit";
 
 // Full Auth.js config (Node runtime). Email + password via the Credentials
 // provider, verified against User.passwordHash with bcrypt. Sessions are JWT
@@ -24,11 +29,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!email || !password) return null;
 
         const ip = clientIpFromHeaders(request?.headers);
-        const [byIp, byEmail] = await Promise.all([
-          checkRateLimit(`login:ip:${ip}`, 30, 15 * 60),
-          checkRateLimit(`login:email:${email}`, 8, 15 * 60),
-        ]);
-        if (!byIp.ok || !byEmail.ok) return null;
+        // Volumetric guard: every attempt spends per-IP quota.
+        const byIp = await checkRateLimit(`login:ip:${ip}`, 30, 15 * 60);
+        if (!byIp.ok) return null;
+
+        // Per-account guard counts FAILURES only — peek here, consume on the
+        // failure path below, clear on success. Counting successful sign-ins
+        // (the previous behaviour) meant an admin could lock themselves out by
+        // logging in normally, and let anyone deny login AND password reset to
+        // a known admin with ~11 junk requests. All 7 addresses are guessable.
+        const failKey = `login:fail:${email}`;
+        const byEmail = await peekRateLimit(failKey, 8, 15 * 60);
+        if (!byEmail.ok) return null;
 
         const user = await prisma.user.findUnique({
           where: { email },
@@ -42,6 +54,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) {
+          // Only a wrong password spends the per-account budget.
+          await checkRateLimit(failKey, 8, 15 * 60);
           await prisma.auditEvent
             .create({
               data: {
@@ -57,6 +71,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             .catch(() => undefined);
           return null;
         }
+
+        // Correct password: wipe the failure budget so earlier typos (or an
+        // attacker burning it) never lock the real owner out.
+        await resetRateLimit(failKey);
 
         // Best-effort last-login stamp; never block sign-in on this.
         await prisma.user
