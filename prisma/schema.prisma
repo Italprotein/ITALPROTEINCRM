@@ -110,6 +110,11 @@ enum EmailLogStatus {
   skipped
 }
 
+enum EmailDirection {
+  inbound
+  outbound
+}
+
 enum RegistrationStatus {
   submitted
   email_verification
@@ -146,6 +151,8 @@ enum NotificationType {
   task_overdue
   support_request
   invoice_overdue
+  password_reset
+  manual_email
 }
 
 /**
@@ -469,6 +476,7 @@ enum GoogleScope {
   drive_metadata_readonly
   documents
   gmail_send
+  gmail_readonly
 }
 
 enum GoogleTokenStatus {
@@ -745,6 +753,11 @@ model User {
   supportMessages           SupportMessage[]   @relation("SupportMessageAuthorUser")
   assistantThreads          AssistantThread[]  @relation("AssistantThreadUser")
   confirmedAssistantActions AssistantMessage[] @relation("AssistantMessageConfirmedBy")
+
+  // Gmail-sync / lead / password-reset back-relations
+  matchedEmailMessages EmailMessage[]      @relation("EmailMessageMatchedAdmin")
+  leads                Lead[]              @relation("LeadAdmin")
+  passwordResetCodes   PasswordResetCode[] @relation("UserPasswordResetCodes")
 
   @@index([roleId])
   @@index([companyId])
@@ -1694,6 +1707,7 @@ model Attachment {
   sizeBytes        Int?
   mimeType         String?
   storageKey       String?
+  bytes            Bytes?
   documentId       String?
   uploadedByUserId String?
   uploadedAt       DateTime?
@@ -2327,4 +2341,106 @@ model AssistantCitation {
   @@index([targetType, targetId])
   @@index([citedDocumentId])
   @@map("assistant_citations")
+}
+
+/**
+ * ══════════════════════════════ Gmail sync / leads / auth hardening ══════════════════════════════
+ */
+
+// A Gmail message synced into the CRM (inbound inbox mail or outbound mail sent
+// from the admin UI). gmailMessageId is the dedupe key across sync runs.
+model EmailMessage {
+  id                 String         @id @default(cuid())
+  gmailMessageId     String         @unique
+  gmailThreadId      String
+  direction          EmailDirection
+  fromAddress        String
+  fromName           String?
+  toAddresses        String[]
+  ccAddresses        String[]
+  subject            String?
+  snippet            String?
+  bodyText           String?
+  internalDate       DateTime
+  hasAttachments     Boolean        @default(false)
+  attachmentNames    String[]
+  ndaDetected        Boolean        @default(false)
+  ndaId              String?
+  matchedAdminUserId String?
+  leadId             String?
+  companyId          String?
+  sentByUserId       String?
+  syncedAt           DateTime       @default(now())
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  matchedAdmin User? @relation("EmailMessageMatchedAdmin", fields: [matchedAdminUserId], references: [id], onDelete: SetNull)
+  lead         Lead? @relation("LeadEmailMessages", fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([direction])
+  @@index([internalDate])
+  @@index([gmailThreadId])
+  @@index([matchedAdminUserId])
+  @@index([companyId])
+  @@map("email_messages")
+}
+
+// "My Leads": one row per (admin, company name) extracted from Gmail
+// ("Dear <admin>" greeting or the admin's signature on the first sent mail in
+// the thread). Stores only the counterparty company NAME by design.
+model Lead {
+  id           String   @id @default(cuid())
+  companyName  String
+  adminUserId  String
+  sourceDomain String?
+  source       String   @default("gmail")
+  emailCount   Int      @default(1)
+  firstSeenAt  DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  admin    User           @relation("LeadAdmin", fields: [adminUserId], references: [id], onDelete: Cascade)
+  messages EmailMessage[] @relation("LeadEmailMessages")
+
+  @@unique([adminUserId, companyName])
+  @@index([adminUserId])
+  @@map("leads")
+}
+
+// Six-digit password-reset codes, stored hashed. A code is valid until
+// expiresAt, for at most a fixed number of attempts, and only once.
+model PasswordResetCode {
+  id        String    @id @default(cuid())
+  userId    String
+  email     String
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int       @default(0)
+  usedAt    DateTime?
+  requestIp String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation("UserPasswordResetCodes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([email])
+  @@index([expiresAt])
+  @@map("password_reset_codes")
+}
+
+// Fixed-window rate-limit counters (login, password reset, mail send, sync).
+// key encodes scope + subject, e.g. "login:ip:1.2.3.4" or "reset:email:x@y".
+model RateLimitEntry {
+  id          String   @id @default(cuid())
+  key         String
+  windowStart DateTime
+  count       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([key, windowStart])
+  @@index([windowStart])
+  @@map("rate_limit_entries")
 }

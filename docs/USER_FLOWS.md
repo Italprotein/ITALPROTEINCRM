@@ -1,5 +1,7 @@
 # ITALPROTEIN CRM — User Flows
 
+> **⚠️ STATUS UPDATE — 2026-07-10 (backend now built).** The prototype disclaimer below ("everything runs entirely in the frontend … Email sending is simulated … Demo Mode … no passwords") is **outdated** for auth and email. Real flows now exist: credential login at `/en/team-login`, forgot-password with a six-digit code sent via the connected Gmail mailbox (`app/[locale]/forgot-password/`), and real outbound Gmail send. Data reads/writes hit the real backend when `NEXT_PUBLIC_DATA_MODE=api`. Flows still marked **[Future]** (e.g. external-portal self-login, e-signature) remain unbuilt — see [`docs/LAUNCH_RUNBOOK.md`](./LAUNCH_RUNBOOK.md).
+
 **Project:** ITALPROTEIN CRM (working prototype)
 **Owner:** Italprotein Srl — Proamina&reg; commercial operations
 **Phase:** Frontend-first prototype (mock service layer, no production backend)

@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 
 import { sampleService, companyService, shipmentService, feedbackService, deriveShipmentStatus } from '@/lib/mock-services';
-import { authService } from '@/lib/mock-services/authService';
+import { useStaffDirectory } from '@/lib/hooks/use-staff';
+import { useSession } from '@/components/providers/session-provider';
 import type {
   SampleRequest,
   SampleStatus,
@@ -59,12 +60,6 @@ import { toast } from '@/components/ui/use-toast';
 
 /* ────────────────────────────── Helpers ────────────────────────────── */
 
-function ownerName(id: string | undefined, unassignedLabel: string): string {
-  if (!id) return unassignedLabel;
-  const a = authService.getAccount(id);
-  return a ? `${a.firstName} ${a.lastName}` : unassignedLabel;
-}
-
 const ADVANCE_STAGES: SampleStatus[] = [
   'under_review',
   'approved',
@@ -83,6 +78,8 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
   const locale = useLocale() as Locale;
   const t = useTranslations('AdminSampleDetail');
   const router = useRouter();
+  const { nameOf } = useStaffDirectory();
+  const { account } = useSession();
 
   const [sample, setSample] = React.useState<SampleRequest | null>(null);
   const [notFound, setNotFound] = React.useState(false);
@@ -122,12 +119,12 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
   /* ── mutations (mock) ── */
   function applyStatus(status: SampleStatus, extra?: Partial<SampleRequest>) {
     if (!sample) return;
-    const today = '2026-06-17';
+    const today = new Date().toISOString().slice(0, 10);
     const next: SampleRequest = {
       ...sample,
       status,
       ...extra,
-      statusHistory: [...sample.statusHistory, { status, at: today, byUserId: 'u_giuseppe' }],
+      statusHistory: [...sample.statusHistory, { status, at: today, byUserId: account?.id }],
     };
     setSample(next);
     void sampleService.update(sample.id, {
@@ -139,7 +136,7 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
 
   function approve() {
     if (!sample) return;
-    applyStatus('approved', { approvedQuantity: sample.requestedQuantity, approvalDate: '2026-06-17' });
+    applyStatus('approved', { approvedQuantity: sample.requestedQuantity, approvalDate: new Date().toISOString().slice(0, 10) });
     toast({
       variant: 'success',
       title: t('sampleApprovedTitle'),
@@ -323,9 +320,9 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
           value={
             <span className="inline-flex items-center gap-2">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-navy/10 text-2xs font-semibold text-brand-navy">
-                {initials(ownerName(sample.accountOwnerId, t('unassigned')))}
+                {initials(nameOf(sample.accountOwnerId, t('unassigned')))}
               </span>
-              {ownerName(sample.accountOwnerId, t('unassigned'))}
+              {nameOf(sample.accountOwnerId, t('unassigned'))}
             </span>
           }
         />
@@ -352,7 +349,7 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
                       <span className="text-xs text-muted-foreground">{formatDate(ev.at, locale)}</span>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {t('timelineBy', { name: ownerName(ev.byUserId, t('unassigned')) })}
+                      {t('timelineBy', { name: nameOf(ev.byUserId, t('unassigned')) })}
                       {ev.note ? <span className="text-foreground"> — {ev.note}</span> : null}
                     </p>
                   </li>

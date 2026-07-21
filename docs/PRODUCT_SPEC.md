@@ -1,5 +1,7 @@
 # ITALPROTEIN CRM — Product Specification
 
+> **⚠️ STATUS UPDATE — 2026-07-10 (backend now built).** The "Phase" label and prototype disclaimer below ("no production database, no real backend, and no live third-party integrations") are **outdated.** The product now has a real PostgreSQL/**Prisma** backend, **Auth.js** login, and live **Gmail**. The personas, lifecycle, statuses, and taxonomy in this spec remain accurate and canonical — only the phase framing is stale. See [`docs/LAUNCH_RUNBOOK.md`](./LAUNCH_RUNBOOK.md) for launch status.
+
 **Project:** ITALPROTEIN CRM (working prototype)
 **Owner:** Italprotein Srl — Proamina&reg; commercial operations
 **Phase:** Frontend-first prototype (mock service layer, no production backend)

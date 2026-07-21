@@ -11,11 +11,8 @@ import {
   meetingStatistics,
 } from "./meeting.actions";
 
-// Mirrors the mock service's fixed "now" default for upcoming() so the contract
-// (and demo data window) is identical when DATA_MODE switches to api.
-const NOW = new Date("2026-06-17T12:00:00Z");
 
-// Real (Prisma-backed) meetingService — contract-identical to the mock service.
+// Real (Prisma-backed) meetingService, contract-identical to the mock service.
 export const meetingService: MeetingService = {
   list: () => listMeetings(),
   get: (id: string) => getMeeting(id),
@@ -25,6 +22,6 @@ export const meetingService: MeetingService = {
   remove: (id: string) => removeMeeting(id),
   reset: () => {},
   byCompany: (companyId: string) => meetingsByCompany(companyId),
-  upcoming: (now: Date = NOW) => upcomingMeetings(now),
+  upcoming: (now?: Date) => upcomingMeetings(now),
   getStatistics: () => meetingStatistics(),
 };

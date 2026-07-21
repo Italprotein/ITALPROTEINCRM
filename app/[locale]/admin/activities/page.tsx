@@ -7,7 +7,9 @@ import {
   Truck, MessageSquareText, FileText, StickyNote, Plus, Search, Receipt, UserPlus,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { activityService, companyService, authService } from '@/lib/mock-services';
+import { activityService, companyService } from '@/lib/mock-services';
+import { useStaffDirectory } from '@/lib/hooks/use-staff';
+import { useSession } from '@/components/providers/session-provider';
 import type { Activity, ActivityType, Company } from '@/lib/types';
 import { getLabel, humanize } from '@/lib/labels';
 import { formatDate, formatRelative } from '@/lib/formatting';
@@ -50,6 +52,7 @@ const TYPE_OPTIONS: ActivityType[] = ['email', 'call', 'meeting', 'note', 'nda_e
 
 export default function ActivitiesPage() {
   const t = useTranslations('AdminActivities');
+  const staff = useStaffDirectory();
   const [rows, setRows] = React.useState<Activity[] | null>(null);
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
   const [stats, setStats] = React.useState<Awaited<ReturnType<typeof activityService.getStatistics>> | null>(null);
@@ -65,7 +68,7 @@ export default function ActivitiesPage() {
 
   const userName = (id?: string) => {
     if (!id) return t('systemUser');
-    const a = authService.getAccount(id);
+    const a = staff.get(id);
     return a ? `${a.firstName} ${a.lastName}` : humanize(id.replace('u_', ''));
   };
 
@@ -190,6 +193,7 @@ function LogActivityDialog({ open, onOpenChange, companies, onLogged }: {
   open: boolean; onOpenChange: (o: boolean) => void; companies: Company[]; onLogged: (a: Activity) => void;
 }) {
   const t = useTranslations('AdminActivities');
+  const { account } = useSession();
   const [type, setType] = React.useState<ActivityType>('call');
   const [companyId, setCompanyId] = React.useState('');
   const [title, setTitle] = React.useState('');
@@ -203,7 +207,7 @@ function LogActivityDialog({ open, onOpenChange, companies, onLogged }: {
     await new Promise((r) => setTimeout(r, 450));
     const a: Activity = {
       id: uid('ac'), type, companyId: companyId || undefined, title: title.trim(),
-      body: body.trim() || undefined, byUserId: 'u_giuseppe', visibility: 'internal',
+      body: body.trim() || undefined, byUserId: account?.id, visibility: 'internal',
       at: new Date().toISOString(),
     };
     await activityService.create(a);

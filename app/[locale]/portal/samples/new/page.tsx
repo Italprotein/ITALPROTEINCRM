@@ -44,8 +44,8 @@ import { getLabel } from '@/lib/labels';
 import { uid, cn } from '@/lib/utils';
 import { formatQuantity } from '@/lib/formatting';
 
-const NOW_ISO = '2026-06-17T12:00:00Z';
-const NOW_DATE = '2026-06-17';
+const NOW_ISO = new Date().toISOString();
+const NOW_DATE = NOW_ISO.slice(0, 10);
 const DEFAULT_PRODUCT = 'Proamina® 100% Protein Sweetener';
 
 const UNITS: QuantityUnit[] = ['g', 'kg', 'units', 'sachets', 'boxes', 'l', 'ml'];

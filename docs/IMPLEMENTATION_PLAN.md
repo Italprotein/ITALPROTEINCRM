@@ -1,5 +1,7 @@
 # Italprotein CRM — Implementation Plan
 
+> **⚠️ STATUS UPDATE — 2026-07-10 (backend now built).** The "Phase status" note below ("no production database, no real backend, and no live integrations") is **outdated.** The backend is now real: PostgreSQL + **Prisma**, **Auth.js** login, **22 server-action services** (switchable via `NEXT_PUBLIC_DATA_MODE=api`), and live **Gmail**. The unchecked Phase B–E boxes below no longer reflect reality — for the authoritative current state and remaining launch tasks, use [`README.md`](../README.md) and [`docs/LAUNCH_RUNBOOK.md`](./LAUNCH_RUNBOOK.md).
+
 > **Living checklist.** This document is updated **after every completed section**. When a section is finished, tick its box, add the completion date in the changelog, and confirm any downstream sections it unblocks. Treat unchecked items as not-yet-started or in-progress.
 >
 > **Phase status:** This is a **frontend-first prototype**. There is **no production database, no real backend, and no live integrations**. All data is served by an async, typed **mock service layer** that reads TypeScript/JSON fixtures with a **localStorage overlay** for demo mutations. Wherever a checklist item touches data, it is mocked today; "Backend handoff" (Phase E) records exactly where a real backend, auth provider, file store, payment/finance system, carrier tracking, and email/notification service will later connect.

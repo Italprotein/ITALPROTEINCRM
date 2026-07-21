@@ -1,13 +1,14 @@
 import { setRequestLocale } from 'next-intl/server';
 import { AppShell } from '@/components/crm/app-shell';
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
-  setRequestLocale(params.locale);
+  const { locale } = await params;
+  setRequestLocale(locale);
   return <AppShell>{children}</AppShell>;
 }

@@ -21,7 +21,7 @@ import {
 
 // Real (Prisma-backed) analyticsService — contract-identical to the mock service.
 // Cross-module read-only aggregator; every method delegates to a server action.
-// `_now` matches the mock's reference clock (the active demo window anchor).
+// `_now` is the real clock (the mock keeps its own demo anchor).
 export const analyticsService: AnalyticsService = {
   companiesOverTime: () => companiesOverTime(),
   companiesByCountry: () => companiesByCountry(),
@@ -40,5 +40,5 @@ export const analyticsService: AnalyticsService = {
   topMarkets: () => topMarkets(),
   topApplications: () => topApplications(),
   feedbackResults: () => feedbackResults(),
-  _now: new Date("2026-06-17T12:00:00Z"),
+  _now: new Date(),
 };

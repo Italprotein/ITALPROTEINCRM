@@ -21,6 +21,8 @@ import {
   CalendarClock,
   UserPlus,
   CircleCheck,
+  KeyRound,
+  Mail,
   Check,
   ChevronRight,
   type LucideIcon,
@@ -52,8 +54,8 @@ import {
 } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
 
-/** Fixed "now" so relative times and Today/Earlier grouping stay deterministic. */
-const NOW = new Date('2026-06-17T12:00:00Z');
+/** Current time for relative times and Today/Earlier grouping. */
+const NOW = new Date();
 
 /** Type → icon, so each row gets a recognisable chip. */
 const TYPE_ICONS: Record<NotificationType, LucideIcon> = {
@@ -77,6 +79,8 @@ const TYPE_ICONS: Record<NotificationType, LucideIcon> = {
   task_overdue: AlertTriangle,
   support_request: MessageCircle,
   invoice_overdue: Receipt,
+  password_reset: KeyRound,
+  manual_email: Mail,
 };
 
 /** Tone → background / text / left-border classes for the icon chip + unread accent. */

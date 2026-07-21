@@ -23,7 +23,6 @@ import {
 import { Link, useRouter } from '@/lib/i18n/navigation';
 import {
   agencyService,
-  authService,
   companyService,
   contactService,
   documentService,
@@ -32,6 +31,7 @@ import {
   taskService,
   type Agency,
 } from '@/lib/mock-services';
+import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import type { Company, Contact, DocumentRecord, Activity, NDA, Task } from '@/lib/types';
 import { formatRelative, formatDate, formatNumber, flagEmoji } from '@/lib/formatting';
 import { humanize, getLabel } from '@/lib/labels';
@@ -49,28 +49,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { toast } from '@/components/ui/use-toast';
 
-type AgreementStatus = Agency['meta']['agreementStatus'];
-
-const AGREEMENT_TONE: Record<AgreementStatus, Parameters<typeof Badge>[0]['variant']> = {
-  none: 'muted',
-  draft: 'warning',
-  active: 'success',
-  expired: 'danger',
-};
-
-const AGREEMENT_LABEL_KEY: Record<AgreementStatus, string> = {
-  none: 'agreementNone',
-  draft: 'agreementDraft',
-  active: 'agreementActive',
-  expired: 'agreementExpired',
-};
-
-function ownerName(id?: string, unassignedLabel = 'Unassigned'): string {
-  if (!id) return unassignedLabel;
-  const a = authService.getAccount(id);
-  return a ? `${a.firstName} ${a.lastName}` : unassignedLabel;
-}
-
 function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
@@ -78,6 +56,7 @@ function pct(value: number): string {
 export default function AgencyDetailPage({ params }: { params: { id: string } }) {
   const t = useTranslations('AdminAgencyDetail');
   const router = useRouter();
+  const { nameOf } = useStaffDirectory();
   const [agency, setAgency] = useState<Agency | null | undefined>(undefined);
   const [introduced, setIntroduced] = useState<Company[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -165,7 +144,7 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">{humanize(a.meta.agencyType)}</Badge>
-            <Badge variant={AGREEMENT_TONE[a.meta.agreementStatus]}>{t(AGREEMENT_LABEL_KEY[a.meta.agreementStatus])}</Badge>
+            <StatusBadge kind="agreementStatus" value={a.meta.agreementStatus} />
             {a.website && (
               <Button variant="outline" size="sm" asChild>
                 <a href={a.website} target="_blank" rel="noreferrer">
@@ -203,7 +182,7 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
         </span>
         <span className="inline-flex items-center gap-1.5">
           <Users className="h-4 w-4" />
-          {t('ownerLabel')} <span className="font-medium text-foreground">{ownerName(a.accountOwnerId, t('unassigned'))}</span>
+          {t('ownerLabel')} <span className="font-medium text-foreground">{nameOf(a.accountOwnerId, t('unassigned'))}</span>
         </span>
         <span className="inline-flex items-center gap-1.5">
           <CalendarClock className="h-4 w-4" />
@@ -253,7 +232,7 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
                     label={t('cooperationModel')}
                     value={a.cooperationModel ? getLabel('cooperationModel', a.cooperationModel) : '—'}
                   />
-                  <Fact icon={Users} label={t('accountOwner')} value={ownerName(a.accountOwnerId, t('unassigned'))} />
+                  <Fact icon={Users} label={t('accountOwner')} value={nameOf(a.accountOwnerId, t('unassigned'))} />
                   <Fact
                     icon={CalendarClock}
                     label={t('firstContact')}
@@ -328,7 +307,7 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
                 <CardContent className="space-y-3 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">{t('agreement')}</span>
-                    <Badge variant={AGREEMENT_TONE[a.meta.agreementStatus]}>{t(AGREEMENT_LABEL_KEY[a.meta.agreementStatus])}</Badge>
+                    <StatusBadge kind="agreementStatus" value={a.meta.agreementStatus} />
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">{t('nda')}</span>
@@ -562,7 +541,7 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
                       </div>
                       {act.body && <p className="mt-1 text-sm text-muted-foreground">{act.body}</p>}
                       {act.byUserId && (
-                        <p className="mt-1 text-xs text-muted-foreground">{t('byUser', { user: ownerName(act.byUserId, t('unassigned')) })}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{t('byUser', { user: nameOf(act.byUserId, t('unassigned')) })}</p>
                       )}
                     </li>
                   ))}
@@ -645,7 +624,7 @@ export default function AgencyDetailPage({ params }: { params: { id: string } })
                         <TableCell>
                           <StatusBadge kind="taskType" value={task.type} />
                         </TableCell>
-                        <TableCell className="text-sm">{ownerName(task.ownerId, t('unassigned'))}</TableCell>
+                        <TableCell className="text-sm">{nameOf(task.ownerId, t('unassigned'))}</TableCell>
                         <TableCell>
                           <PriorityBadge value={task.priority} />
                         </TableCell>

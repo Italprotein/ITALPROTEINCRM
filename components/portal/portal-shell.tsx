@@ -13,6 +13,7 @@ import { Logo } from '@/components/brand/logo';
 import { LanguageSwitcher } from '@/components/i18n/language-switcher';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { AccountMenu } from '@/components/navigation/account-menu';
+import { Amina } from '@/components/assistant/amina';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { setLabelLocale } from '@/lib/labels';
@@ -105,6 +106,9 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           {tc('company')} — Proamina® {new Date().getFullYear()}
         </div>
       </footer>
+
+      {/* Amina Partner — the API scopes every answer to this user's company. */}
+      <Amina />
     </div>
   );
 }

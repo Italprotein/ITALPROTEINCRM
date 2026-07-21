@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { format, subMonths } from 'date-fns';
 import {
   Banknote,
   Wallet,
@@ -109,21 +110,14 @@ const CURRENCIES: Currency[] = ['EUR', 'USD', 'GBP', 'CHF'];
 /** Indicative fixed rates → EUR, so a single-currency revenue trend is coherent. */
 const TO_EUR: Record<Currency, number> = { EUR: 1, USD: 0.92, GBP: 1.17, CHF: 1.04 };
 
-/** Trailing 10 months: 2025-09 … 2026-06. */
-const TREND_MONTHS = ['2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06'];
+/** Trailing 10 months ending at the current month. */
+const TREND_MONTH_DATES = Array.from({ length: 10 }, (_, i) => subMonths(new Date(), 9 - i));
 
-const MONTH_LABELS: Record<string, string> = {
-  '2025-09': 'Sep 25',
-  '2025-10': 'Oct 25',
-  '2025-11': 'Nov 25',
-  '2025-12': 'Dec 25',
-  '2026-01': 'Jan 26',
-  '2026-02': 'Feb 26',
-  '2026-03': 'Mar 26',
-  '2026-04': 'Apr 26',
-  '2026-05': 'May 26',
-  '2026-06': 'Jun 26',
-};
+const TREND_MONTHS = TREND_MONTH_DATES.map((d) => format(d, 'yyyy-MM'));
+
+const MONTH_LABELS: Record<string, string> = Object.fromEntries(
+  TREND_MONTH_DATES.map((d) => [format(d, 'yyyy-MM'), format(d, 'MMM yy')]),
+);
 
 /* ────────────────────────────── Helpers ────────────────────────────── */
 

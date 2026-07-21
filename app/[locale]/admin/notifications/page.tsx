@@ -27,7 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { toast } from '@/components/ui/use-toast';
 
 const ALL = '__all__';
-const TODAY = '2026-06-17';
+const TODAY = new Date().toISOString().slice(0, 10);
 
 const ICON: Partial<Record<NotificationType, LucideIcon>> = {
   nda_sent: FileSignature, nda_changes_requested: FileSignature, nda_signed: FileSignature, nda_expiring: FileSignature,

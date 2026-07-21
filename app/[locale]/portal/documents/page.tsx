@@ -62,21 +62,21 @@ import { toast } from '@/components/ui/use-toast';
 
 const LOCALE: Locale = 'en';
 
-/** File-type → icon. */
-function fileIcon(fileType: string): LucideIcon {
+/** File-type icon. */
+function FileTypeIcon({ fileType, className }: { fileType: string; className?: string }) {
   switch (fileType.toLowerCase()) {
     case 'xlsx':
     case 'csv':
-      return FileSpreadsheet;
+      return <FileSpreadsheet className={className} />;
     case 'png':
     case 'jpg':
     case 'jpeg':
-      return FileImage;
+      return <FileImage className={className} />;
     case 'pptx':
     case 'ppt':
-      return Presentation;
+      return <Presentation className={className} />;
     default:
-      return FileText;
+      return <FileText className={className} />;
   }
 }
 
@@ -417,12 +417,11 @@ function DocumentCard({
   onPreview: () => void;
   onSign: () => void;
 }) {
-  const Icon = fileIcon(doc.fileType);
   return (
     <div className="flex h-full flex-col rounded-lg border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-start gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-navy/5 text-brand-navy">
-          <Icon className="h-5 w-5" />
+          <FileTypeIcon fileType={doc.fileType} className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium leading-snug" title={doc.name}>
@@ -474,11 +473,10 @@ function DocumentRow({
   onPreview: () => void;
   onSign: () => void;
 }) {
-  const Icon = fileIcon(doc.fileType);
   return (
     <div className="flex items-center gap-3 p-3">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-navy/5 text-brand-navy">
-        <Icon className="h-4 w-4" />
+        <FileTypeIcon fileType={doc.fileType} className="h-4 w-4" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium" title={doc.name}>
@@ -516,7 +514,6 @@ function categoryTone(category: DocumentCategory) {
 }
 
 function PreviewSheet({ doc, onOpenChange }: { doc: DocumentRecord | null; onOpenChange: (open: boolean) => void }) {
-  const Icon = doc ? fileIcon(doc.fileType) : FileText;
   return (
     <Sheet open={!!doc} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="max-w-lg">
@@ -533,7 +530,7 @@ function PreviewSheet({ doc, onOpenChange }: { doc: DocumentRecord | null; onOpe
 
             <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed bg-muted/40 p-8 text-center">
               <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-xl bg-brand-navy/5 text-brand-navy">
-                <Icon className="h-8 w-8" />
+                <FileTypeIcon fileType={doc.fileType} className="h-8 w-8" />
               </span>
               <p className="text-sm font-medium">Preview not available yet</p>
               <p className="mt-1 max-w-xs text-xs text-muted-foreground">

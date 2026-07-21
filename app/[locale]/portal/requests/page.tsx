@@ -21,12 +21,12 @@ import {
   sampleService,
   shipmentService,
   contactService,
-  authService,
 } from '@/lib/mock-services';
+import { useStaffDirectory } from '@/lib/hooks/use-staff';
+import type { StaffMember } from '@/fixtures';
 import type {
   Company,
   Contact,
-  UserAccount,
   SupportRequest,
   SupportCategory,
   SampleRequest,
@@ -72,7 +72,8 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/use-toast';
 
-const NOW_ISO = '2026-06-17T12:00:00Z';
+/** Real current time, taken fresh at each use so message timestamps are accurate. */
+const nowIso = () => new Date().toISOString();
 
 const CATEGORY_OPTIONS: SupportCategory[] = [
   'technical_question',
@@ -103,8 +104,8 @@ export default function PortalRequestsPage() {
   const companyId = session?.companyId;
   const role = session?.role;
 
+  const { get: getStaff } = useStaffDirectory();
   const [company, setCompany] = React.useState<Company | null>(null);
-  const [owner, setOwner] = React.useState<UserAccount | null>(null);
   const [threads, setThreads] = React.useState<SupportRequest[]>([]);
   const [samples, setSamples] = React.useState<SampleRequest[]>([]);
   const [shipments, setShipments] = React.useState<Shipment[]>([]);
@@ -134,7 +135,6 @@ export default function PortalRequestsPage() {
       if (!alive) return;
       const sorted = [...reqs].sort(sortByRecent);
       setCompany(c ?? null);
-      setOwner(c ? authService.getAccount(c.accountOwnerId) ?? null : null);
       setThreads(sorted);
       setSamples(smp);
       setShipments(shp);
@@ -155,6 +155,8 @@ export default function PortalRequestsPage() {
   }, [ready, companyId, account?.email, account?.id]);
 
   const canSend = role ? can(role, 'portal.request_meeting') || true : true;
+
+  const owner: StaffMember | null = company ? getStaff(company.accountOwnerId) ?? null : null;
 
   const selected = React.useMemo(
     () => threads.find((t) => t.id === selectedId) ?? null,
@@ -179,7 +181,7 @@ export default function PortalRequestsPage() {
     if (!selected || !reply.trim()) return;
     setSending(true);
     const body = reply.trim();
-    const entry = { byContactId: meContact?.id, body, at: NOW_ISO };
+    const entry = { byContactId: meContact?.id, body, at: nowIso() };
     const nextConversation = [...selected.conversation, entry];
     // Re-open the thread for staff if it was waiting on the client.
     const nextStatus = selected.status === 'waiting_on_client' ? 'in_progress' : selected.status;
@@ -218,6 +220,7 @@ export default function PortalRequestsPage() {
   }) {
     if (!companyId) return;
     const seq = String(7 + threads.length).padStart(4, '0');
+    const at = nowIso();
     const description = payload.relatedRef
       ? `${payload.message}\n\nRelated: ${payload.relatedRef}`
       : payload.message;
@@ -232,9 +235,9 @@ export default function PortalRequestsPage() {
       priority: payload.priority,
       status: 'open',
       assignedOwnerId: owner?.id ?? company?.accountOwnerId,
-      conversation: [{ byContactId: meContact?.id, body: payload.message.trim(), at: NOW_ISO }],
+      conversation: [{ byContactId: meContact?.id, body: payload.message.trim(), at }],
       attachments: payload.attachments.length ? payload.attachments : undefined,
-      createdAt: NOW_ISO,
+      createdAt: at,
     };
 
     await new Promise((r) => setTimeout(r, 500));
@@ -370,7 +373,7 @@ export default function PortalRequestsPage() {
                           <PriorityBadge value={t.priority} />
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          Updated {formatRelative(lastUpdatedAt(t), 'en', new Date(NOW_ISO))}
+                          Updated {formatRelative(lastUpdatedAt(t), 'en', new Date())}
                         </span>
                       </button>
                     </li>
@@ -430,7 +433,7 @@ function ThreadDetail({
   onBack,
 }: {
   thread: SupportRequest;
-  owner: UserAccount | null;
+  owner: StaffMember | null;
   meName: string;
   reply: string;
   setReply: (v: string) => void;
@@ -586,7 +589,7 @@ function ComposeDialog({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  owner: UserAccount | null;
+  owner: StaffMember | null;
   samples: SampleRequest[];
   shipments: Shipment[];
   onCreate: (payload: {
@@ -640,7 +643,7 @@ function ComposeDialog({
         name: `attachment-${n}.pdf`,
         fileType: 'pdf',
         sizeKb: 240,
-        uploadedAt: NOW_ISO,
+        uploadedAt: nowIso(),
       },
     ]);
   }

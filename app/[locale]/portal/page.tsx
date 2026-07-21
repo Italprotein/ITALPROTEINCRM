@@ -28,7 +28,6 @@ import { Link } from '@/lib/i18n/navigation';
 import { useSession } from '@/components/providers/session-provider';
 import {
   companyService,
-  authService,
   sampleService,
   shipmentService,
   ndaService,
@@ -40,9 +39,9 @@ import {
   notificationService,
   contactService,
 } from '@/lib/mock-services';
+import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import type {
   Company,
-  UserAccount,
   SampleRequest,
   Shipment,
   NDA,
@@ -69,7 +68,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 
-const NOW = new Date('2026-06-17T12:00:00Z');
+const NOW = new Date();
 
 /** Sample statuses that are no longer "active" (the request is finished). */
 const SAMPLE_CLOSED: SampleStatus[] = ['delivered', 'receipt_confirmed', 'closed', 'cancelled', 'feedback_received', 'rejected'];
@@ -79,7 +78,6 @@ const NEEDS_FEEDBACK: SampleStatus[] = ['receipt_confirmed', 'testing', 'feedbac
 
 interface DashboardData {
   company: Company;
-  owner: UserAccount | null;
   samples: SampleRequest[];
   shipments: Shipment[];
   ndas: NDA[];
@@ -94,6 +92,7 @@ interface DashboardData {
 
 export default function PortalDashboard() {
   const { account, session, ready } = useSession();
+  const { get: getStaff } = useStaffDirectory();
   const [data, setData] = React.useState<DashboardData | null>(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -136,7 +135,6 @@ export default function PortalDashboard() {
       if (!active) return;
       setData({
         company,
-        owner: authService.getAccount(company.accountOwnerId) ?? null,
         samples,
         shipments,
         ndas,
@@ -170,7 +168,8 @@ export default function PortalDashboard() {
     );
   }
 
-  const { company, owner, samples, shipments, documents, feedback, meetings, activities, support } = data;
+  const { company, samples, shipments, documents, feedback, meetings, activities, support } = data;
+  const owner = getStaff(company.accountOwnerId);
 
   /* ── Derived metrics ── */
   const activeSamples = samples.filter((s) => !SAMPLE_CLOSED.includes(s.status));

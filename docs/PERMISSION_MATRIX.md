@@ -1,5 +1,7 @@
 # Permission Matrix — ITALPROTEIN CRM
 
+> **⚠️ STATUS UPDATE — 2026-07-10.** A real backend (PostgreSQL + Prisma + Auth.js) now exists, so the "client-side only, no server-side enforcement" disclaimer below is outdated. **However, server-side enforcement is still PARTIAL:** read paths are company-scoped for external users, but per-mutation role/action guards (`requireAction` in `lib/backend/session.ts`) are defined yet **not yet wired into most create/update/delete actions**, and several write paths are not re-scoped (an IDOR risk). Closing this gap is a critical pre-launch task tracked in [`docs/LAUNCH_RUNBOOK.md`](./LAUNCH_RUNBOOK.md). The role→section/action tables below remain the canonical source of truth; do not treat this matrix as fully enforced yet.
+
 **Project:** ITALPROTEIN CRM (working prototype)
 **Owner:** Italprotein Srl — Proamina&reg; commercial operations
 **Phase:** Frontend-first prototype (Demo Mode)

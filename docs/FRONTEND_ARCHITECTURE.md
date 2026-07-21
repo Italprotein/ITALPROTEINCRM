@@ -1,5 +1,7 @@
 # ITALPROTEIN CRM — Frontend Architecture
 
+> **⚠️ STATUS UPDATE — 2026-07-10 (backend now built).** The header/disclaimer below ("No backend, DB, API, or integration has been built") is **outdated.** `lib/mock-services` is no longer the only data seam: a parallel real services layer (`lib/services/*.actions.ts` server actions + `*.mapper.ts`) now exists and the app selects between them at runtime via `NEXT_PUBLIC_DATA_MODE` (`mock` vs `api`) in `lib/mock-services/index.ts`. Auth is real **Auth.js**, not Demo Mode. Note: the typed domain model is `lib/types.ts` (a single file). See [`README.md`](../README.md).
+
 **Project:** ITALPROTEIN CRM — bilingual (EN/IT) B2B CRM prototype for **Italprotein Srl** and its **Proamina®** protein-sweetener business.
 **Phase:** **Frontend-first prototype.** No production database, no real backend, no live integrations.
 **Last updated:** 2026-06-16

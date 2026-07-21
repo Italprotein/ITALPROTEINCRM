@@ -6,12 +6,13 @@ import { Boxes, Rocket, FlaskConical, Sparkles, Plus, Search } from 'lucide-reac
 import { productService, companyService } from '@/lib/mock-services';
 import type { Product, Company, ApplicationCategory } from '@/lib/types';
 import { APPLICATION_CATEGORIES } from '@/lib/types';
-import { getLabel, humanize } from '@/lib/labels';
+import { getLabel } from '@/lib/labels';
 import { formatDate } from '@/lib/formatting';
 import { uid } from '@/lib/utils';
 import { Link } from '@/lib/i18n/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
+import { StatusBadge } from '@/components/shared/status-badge';
 import { ChartCard, DonutChart, CHART_COLORS } from '@/components/charts/chart-kit';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Stagger, StaggerItem } from '@/components/shared/motion';
@@ -28,9 +29,6 @@ import { toast } from '@/components/ui/use-toast';
 
 const ALL = '__all__';
 const STATUSES: Product['status'][] = ['in_development', 'tested', 'launched', 'archived'];
-const statusTone: Record<Product['status'], 'success' | 'info' | 'warning' | 'muted'> = {
-  launched: 'success', tested: 'info', in_development: 'warning', archived: 'muted',
-};
 
 export default function ProductsPage() {
   const t = useTranslations('AdminProducts');
@@ -99,7 +97,7 @@ export default function ProductsPage() {
                 <SelectTrigger className="h-10 w-[150px]"><SelectValue placeholder={t('statusPlaceholder')} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL}>{t('allStatuses')}</SelectItem>
-                  {STATUSES.map((s) => <SelectItem key={s} value={s}>{humanize(s)}</SelectItem>)}
+                  {STATUSES.map((s) => <SelectItem key={s} value={s}>{getLabel('productStatus', s)}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={fCat} onValueChange={setFCat}>
@@ -124,7 +122,7 @@ export default function ProductsPage() {
                       <div className="h-full rounded-lg border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
                         <div className="flex items-start justify-between gap-2">
                           <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-gold/15 text-brand-goldDark"><Boxes className="h-5 w-5" /></span>
-                          <Badge variant={statusTone[p.status]}>{humanize(p.status)}</Badge>
+                          <StatusBadge kind="productStatus" value={p.status} />
                         </div>
                         <h3 className="mt-3 font-semibold leading-tight">{p.name}</h3>
                         {p.brandName && <p className="text-sm text-muted-foreground">{p.brandName}</p>}

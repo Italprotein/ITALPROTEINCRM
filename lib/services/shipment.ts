@@ -15,10 +15,7 @@ import {
 } from "./shipment.actions";
 
 // Real (Prisma-backed) shipmentService — contract-identical to the mock service.
-// deriveStatus reuses the shared pure helper; _now mirrors the mock's reference
-// "now" so any UI relying on it behaves identically in api mode.
-const NOW = new Date("2026-06-17T12:00:00Z");
-
+// deriveStatus reuses the shared pure helper; _now is live in api mode.
 export const shipmentService: ShipmentService = {
   list: () => listShipments(),
   get: (id: string) => getShipment(id),
@@ -33,5 +30,7 @@ export const shipmentService: ShipmentService = {
   byCompany: (companyId: string) => shipmentsByCompany(companyId),
   bySample: (sampleRequestId: string) => shipmentsBySample(sampleRequestId),
   getStatistics: () => shipmentStatistics(),
-  _now: NOW,
+  get _now() {
+    return new Date();
+  },
 };

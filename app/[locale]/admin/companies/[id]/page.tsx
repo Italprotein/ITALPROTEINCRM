@@ -51,8 +51,8 @@ import {
   financeService,
   meetingService,
   deriveShipmentStatus,
-  authService,
 } from '@/lib/mock-services';
+import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import type {
   Company,
   Contact,
@@ -118,11 +118,6 @@ interface ProfileData {
 type T = ReturnType<typeof useTranslations<'AdminCompanyDetail'>>;
 
 const ACTIVE_TASK = (t: Task) => t.status !== 'done' && t.status !== 'cancelled';
-const ownerName = (id: string | undefined, t: T) => {
-  if (!id) return t('unassigned');
-  const a = authService.getAccount(id);
-  return a ? `${a.firstName} ${a.lastName}` : id;
-};
 
 /* ────────────────────────────── small helpers ────────────────────────────── */
 
@@ -168,7 +163,14 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
   const locale = useLocale() as Locale;
   const router = useRouter();
   const { account } = useSession();
+  const staff = useStaffDirectory();
   const id = params.id;
+
+  const ownerName = (ownerId: string | undefined, t: T) => {
+    if (!ownerId) return t('unassigned');
+    const a = staff.get(ownerId);
+    return a ? `${a.firstName} ${a.lastName}` : ownerId;
+  };
 
   const [company, setCompany] = React.useState<Company | null>(null);
   const [data, setData] = React.useState<ProfileData | null>(null);

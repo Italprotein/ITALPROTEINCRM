@@ -25,8 +25,9 @@ import {
   companyService,
   sampleService,
   analyticsService,
-  authService,
 } from '@/lib/mock-services';
+import { useStaffDirectory, type StaffDirectory } from '@/lib/hooks/use-staff';
+import { useSession } from '@/components/providers/session-provider';
 import type {
   Feedback,
   Company,
@@ -94,9 +95,9 @@ const RESULT_COLOR: Record<FeedbackResult, string> = {
 
 type TFunc = ReturnType<typeof useTranslations>;
 
-function ownerName(id: string | undefined, t: TFunc): string {
+function ownerName(id: string | undefined, t: TFunc, staff: StaffDirectory): string {
   if (!id) return t('unassigned');
-  const acc = authService.getAccount(id);
+  const acc = staff.get(id);
   return acc ? `${acc.firstName} ${acc.lastName}` : id;
 }
 
@@ -126,6 +127,8 @@ export default function FeedbackPage() {
   const locale = useLocale() as Locale;
   const t = useTranslations('AdminFeedback');
   const router = useRouter();
+  const staff = useStaffDirectory();
+  const { account } = useSession();
 
   const [rows, setRows] = React.useState<Feedback[] | null>(null);
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
@@ -205,7 +208,7 @@ export default function FeedbackPage() {
   function addComment(id: string, body: string, visibility: 'internal' | 'client') {
     const comment: FeedbackComment = {
       id: uid('cm'),
-      byUserId: 'u_admin',
+      byUserId: account?.id,
       visibility,
       body,
       at: new Date().toISOString(),
@@ -364,10 +367,10 @@ export default function FeedbackPage() {
     {
       key: 'owner',
       header: t('colTechnicalOwner'),
-      sortValue: (f) => ownerName(f.technicalOwnerId, t),
+      sortValue: (f) => ownerName(f.technicalOwnerId, t, staff),
       cell: (f) => (
         <span className="whitespace-nowrap text-sm text-muted-foreground">
-          {ownerName(f.technicalOwnerId, t)}
+          {ownerName(f.technicalOwnerId, t, staff)}
         </span>
       ),
       hideable: true,
@@ -576,7 +579,7 @@ export default function FeedbackPage() {
             companyMap.get(f.companyId)?.legalName,
             companyMap.get(f.companyId)?.tradingName,
             f.sampleRequestId ? sampleMap.get(f.sampleRequestId)?.reference : '',
-            ownerName(f.technicalOwnerId, t),
+            ownerName(f.technicalOwnerId, t, staff),
           ]
             .filter(Boolean)
             .join(' ')
@@ -656,6 +659,7 @@ function ReviewSheet({
   onScheduleCall: (f: Feedback) => Promise<void>;
   onOpenSample: (id: string) => void;
 }) {
+  const staff = useStaffDirectory();
   const [reply, setReply] = React.useState('');
   const [visibility, setVisibility] = React.useState<'internal' | 'client'>('client');
   const [posting, setPosting] = React.useState(false);
@@ -734,7 +738,7 @@ function ReviewSheet({
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground">{t('summaryTechnicalOwner')}</p>
-                  <p className="font-medium text-foreground">{ownerName(feedback.technicalOwnerId, t)}</p>
+                  <p className="font-medium text-foreground">{ownerName(feedback.technicalOwnerId, t, staff)}</p>
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground">{t('summaryRelatedSample')}</p>
@@ -793,7 +797,7 @@ function ReviewSheet({
                     const isClient = !!c.byContactId;
                     const author = isClient
                       ? company?.tradingName || company?.legalName || t('commentAuthorClient')
-                      : ownerName(c.byUserId, t);
+                      : ownerName(c.byUserId, t, staff);
                     return (
                       <li key={c.id} className="flex gap-3">
                         <Avatar className="h-7 w-7 shrink-0">

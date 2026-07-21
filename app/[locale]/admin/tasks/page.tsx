@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 import { taskService, companyService } from '@/lib/mock-services';
-import { authService } from '@/lib/mock-services/authService';
+import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
 import type { Task, TaskType, TaskStatus, Company, Priority, Locale } from '@/lib/types';
 import { getLabel } from '@/lib/labels';
@@ -62,8 +62,8 @@ import { toast } from '@/components/ui/use-toast';
 
 /* ────────────────────────────── Constants ────────────────────────────── */
 
-const NOW = new Date('2026-06-17T12:00:00Z');
-const TODAY = '2026-06-17';
+const NOW = new Date();
+const TODAY = NOW.toISOString().slice(0, 10);
 
 const TASK_TYPES: TaskType[] = [
   'follow_up',
@@ -95,12 +95,6 @@ type Stats = Awaited<ReturnType<typeof taskService.getStatistics>>;
 
 /* ────────────────────────────── Helpers ────────────────────────────── */
 
-function ownerName(id: string | undefined, t: (key: string) => string): string {
-  if (!id) return t('unassigned');
-  const a = authService.getAccount(id);
-  return a ? `${a.firstName} ${a.lastName}` : t('unassigned');
-}
-
 const isActive = (t: Task) => t.status !== 'done' && t.status !== 'cancelled';
 const sameDay = (a: Date, b: Date) => a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
 
@@ -111,6 +105,7 @@ export default function TasksPage() {
   const t = useTranslations('AdminTasks');
   const router = useRouter();
   const { account } = useSession();
+  const { nameOf } = useStaffDirectory();
 
   const [rows, setRows] = React.useState<Task[] | null>(null);
   const [companies, setCompanies] = React.useState<Map<string, Company>>(new Map());
@@ -359,9 +354,9 @@ export default function TasksPage() {
     {
       key: 'assignee',
       header: t('colAssignee'),
-      sortValue: (task) => ownerName(task.ownerId, t),
+      sortValue: (task) => nameOf(task.ownerId, t('unassigned')),
       cell: (task) => {
-        const name = ownerName(task.ownerId, t);
+        const name = nameOf(task.ownerId, t('unassigned'));
         return (
           <span className="flex items-center gap-2 whitespace-nowrap">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-navy/10 text-2xs font-semibold text-brand-navy">
@@ -536,7 +531,7 @@ export default function TasksPage() {
           loading={rows === null}
           searchable
           searchPlaceholder={t('searchPlaceholder')}
-          searchValue={(task) => [task.title, task.description, companyName(task.companyId), ownerName(task.ownerId, t)].filter(Boolean).join(' ')}
+          searchValue={(task) => [task.title, task.description, companyName(task.companyId), nameOf(task.ownerId, t('unassigned'))].filter(Boolean).join(' ')}
           pageSize={12}
           rowActions={rowActions}
           mobileCard={mobileCard}
@@ -561,7 +556,7 @@ export default function TasksPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         companies={[...companies.values()]}
-        defaultOwnerId={account?.id ?? 'u_giuseppe'}
+        defaultOwnerId={account?.id ?? ''}
         onCreated={handleCreate}
       />
     </div>

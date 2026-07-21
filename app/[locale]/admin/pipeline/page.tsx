@@ -20,8 +20,9 @@ import {
 import {
   opportunityService,
   companyService,
-  authService,
 } from '@/lib/mock-services';
+import { useStaffDirectory } from '@/lib/hooks/use-staff';
+import { useSession } from '@/components/providers/session-provider';
 import type { Company, Opportunity, PipelineStage, Currency } from '@/lib/types';
 import { PIPELINE_STAGES } from '@/lib/types';
 import { getLabel } from '@/lib/labels';
@@ -98,15 +99,6 @@ const STAGE_ACCENT: Partial<Record<PipelineStage, string>> = {
 };
 
 type ViewMode = 'board' | 'table';
-
-function ownerName(ownerId: string): string {
-  const a = authService.getAccount(ownerId);
-  return a ? `${a.firstName} ${a.lastName}` : 'Unassigned';
-}
-
-function ownerColor(ownerId: string): string | undefined {
-  return authService.getAccount(ownerId)?.avatarColor;
-}
 
 /* ────────────────────────────────────────────────────────────────────────
  * Page
@@ -390,11 +382,12 @@ function OpportunityCard({
   onMove: (opp: Opportunity, next: PipelineStage) => void;
   onOpen: (id: string) => void;
 }) {
+  const { nameOf, colorOf } = useStaffDirectory();
   const idx = BOARD_STAGES.indexOf(stage);
   const prev = idx > 0 ? BOARD_STAGES[idx - 1] : null;
   const next = idx < BOARD_STAGES.length - 1 ? BOARD_STAGES[idx + 1] : null;
-  const owner = ownerName(opp.ownerId);
-  const color = ownerColor(opp.ownerId);
+  const owner = nameOf(opp.ownerId, 'Unassigned');
+  const color = colorOf(opp.ownerId);
 
   return (
     <motion.div
@@ -513,6 +506,7 @@ function PipelineTable({
   companies: Map<string, Company>;
   onMove: (opp: Opportunity, next: PipelineStage) => void;
 }) {
+  const { nameOf, colorOf } = useStaffDirectory();
   const columns: Column<Opportunity>[] = [
     {
       key: 'company',
@@ -585,10 +579,10 @@ function PipelineTable({
     {
       key: 'owner',
       header: 'Owner',
-      sortValue: (o) => ownerName(o.ownerId),
+      sortValue: (o) => nameOf(o.ownerId, 'Unassigned'),
       cell: (o) => {
-        const owner = ownerName(o.ownerId);
-        const color = ownerColor(o.ownerId);
+        const owner = nameOf(o.ownerId, 'Unassigned');
+        const color = colorOf(o.ownerId);
         return (
           <div className="flex items-center gap-1.5">
             <Avatar className="h-6 w-6">
@@ -687,6 +681,7 @@ function CreateOpportunityDialog({
   companies: Map<string, Company>;
   onCreated: (o: Opportunity) => void;
 }) {
+  const { account } = useSession();
   const companyOptions = React.useMemo(
     () =>
       Array.from(companies.values()).sort((a, b) =>
@@ -733,7 +728,7 @@ function CreateOpportunityDialog({
       probability: probability ? Number(probability) : undefined,
       expectedCloseDate: closeDate || undefined,
       nextAction: nextAction.trim() ? { label: nextAction.trim() } : undefined,
-      ownerId: company?.accountOwnerId ?? 'u_admin',
+      ownerId: company?.accountOwnerId ?? account?.id ?? '',
       stageHistory: [{ stage, enteredAt: now }],
       createdAt: now,
       updatedAt: now,

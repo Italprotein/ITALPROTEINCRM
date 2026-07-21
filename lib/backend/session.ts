@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { can, canView, type Action, type Section } from "@/lib/permissions";
+import { can, canView, canEdit, isInternal, type Action, type Section } from "@/lib/permissions";
 import type { Role } from "@/lib/types";
 
 export interface SessionUser {

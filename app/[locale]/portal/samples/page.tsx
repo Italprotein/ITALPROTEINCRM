@@ -29,7 +29,7 @@ import { toast } from '@/components/ui/use-toast';
 import { formatDate, formatQuantity } from '@/lib/formatting';
 import { getLabel } from '@/lib/labels';
 
-const NOW = new Date('2026-06-17T12:00:00Z');
+const NOW = new Date();
 
 /** Buckets a sample status into a coarse lifecycle group for the stat cards. */
 const IN_PROGRESS: SampleStatus[] = [

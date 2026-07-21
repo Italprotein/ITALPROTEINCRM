@@ -1,5 +1,7 @@
 # ITALPROTEIN CRM — Backend Integration Handoff
 
+> **⚠️ STATUS UPDATE — 2026-07-10 (backend now built).** The scope disclaimer below ("Nothing in this document has been implemented … No database, no migrations, no server, no API") is **historical and no longer accurate.** The CRM now runs on a real PostgreSQL database via **Prisma** (see `prisma/schema.prisma` + `prisma/migrations/`), **Auth.js** email+password login (`auth.ts`), **22 server-action data services** (`lib/services/*.actions.ts`, switchable via `NEXT_PUBLIC_DATA_MODE=api`), and a live **Gmail** OAuth/sync/send integration (`app/api/gmail/`, `app/api/auth/google/`). For current state and the go-live path see [`README.md`](../README.md) and [`docs/LAUNCH_RUNBOOK.md`](./LAUNCH_RUNBOOK.md). Read the text below as original design intent, not present reality.
+
 **Project:** ITALPROTEIN CRM (working prototype)
 **Owner:** Italprotein Srl — Proamina&reg; commercial operations
 **Phase:** Frontend-first prototype (mock service layer) → future backend integration

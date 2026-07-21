@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
-  format, isSameMonth, isSameDay, addMonths, subMonths, parseISO,
+  format, isSameMonth, isSameDay, addMonths, subMonths, parseISO, startOfDay,
 } from 'date-fns';
 import { CalendarDays, Users, ListChecks, ChevronLeft, ChevronRight, Video, Phone, MapPin } from 'lucide-react';
 import { meetingService, taskService, companyService } from '@/lib/mock-services';
@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
-const ANCHOR = new Date('2026-06-17T00:00:00');
+const ANCHOR = startOfDay(new Date());
 const WEEKDAY_KEYS = ['weekdayMon', 'weekdayTue', 'weekdayWed', 'weekdayThu', 'weekdayFri', 'weekdaySat', 'weekdaySun'] as const;
 
 export default function CalendarPage() {

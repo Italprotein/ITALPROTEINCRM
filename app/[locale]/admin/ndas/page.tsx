@@ -91,7 +91,7 @@ import { toast } from '@/components/ui/use-toast';
 /* ────────────────────────────── Constants ────────────────────────────── */
 
 const ALL = '__all__';
-const TODAY = '2026-06-17';
+const TODAY = new Date().toISOString().slice(0, 10);
 
 const NDA_TYPES: NDAType[] = ['mutual', 'one_way_inbound', 'one_way_outbound'];
 
@@ -116,7 +116,7 @@ const STATUS_COLOR: Partial<Record<NDAStatus, string>> = {
 
 type Stats = Awaited<ReturnType<typeof ndaService.getStatistics>>;
 
-/** Expiry inside 60 days of the demo "today" (and not already past). */
+/** Expiry inside 60 days of today (and not already past). */
 function expiringWindow(expiry?: string): { soon: boolean; days: number | null } {
   if (!expiry) return { soon: false, days: null };
   const days = daysUntil(expiry, new Date(TODAY + 'T12:00:00Z'));

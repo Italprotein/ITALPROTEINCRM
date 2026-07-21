@@ -1,13 +1,14 @@
 import { setRequestLocale } from 'next-intl/server';
 import { PortalShell } from '@/components/portal/portal-shell';
 
-export default function PortalLayout({
+export default async function PortalLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
-  setRequestLocale(params.locale);
+  const { locale } = await params;
+  setRequestLocale(locale);
   return <PortalShell>{children}</PortalShell>;
 }

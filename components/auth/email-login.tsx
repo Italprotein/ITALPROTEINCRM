@@ -289,10 +289,18 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
 
               {isApi && (
                 <div className="space-y-1.5">
-                  <label htmlFor={passwordId} className="flex items-center gap-1.5 text-sm font-medium">
-                    <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-                    {t('passwordLabel')}
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label htmlFor={passwordId} className="flex items-center gap-1.5 text-sm font-medium">
+                      <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                      {t('passwordLabel')}
+                    </label>
+                    <Link
+                      href="/forgot-password"
+                      className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    >
+                      {t('forgotPassword')}
+                    </Link>
+                  </div>
                   <div className={cn('relative overflow-hidden rounded-lg border transition-all duration-200', borderClass)}>
                     <input
                       id={passwordId}

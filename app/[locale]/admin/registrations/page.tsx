@@ -27,6 +27,7 @@ import type {
 import type { StaffMember } from '@/fixtures';
 import { getLabel } from '@/lib/labels';
 import { formatRelative, formatDate, flagEmoji } from '@/lib/formatting';
+import { useSession } from '@/components/providers/session-provider';
 
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
@@ -72,7 +73,7 @@ import { toast } from '@/components/ui/use-toast';
 type Stats = Awaited<ReturnType<typeof registrationService.getStatistics>>;
 
 const ALL = '__all__';
-const TODAY = '2026-06-18';
+const TODAY = new Date().toISOString().slice(0, 10);
 
 /** Tab → which statuses are included. */
 const TAB_FILTER: Record<string, (r: Registration) => boolean> = {
@@ -340,6 +341,7 @@ function ReviewPanel({
   onPatch: (id: string, patch: Partial<Registration>) => void;
 }) {
   const t = useTranslations('AdminRegistrations');
+  const { account } = useSession();
   const [assignee, setAssignee] = React.useState<string>('');
   const [rejectOpen, setRejectOpen] = React.useState(false);
   const [infoOpen, setInfoOpen] = React.useState(false);
@@ -364,7 +366,7 @@ function ReviewPanel({
 
   async function approve() {
     await simulate();
-    onPatch(r.id, { status: 'approved', decidedAt: TODAY, decidedByUserId: assignee || 'u_giuseppe' });
+    onPatch(r.id, { status: 'approved', decidedAt: TODAY, decidedByUserId: assignee || account?.id || '' });
     toast({
       variant: 'success',
       title: t('toastApprovedTitle'),
@@ -374,7 +376,7 @@ function ReviewPanel({
 
   async function reject() {
     await simulate();
-    onPatch(r.id, { status: 'rejected', decidedAt: TODAY, decidedByUserId: assignee || 'u_giuseppe' });
+    onPatch(r.id, { status: 'rejected', decidedAt: TODAY, decidedByUserId: assignee || account?.id || '' });
     toast({
       variant: 'warning',
       title: t('toastRejectedTitle'),
@@ -412,7 +414,7 @@ function ReviewPanel({
 
   async function convertToCompany() {
     await simulate();
-    onPatch(r.id, { status: 'approved', decidedAt: TODAY, decidedByUserId: assignee || 'u_giuseppe' });
+    onPatch(r.id, { status: 'approved', decidedAt: TODAY, decidedByUserId: assignee || account?.id || '' });
     toast({
       variant: 'success',
       title: t('toastCompanyCreatedTitle'),

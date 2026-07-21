@@ -15,7 +15,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { initials } from '@/lib/utils';
 
+const isApi = (process.env.NEXT_PUBLIC_DATA_MODE ?? 'mock') === 'api';
+
 function rolesFor(workspace: Workspace): Role[] {
+  // In api mode the role switcher is hidden, so never touch the fixture-backed authService.
+  if (isApi) return [];
   const accounts = workspace === 'internal' ? authService.listInternalAccounts() : authService.listExternalAccounts();
   return [...new Set(accounts.map((a) => a.role))];
 }
@@ -25,7 +29,6 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
   const tr = useTranslations('Roles');
   const router = useRouter();
   const { account, switchRole, signOut } = useSession();
-  const isApi = (process.env.NEXT_PUBLIC_DATA_MODE ?? 'mock') === 'api';
 
   if (!account) return null;
   const roles = rolesFor(account.workspace);
@@ -82,7 +85,7 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
           <DropdownMenuItem onClick={() => resetLocalData()}><RotateCcw className="mr-2 h-4 w-4" /> {t('resetLocalData')}</DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => { signOut(); router.push('/login'); }} className="text-danger focus:text-danger">
+        <DropdownMenuItem onClick={() => { signOut(); router.push(account.workspace === 'internal' ? '/team-login' : '/login'); }} className="text-danger focus:text-danger">
           <LogOut className="mr-2 h-4 w-4" /> {t('signOut')}
         </DropdownMenuItem>
       </DropdownMenuContent>

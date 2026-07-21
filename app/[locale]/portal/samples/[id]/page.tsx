@@ -33,15 +33,14 @@ import {
   feedbackService,
   documentService,
   companyService,
-  authService,
 } from '@/lib/mock-services';
+import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import type {
   SampleRequest,
   Shipment,
   Feedback,
   DocumentRecord,
   Company,
-  UserAccount,
 } from '@/lib/types';
 import { can } from '@/lib/permissions';
 import { PageHeader } from '@/components/shared/page-header';
@@ -59,7 +58,7 @@ import { formatDate, formatDateTime, formatQuantity } from '@/lib/formatting';
 import { getLabel } from '@/lib/labels';
 import { cn } from '@/lib/utils';
 
-const NOW = new Date('2026-06-17T12:00:00Z');
+const NOW = new Date();
 const NOW_ISO = NOW.toISOString();
 
 /** Visual tracking timeline steps (client-friendly). */
@@ -95,6 +94,7 @@ function activeTrackIndex(sample: SampleRequest, shipment?: Shipment): number {
 
 export default function SampleDetailPage({ params }: { params: { id: string } }) {
   const { session, ready } = useSession();
+  const { get: getStaff } = useStaffDirectory();
   const router = useRouter();
   const companyId = session?.companyId;
   const role = session?.role;
@@ -104,7 +104,6 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
   const [feedback, setFeedback] = React.useState<Feedback[]>([]);
   const [docs, setDocs] = React.useState<DocumentRecord[]>([]);
   const [company, setCompany] = React.useState<Company | null>(null);
-  const [owner, setOwner] = React.useState<UserAccount | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [notFound, setNotFound] = React.useState(false);
   const [confirmReceipt, setConfirmReceipt] = React.useState(false);
@@ -141,7 +140,6 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
       setShipment(shipments[0] ?? null);
       setFeedback(fb);
       setCompany(company ?? null);
-      setOwner(company ? authService.getAccount(company.accountOwnerId) ?? null : null);
       // Surface the product datasheets / certificates that help with this sample.
       setDocs(
         portalDocs.filter((d) =>
@@ -234,6 +232,8 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
 
   const canConfirm = role ? can(role, 'portal.confirm_delivery') : false;
   const canFeedback = role ? can(role, 'portal.submit_feedback') : false;
+
+  const owner = company ? getStaff(company.accountOwnerId) : undefined;
 
   const deliveredLike = ['delivered', 'receipt_confirmed', 'testing', 'feedback_requested', 'feedback_received', 'closed'].includes(
     sample.status,

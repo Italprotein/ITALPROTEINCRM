@@ -856,7 +856,9 @@ export type NotificationType =
   | 'task_due'
   | 'task_overdue'
   | 'support_request'
-  | 'invoice_overdue';
+  | 'invoice_overdue'
+  | 'password_reset'
+  | 'manual_email';
 
 export interface AppNotification {
   id: ID;
@@ -889,6 +891,81 @@ export interface EmailLogEntry {
   relatedId?: ID;
   status: 'simulated_sent' | 'queued' | 'skipped';
   createdAt: ISODate;
+}
+
+/* ────────────────────────────── Gmail sync / My Leads ────────────────────────────── */
+
+/** A Gmail message synced into the CRM (inbox mail or mail sent from the admin UI). */
+export interface EmailMessageRecord {
+  id: ID;
+  gmailMessageId: string;
+  gmailThreadId: string;
+  direction: 'inbound' | 'outbound';
+  fromAddress: string;
+  fromName?: string;
+  toAddresses: string[];
+  ccAddresses: string[];
+  subject?: string;
+  snippet?: string;
+  bodyText?: string;
+  /** When Gmail received/sent the message. */
+  internalDate: ISODate;
+  hasAttachments: boolean;
+  attachmentNames: string[];
+  /** True when an "NDA" attachment was auto-filed into the NDA section. */
+  ndaDetected: boolean;
+  ndaId?: ID;
+  /** Admin matched via "Dear <name>" or the signature of the first sent mail. */
+  matchedAdminUserId?: ID;
+  leadId?: ID;
+  companyId?: ID;
+  sentByUserId?: ID;
+  syncedAt: ISODate;
+}
+
+/** "My Leads" entry: a counterparty company NAME attributed to one admin. */
+export interface LeadEntry {
+  id: ID;
+  companyName: string;
+  adminUserId: ID;
+  sourceDomain?: string;
+  source: string;
+  emailCount: number;
+  firstSeenAt: ISODate;
+  lastSeenAt: ISODate;
+}
+
+/** Input for sending a mail from the admin UI (sent as the org mailbox). */
+export interface OutboundEmailInput {
+  to: string[];
+  cc?: string[];
+  subject: string;
+  body: string;
+  companyId?: ID;
+}
+
+export interface GmailConnectionStatus {
+  connected: boolean;
+  email?: string;
+  status?: 'active' | 'expired' | 'revoked';
+  lastSyncedAt?: ISODate;
+  inboxCount?: number;
+}
+
+export interface GmailSyncResult {
+  ok: boolean;
+  error?: string;
+  fetched: number;
+  created: number;
+  ndasCreated: number;
+  leadsCreated: number;
+  leadsUpdated: number;
+}
+
+export interface SendEmailResult {
+  ok: boolean;
+  error?: string;
+  providerMessageId?: string;
 }
 
 /* ────────────────────────────── Registrations ────────────────────────────── */

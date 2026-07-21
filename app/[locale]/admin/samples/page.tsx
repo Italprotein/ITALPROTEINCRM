@@ -22,7 +22,8 @@ import {
 } from 'lucide-react';
 
 import { sampleService, companyService, analyticsService } from '@/lib/mock-services';
-import { authService } from '@/lib/mock-services/authService';
+import { useStaffDirectory } from '@/lib/hooks/use-staff';
+import { useSession } from '@/components/providers/session-provider';
 import type {
   SampleRequest,
   SampleStatus,
@@ -97,12 +98,6 @@ const ALL = '__all__';
 
 /* ────────────────────────────── Helpers ────────────────────────────── */
 
-function ownerName(id?: string): string {
-  if (!id) return 'Unassigned';
-  const a = authService.getAccount(id);
-  return a ? `${a.firstName} ${a.lastName}` : 'Unassigned';
-}
-
 /** Next forward status for a given sample status (used by quick "advance" action). */
 function nextStatus(status: SampleStatus): SampleStatus | null {
   const map: Partial<Record<SampleStatus, SampleStatus>> = {
@@ -126,6 +121,8 @@ export default function SamplesPage() {
   const t = useTranslations('AdminSamples');
   const locale = useLocale() as Locale;
   const router = useRouter();
+  const { nameOf } = useStaffDirectory();
+  const { account } = useSession();
 
   const [rows, setRows] = React.useState<SampleRequest[] | null>(null);
   const [companies, setCompanies] = React.useState<Map<string, Company>>(new Map());
@@ -205,7 +202,7 @@ export default function SamplesPage() {
 
   /* ── mutations (mock) ── */
   function applyStatus(id: string, status: SampleStatus, extra?: Partial<SampleRequest>) {
-    const today = '2026-06-17';
+    const today = new Date().toISOString().slice(0, 10);
     setRows((prev) =>
       prev
         ? prev.map((s) =>
@@ -216,7 +213,7 @@ export default function SamplesPage() {
                   ...extra,
                   statusHistory: [
                     ...s.statusHistory,
-                    { status, at: today, byUserId: 'u_giuseppe' },
+                    { status, at: today, byUserId: account?.id },
                   ],
                 }
               : s,
@@ -228,7 +225,7 @@ export default function SamplesPage() {
       void sampleService.update(id, {
         status,
         ...extra,
-        statusHistory: [...target.statusHistory, { status, at: today, byUserId: 'u_giuseppe' }],
+        statusHistory: [...target.statusHistory, { status, at: today, byUserId: account?.id }],
       });
     }
     // keep KPI counters roughly fresh
@@ -252,7 +249,7 @@ export default function SamplesPage() {
   }
 
   function approve(s: SampleRequest) {
-    applyStatus(s.id, 'approved', { approvedQuantity: s.requestedQuantity, approvalDate: '2026-06-17' });
+    applyStatus(s.id, 'approved', { approvedQuantity: s.requestedQuantity, approvalDate: new Date().toISOString().slice(0, 10) });
     toast({ variant: 'success', title: t('toastSampleApprovedTitle'), description: t('toastSampleApprovedDescription', { reference: s.reference, quantity: formatQuantity(s.requestedQuantity, s.unit, locale) }) });
   }
 
@@ -358,9 +355,9 @@ export default function SamplesPage() {
     {
       key: 'owner',
       header: 'Owner',
-      sortValue: (s) => ownerName(s.accountOwnerId),
+      sortValue: (s) => nameOf(s.accountOwnerId, 'Unassigned'),
       cell: (s) => {
-        const name = ownerName(s.accountOwnerId);
+        const name = nameOf(s.accountOwnerId, 'Unassigned');
         return (
           <span className="flex items-center gap-2 whitespace-nowrap">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-navy/10 text-2xs font-semibold text-brand-navy">
@@ -708,6 +705,7 @@ function CreateSampleDialog({
   companies: Company[];
   onCreated: (s: SampleRequest) => void;
 }) {
+  const { account } = useSession();
   const [companyId, setCompanyId] = React.useState('');
   const [product, setProduct] = React.useState('Proamina® 100% Protein Sweetener');
   const [application, setApplication] = React.useState<ApplicationCategory>('protein_bars');
@@ -741,7 +739,7 @@ function CreateSampleDialog({
     await new Promise((r) => setTimeout(r, 500));
 
     const company = companies.find((c) => c.id === companyId);
-    const today = '2026-06-17';
+    const today = new Date().toISOString().slice(0, 10);
     const sample: SampleRequest = {
       id: uid('sr'),
       reference: 'SR-2026-' + String(Math.floor(1000 + Math.random() * 9000)),
@@ -752,13 +750,13 @@ function CreateSampleDialog({
       unit,
       requestDate: today,
       priority,
-      accountOwnerId: company?.accountOwnerId ?? 'u_giuseppe',
-      assignedLogisticsId: 'u_marco',
+      accountOwnerId: company?.accountOwnerId ?? account?.id ?? '',
+      assignedLogisticsId: account?.id ?? '',
       clientVisibleNotes: notes.trim() || undefined,
       internalInstructions: notes.trim() || undefined,
       requiredDocuments: ['COA', 'TDS'],
       status: 'submitted',
-      statusHistory: [{ status: 'submitted', at: today, byUserId: 'u_giuseppe' }],
+      statusHistory: [{ status: 'submitted', at: today, byUserId: account?.id }],
       createdAt: today,
     };
 

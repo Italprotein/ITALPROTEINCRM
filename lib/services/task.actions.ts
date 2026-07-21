@@ -21,7 +21,6 @@ const INCLUDE = {
   comments: { orderBy: { createdAt: "asc" } },
 } satisfies Prisma.TaskInclude;
 
-const NOW = new Date("2026-06-17T12:00:00Z");
 const isActiveStatus = (s: Task["status"]) => s !== "done" && s !== "cancelled";
 const sameDay = (a: Date, b: Date) =>
   a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
@@ -129,7 +128,7 @@ export async function tasksByCompany(companyId: string): Promise<Task[]> {
   return rows.map(taskToDTO);
 }
 
-export async function tasksOverdue(now: Date = NOW): Promise<Task[]> {
+export async function tasksOverdue(now: Date = new Date()): Promise<Task[]> {
   const startOfDay = new Date(now.toISOString().slice(0, 10) + "T00:00:00.000Z");
   const rows = await prisma.task.findMany({
     where: {
@@ -145,7 +144,7 @@ export async function tasksOverdue(now: Date = NOW): Promise<Task[]> {
   return rows.map(taskToDTO);
 }
 
-export async function tasksDueToday(now: Date = NOW): Promise<Task[]> {
+export async function tasksDueToday(now: Date = new Date()): Promise<Task[]> {
   const start = new Date(now.toISOString().slice(0, 10) + "T00:00:00.000Z");
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   const rows = await prisma.task.findMany({
@@ -162,7 +161,7 @@ export async function tasksDueToday(now: Date = NOW): Promise<Task[]> {
   return rows.map(taskToDTO);
 }
 
-export async function tasksUpcoming(now: Date = NOW): Promise<Task[]> {
+export async function tasksUpcoming(now: Date = new Date()): Promise<Task[]> {
   const endOfDay = new Date(now.toISOString().slice(0, 10) + "T00:00:00.000Z");
   endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
   const rows = await prisma.task.findMany({
@@ -179,7 +178,7 @@ export async function tasksUpcoming(now: Date = NOW): Promise<Task[]> {
   return rows.map(taskToDTO);
 }
 
-export async function taskStatistics(now: Date = NOW) {
+export async function taskStatistics(now: Date = new Date()) {
   const rows = await prisma.task.findMany({
     where: await scopeWhere(),
     select: { status: true, dueDate: true, ownerUserId: true },

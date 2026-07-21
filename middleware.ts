@@ -23,7 +23,8 @@ export default auth((req) => {
   // login (localStorage), so enforcing a real session here would break it.
   const enforceAuth = process.env.NEXT_PUBLIC_DATA_MODE === "api";
   if (enforceAuth && isProtected && !isLoggedIn) {
-    const loginUrl = new URL(`/${locale}/login`, nextUrl);
+    const loginPath = area === "admin" ? "team-login" : "login";
+    const loginUrl = new URL(`/${locale}/${loginPath}`, nextUrl);
     loginUrl.searchParams.set("callbackUrl", nextUrl.pathname);
     return Response.redirect(loginUrl);
   }

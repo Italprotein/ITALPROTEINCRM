@@ -93,7 +93,10 @@ async function main() {
 
   const users = await prisma.user.findMany({ select: { id: true, email: true } });
   const userByEmail = new Map(users.map((u) => [(u.email ?? "").toLowerCase(), u.id]));
-  const fallbackOwner = userByEmail.get("labidimedamine53@gmail.com") ?? users[0]?.id;
+  // Prefer the organization super-admin as the fallback owner for rows whose
+  // accountOwnerEmail doesn't resolve; never a developer's personal address.
+  const fallbackOwner =
+    userByEmail.get("ad@italprotein.com") ?? users[0]?.id;
   if (!fallbackOwner) throw new Error("No users in DB — run `npx prisma db seed` first.");
 
   const companies = toObjects(parseCSV(readFileSync("data/import/companies.csv", "utf8")));

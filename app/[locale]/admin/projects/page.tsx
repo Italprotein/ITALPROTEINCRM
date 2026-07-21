@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 import { projectService, companyService, sampleService } from '@/lib/mock-services';
-import { authService } from '@/lib/mock-services/authService';
+import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import type {
   ApplicationProject,
   Company,
@@ -30,7 +30,7 @@ import type {
   Locale,
 } from '@/lib/types';
 import { APPLICATION_CATEGORIES } from '@/lib/types';
-import { getLabel } from '@/lib/labels';
+import { getLabel, getStageProgress } from '@/lib/labels';
 import { formatDate, formatQuantity, flagEmoji } from '@/lib/formatting';
 import { initials } from '@/lib/utils';
 import { useRouter } from '@/lib/i18n/navigation';
@@ -73,7 +73,7 @@ import { toast } from '@/components/ui/use-toast';
 /* ────────────────────────────── Constants ────────────────────────────── */
 
 const ALL = '__all__';
-const TODAY = '2026-06-18';
+const TODAY = new Date().toISOString().slice(0, 10);
 
 /** Ordered development lifecycle — drives both progress mapping and the bar chart. */
 const STAGE_ORDER: DevelopmentStage[] = [
@@ -86,30 +86,12 @@ const STAGE_ORDER: DevelopmentStage[] = [
   'launched',
 ];
 
-/** Map a development stage to a percentage for the progress bar. */
-const STAGE_PROGRESS: Record<DevelopmentStage, number> = {
-  concept: 10,
-  feasibility: 25,
-  prototype: 45,
-  pilot: 60,
-  pre_industrial: 80,
-  industrial: 92,
-  launched: 100,
-  on_hold: 50,
-};
-
 /** Next forward stage (skips terminal on_hold). */
 function nextStage(stage: DevelopmentStage): DevelopmentStage | null {
   if (stage === 'on_hold') return 'pilot';
   const idx = STAGE_ORDER.indexOf(stage);
   if (idx < 0 || idx >= STAGE_ORDER.length - 1) return null;
   return STAGE_ORDER[idx + 1];
-}
-
-function ownerName(id: string | undefined, unassignedLabel: string): string {
-  if (!id) return unassignedLabel;
-  const a = authService.getAccount(id);
-  return a ? `${a.firstName} ${a.lastName}` : unassignedLabel;
 }
 
 type Stats = Awaited<ReturnType<typeof projectService.getStatistics>>;
@@ -120,6 +102,7 @@ export default function ProjectsPage() {
   const locale = useLocale() as Locale;
   const t = useTranslations('AdminProjects');
   const router = useRouter();
+  const { nameOf } = useStaffDirectory();
 
   const [rows, setRows] = React.useState<ApplicationProject[] | null>(null);
   const [companies, setCompanies] = React.useState<Map<string, Company>>(new Map());
@@ -272,7 +255,7 @@ export default function ProjectsPage() {
     {
       key: 'devStage',
       header: t('columnDevStage'),
-      sortValue: (p) => STAGE_PROGRESS[p.developmentStage] ?? 0,
+      sortValue: (p) => getStageProgress(p.developmentStage),
       cell: (p) => <StatusBadge kind="developmentStage" value={p.developmentStage} />,
     },
     {
@@ -285,9 +268,9 @@ export default function ProjectsPage() {
     {
       key: 'progress',
       header: t('columnProgress'),
-      sortValue: (p) => STAGE_PROGRESS[p.developmentStage] ?? 0,
+      sortValue: (p) => getStageProgress(p.developmentStage),
       cell: (p) => {
-        const v = STAGE_PROGRESS[p.developmentStage] ?? 0;
+        const v = getStageProgress(p.developmentStage);
         return (
           <div className="flex items-center gap-2">
             <Progress
@@ -318,9 +301,9 @@ export default function ProjectsPage() {
     {
       key: 'owner',
       header: t('columnOwner'),
-      sortValue: (p) => ownerName(p.internalOwnerId, t('unassigned')),
+      sortValue: (p) => nameOf(p.internalOwnerId, t('unassigned')),
       cell: (p) => {
-        const name = ownerName(p.internalOwnerId, t('unassigned'));
+        const name = nameOf(p.internalOwnerId, t('unassigned'));
         return (
           <span className="flex items-center gap-2 whitespace-nowrap">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-navy/10 text-2xs font-semibold text-brand-navy">
@@ -401,7 +384,7 @@ export default function ProjectsPage() {
 
   /* ── mobile card ── */
   function mobileCard(p: ApplicationProject) {
-    const v = STAGE_PROGRESS[p.developmentStage] ?? 0;
+    const v = getStageProgress(p.developmentStage);
     return (
       <Card className="p-3">
         <div className="flex items-start justify-between gap-2">
@@ -532,11 +515,11 @@ export default function ProjectsPage() {
                 <div className="mb-1.5 flex items-center justify-between">
                   <span className="text-xs font-medium text-muted-foreground">{t('developmentProgress')}</span>
                   <span className="text-xs font-semibold tabular text-foreground">
-                    {STAGE_PROGRESS[detail.developmentStage] ?? 0}%
+                    {getStageProgress(detail.developmentStage)}%
                   </span>
                 </div>
                 <Progress
-                  value={STAGE_PROGRESS[detail.developmentStage] ?? 0}
+                  value={getStageProgress(detail.developmentStage)}
                   indicatorClassName={detail.developmentStage === 'on_hold' ? 'bg-warning' : undefined}
                 />
               </div>
@@ -580,7 +563,7 @@ export default function ProjectsPage() {
                   <FlaskConical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div>
                     <dt className="text-xs text-muted-foreground">{t('technicalOwner')}</dt>
-                    <dd className="font-medium">{ownerName(detail.technicalOwnerId, t('unassigned'))}</dd>
+                    <dd className="font-medium">{nameOf(detail.technicalOwnerId, t('unassigned'))}</dd>
                   </div>
                 </div>
               </dl>

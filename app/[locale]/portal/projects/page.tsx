@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useSession } from '@/components/providers/session-provider';
 import { projectService, productService } from '@/lib/mock-services';
-import type { ApplicationProject, Product, DevelopmentStage, Locale } from '@/lib/types';
+import type { ApplicationProject, Product, Locale } from '@/lib/types';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -26,34 +26,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getLabel } from '@/lib/labels';
+import { getLabel, getStageProgress } from '@/lib/labels';
 import { formatDate } from '@/lib/formatting';
-
-/** Map a development stage to an approximate completion percentage for the progress bar. */
-const STAGE_PROGRESS: Record<DevelopmentStage, number> = {
-  concept: 10,
-  feasibility: 25,
-  prototype: 45,
-  pilot: 65,
-  pre_industrial: 80,
-  industrial: 95,
-  launched: 100,
-  on_hold: 50,
-};
-
-const PRODUCT_STATUS_LABEL: Record<Product['status'], string> = {
-  in_development: 'In development',
-  tested: 'Tested',
-  launched: 'Launched',
-  archived: 'Archived',
-};
-
-const PRODUCT_STATUS_TONE: Record<Product['status'], 'info' | 'gold' | 'success' | 'muted'> = {
-  in_development: 'info',
-  tested: 'gold',
-  launched: 'success',
-  archived: 'muted',
-};
 
 export default function PortalProjectsPage() {
   const { session, ready } = useSession();
@@ -200,7 +174,7 @@ export default function PortalProjectsPage() {
 }
 
 function ProjectCard({ project, locale }: { project: ApplicationProject; locale: Locale }) {
-  const progress = STAGE_PROGRESS[project.developmentStage] ?? 0;
+  const progress = getStageProgress(project.developmentStage);
 
   return (
     <Card className="flex h-full flex-col">
@@ -257,7 +231,7 @@ function ProductCard({ product }: { product: Product }) {
       <CardHeader className="space-y-2 pb-3">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-base leading-snug">{product.name}</CardTitle>
-          <Badge variant={PRODUCT_STATUS_TONE[product.status]}>{PRODUCT_STATUS_LABEL[product.status]}</Badge>
+          <StatusBadge kind="productStatus" value={product.status} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">{getLabel('applicationCategory', product.category)}</Badge>

@@ -1,5 +1,7 @@
 # ITALPROTEIN CRM - Launch Readiness Roadmap
 
+> **⚠️ STATUS UPDATE — 2026-07-10 (backend now built).** The "Current app reality" line and "What Exists Today" section below (frontend prototype, fixture data, localStorage, Demo Mode) are **outdated.** Several critical blockers are now DONE: a real PostgreSQL database via **Prisma**, real **Auth.js** login, and real **Gmail** send/sync. Remaining launch work (server-side permission enforcement on mutations, external-portal login + registration provisioning, audit/notification side-effects, production env + deploy) is tracked concretely in [`docs/LAUNCH_RUNBOOK.md`](./LAUNCH_RUNBOOK.md).
+
 **Status:** production planning and backend-prep notes  
 **Last updated:** 2026-06-23  
 **Current app reality:** Next.js frontend prototype with fixture data, browser localStorage writes and Demo Mode login. It is not production-secure yet.

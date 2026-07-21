@@ -59,6 +59,8 @@ export type LabelKind =
   | 'supportStatus'
   | 'notificationType'
   | 'registrationStatus'
+  | 'productStatus'
+  | 'agreementStatus'
   | 'priority'
   | 'role'
   | 'workspace';
@@ -466,6 +468,20 @@ const registrationStatusLabels: LabelMap = {
   rejected: 'Rejected',
 };
 
+const productStatusLabels: LabelMap = {
+  in_development: 'In development',
+  tested: 'Tested',
+  launched: 'Launched',
+  archived: 'Archived',
+};
+
+const agreementStatusLabels: LabelMap = {
+  none: 'No agreement',
+  draft: 'Draft',
+  active: 'Active',
+  expired: 'Expired',
+};
+
 const priorityLabels: LabelMap = {
   low: 'Low',
   medium: 'Medium',
@@ -831,6 +847,20 @@ const registrationStatusTones: ToneMap = {
   rejected: 'danger',
 };
 
+const productStatusTones: ToneMap = {
+  in_development: 'info',
+  tested: 'gold',
+  launched: 'success',
+  archived: 'muted',
+};
+
+const agreementStatusTones: ToneMap = {
+  none: 'muted',
+  draft: 'warning',
+  active: 'success',
+  expired: 'danger',
+};
+
 const priorityTones: ToneMap = {
   low: 'muted',
   medium: 'info',
@@ -892,6 +922,8 @@ const LABELS: Record<LabelKind, LabelMap> = {
   supportStatus: supportStatusLabels,
   notificationType: notificationTypeLabels,
   registrationStatus: registrationStatusLabels,
+  productStatus: productStatusLabels,
+  agreementStatus: agreementStatusLabels,
   priority: priorityLabels,
   role: roleLabels,
   workspace: workspaceLabels,
@@ -926,6 +958,8 @@ const TONES: Partial<Record<LabelKind, ToneMap>> = {
   supportStatus: supportStatusTones,
   notificationType: notificationTypeTones,
   registrationStatus: registrationStatusTones,
+  productStatus: productStatusTones,
+  agreementStatus: agreementStatusTones,
   priority: priorityTones,
   role: roleTones,
   workspace: workspaceTones,
@@ -1059,6 +1093,8 @@ const LABELS_IT: Record<LabelKind, LabelMap> = {
     submitted: 'Inviata', email_verification: 'Verifica email', pending_approval: 'In attesa di approvazione',
     more_info_requested: 'Info aggiuntive richieste', approved: 'Approvata', rejected: 'Rifiutata',
   },
+  productStatus: { in_development: 'In sviluppo', tested: 'Testato', launched: 'Lanciato', archived: 'Archiviato' },
+  agreementStatus: { none: 'Nessun accordo', draft: 'Bozza', active: 'Attivo', expired: 'Scaduto' },
   priority: { low: 'Bassa', medium: 'Media', high: 'Alta', urgent: 'Urgente' },
   role: {
     super_admin: 'Super admin', crm_admin: 'Admin CRM', business_dev: 'Sviluppo commerciale', rnd_technical: 'R&S / Tecnico',
@@ -1097,4 +1133,28 @@ export function getTone(kind: LabelKind, value: string | undefined | null): Badg
   if (value == null || value === '') return 'muted';
   const map = TONES[kind];
   return map?.[value] ?? 'muted';
+}
+
+/* ────────────────────────────── Development-stage progress ────────────────────────────── */
+
+/**
+ * Approximate completion percentage per `developmentStage` code — the single source
+ * that drives the progress bars on both the admin and portal projects pages. Keyed by
+ * string so this module stays dependency-free; unknown codes fall back to 0.
+ */
+const developmentStageProgress: Record<string, number> = {
+  concept: 10,
+  feasibility: 25,
+  prototype: 45,
+  pilot: 60,
+  pre_industrial: 80,
+  industrial: 92,
+  launched: 100,
+  on_hold: 50,
+};
+
+/** Completion % for a development stage (0 when unknown/empty). */
+export function getStageProgress(stage: string | undefined | null): number {
+  if (!stage) return 0;
+  return developmentStageProgress[stage] ?? 0;
 }

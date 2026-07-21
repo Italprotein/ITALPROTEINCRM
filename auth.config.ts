@@ -8,7 +8,7 @@ import type { Role } from "@/lib/types";
 export const authConfig = {
   trustHost: true,
   session: { strategy: "jwt" },
-  pages: { signIn: "/en/login" },
+  pages: { signIn: "/en/team-login" },
   providers: [],
   callbacks: {
     jwt({ token, user }) {

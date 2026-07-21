@@ -114,7 +114,7 @@ function csvEscape(value: string): string {
   return value;
 }
 
-export function DataTable<T>(props: DataTableProps<T>): JSX.Element {
+export function DataTable<T>(props: DataTableProps<T>): React.JSX.Element {
   const {
     data,
     columns,

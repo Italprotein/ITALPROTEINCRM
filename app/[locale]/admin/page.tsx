@@ -66,11 +66,11 @@ import {
   registrationService,
   activityService,
   analyticsService,
-  authService,
 } from '@/lib/mock-services';
-import { getLabel, humanize } from '@/lib/labels';
+import { getLabel } from '@/lib/labels';
 import { formatRelative, formatDate, daysUntil } from '@/lib/formatting';
 import { cn, initials } from '@/lib/utils';
+import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
 import { AmineDashboard } from '@/components/dashboard/amine-dashboard';
 import type {
@@ -104,12 +104,6 @@ const ACTIVITY_ICONS: Record<ActivityType, LucideIcon> = {
   payment: Receipt,
   registration: UserPlus,
 };
-
-function ownerName(id?: string): string {
-  if (!id) return 'Unassigned';
-  const acc = authService.getAccount(id);
-  return acc ? `${acc.firstName} ${acc.lastName}` : humanize(id.replace(/^u_/, ''));
-}
 
 interface DashboardData {
   companyStats: Awaited<ReturnType<typeof companyService.getStatistics>>;
@@ -145,6 +139,7 @@ const RANGE_DAYS: Record<string, number | null> = {
 
 function StandardOverview() {
   const t = useTranslations('Overview');
+  const { nameOf } = useStaffDirectory();
   const [data, setData] = React.useState<DashboardData | null>(null);
   const [range, setRange] = React.useState<string>('180');
 
@@ -352,28 +347,28 @@ function StandardOverview() {
       ) : (
         <Stagger className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StaggerItem>
-            <StatCard label={t('kpiTotalCompanies')} value={data.companyStats.total} icon={Building2} tone="gold" trend={{ value: 8, label: t('vsLastPeriod') }} href="/admin/companies" />
+            <StatCard label={t('kpiTotalCompanies')} value={data.companyStats.total} icon={Building2} tone="gold" href="/admin/companies" />
           </StaggerItem>
           <StaggerItem>
-            <StatCard label={t('kpiActiveOpportunities')} value={data.oppStats.open} icon={Target} tone="info" trend={{ value: 12, label: t('vsLastPeriod') }} href="/admin/pipeline" />
+            <StatCard label={t('kpiActiveOpportunities')} value={data.oppStats.open} icon={Target} tone="info" href="/admin/pipeline" />
           </StaggerItem>
           <StaggerItem>
-            <StatCard label={t('kpiNdasAwaitingSignature')} value={data.ndaStats.awaitingSignature} icon={FileSignature} tone="warning" trend={{ value: -4, label: t('vsLastPeriod') }} href="/admin/ndas" />
+            <StatCard label={t('kpiNdasAwaitingSignature')} value={data.ndaStats.awaitingSignature} icon={FileSignature} tone="warning" href="/admin/ndas" />
           </StaggerItem>
           <StaggerItem>
-            <StatCard label={t('kpi_samples_to_prepare')} value={data.sampleStats.preparing} icon={FlaskConical} tone="default" trend={{ value: 6, label: t('vsLastPeriod') }} href="/admin/samples" />
+            <StatCard label={t('kpi_samples_to_prepare')} value={data.sampleStats.preparing} icon={FlaskConical} tone="default" href="/admin/samples" />
           </StaggerItem>
           <StaggerItem>
-            <StatCard label={t('kpi_samples_shipped')} value={data.sampleStats.shipped} icon={PackageCheck} tone="info" trend={{ value: 9, label: t('vsLastPeriod') }} href="/admin/samples" />
+            <StatCard label={t('kpi_samples_shipped')} value={data.sampleStats.shipped} icon={PackageCheck} tone="info" href="/admin/samples" />
           </StaggerItem>
           <StaggerItem>
-            <StatCard label={t('kpiDeliveriesInTransit')} value={data.shipmentStats.inTransit} icon={Truck} tone="info" trend={{ value: 3, label: t('vsLastPeriod') }} href="/admin/shipments" />
+            <StatCard label={t('kpiDeliveriesInTransit')} value={data.shipmentStats.inTransit} icon={Truck} tone="info" href="/admin/shipments" />
           </StaggerItem>
           <StaggerItem>
-            <StatCard label={t('kpiOverdueTasks')} value={data.taskStats.overdue} icon={AlertTriangle} tone="danger" trend={{ value: -7, label: t('vsLastPeriod') }} href="/admin/tasks" />
+            <StatCard label={t('kpiOverdueTasks')} value={data.taskStats.overdue} icon={AlertTriangle} tone="danger" href="/admin/tasks" />
           </StaggerItem>
           <StaggerItem>
-            <StatCard label={t('kpiNewRegistrations')} value={data.regStats.pending} icon={UserPlus} tone="success" trend={{ value: 15, label: t('vsLastPeriod') }} href="/admin/registrations" />
+            <StatCard label={t('kpiNewRegistrations')} value={data.regStats.pending} icon={UserPlus} tone="success" href="/admin/registrations" />
           </StaggerItem>
         </Stagger>
       )}
@@ -652,7 +647,7 @@ function StandardOverview() {
                       <TableCell>
                         <StatusBadge kind="relationshipStage" value={c.relationshipStage} />
                       </TableCell>
-                      <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">{ownerName(c.accountOwnerId)}</TableCell>
+                      <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">{nameOf(c.accountOwnerId, 'Unassigned')}</TableCell>
                       <TableCell className="text-right text-sm text-muted-foreground">{formatRelative(c.lastActivityAt)}</TableCell>
                     </TableRow>
                   ))}

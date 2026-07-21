@@ -8,6 +8,7 @@ import { isInternal } from '@/lib/permissions';
 import { readStore, writeStore } from '@/lib/mock-services/storage';
 import { Sidebar } from '@/components/navigation/sidebar';
 import { Topbar } from '@/components/navigation/topbar';
+import { Amina } from '@/components/assistant/amina';
 import { Logo } from '@/components/brand/logo';
 import { cn } from '@/lib/utils';
 import { setLabelLocale } from '@/lib/labels';
@@ -26,7 +27,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Demo route guard (client-side only — real enforcement is server-side later).
   React.useEffect(() => {
     if (!ready) return;
-    if (!session) router.replace('/login');
+    if (!session) router.replace('/team-login');
     else if (!isInternal(session.role)) router.replace('/portal');
   }, [ready, session, router]);
 
@@ -64,6 +65,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Topbar onMenuClick={() => setMobileOpen(true)} />
         <main className="flex-1">{children}</main>
       </div>
+
+      {/* Amina Team — the API derives the internal audience from the session. */}
+      <Amina />
     </div>
   );
 }

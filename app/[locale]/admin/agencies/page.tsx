@@ -12,9 +12,14 @@ import {
   CalendarClock,
   Eye,
   ArrowUpRight,
+  Sparkles,
+  Mail,
+  Trash2,
 } from 'lucide-react';
 import { useRouter } from '@/lib/i18n/navigation';
-import { agencyService, authService, type Agency } from '@/lib/mock-services';
+import { agencyService, leadService, type Agency } from '@/lib/mock-services';
+import type { LeadEntry } from '@/lib/types';
+import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { formatRelative, flagEmoji } from '@/lib/formatting';
 import { humanize } from '@/lib/labels';
 import { PageHeader } from '@/components/shared/page-header';
@@ -36,27 +41,6 @@ import {
 } from '@/components/ui/sheet';
 import { toast } from '@/components/ui/use-toast';
 
-type AgreementStatus = Agency['meta']['agreementStatus'];
-
-const AGREEMENT_TONE: Record<AgreementStatus, Parameters<typeof Badge>[0]['variant']> = {
-  none: 'muted',
-  draft: 'warning',
-  active: 'success',
-  expired: 'danger',
-};
-
-const AGREEMENT_LABEL_KEY: Record<AgreementStatus, string> = {
-  none: 'agreementNone',
-  draft: 'agreementDraft',
-  active: 'agreementActive',
-  expired: 'agreementExpired',
-};
-
-function ownerName(id: string, unassignedLabel: string): string {
-  const a = authService.getAccount(id);
-  return a ? `${a.firstName} ${a.lastName}` : unassignedLabel;
-}
-
 function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
@@ -64,14 +48,24 @@ function pct(value: number): string {
 export default function AgenciesPage() {
   const t = useTranslations('AdminAgencies');
   const router = useRouter();
+  const { nameOf } = useStaffDirectory();
   const [rows, setRows] = useState<Agency[] | null>(null);
   const [stats, setStats] = useState<Awaited<ReturnType<typeof agencyService.getStatistics>> | null>(null);
   const [preview, setPreview] = useState<Agency | null>(null);
+  const [myLeads, setMyLeads] = useState<LeadEntry[] | null>(null);
 
   useEffect(() => {
     agencyService.list().then(setRows);
     agencyService.getStatistics().then(setStats);
+    leadService.listMine().then(setMyLeads);
   }, []);
+
+  async function removeLead(id: string) {
+    setMyLeads((prev) => (prev ? prev.filter((l) => l.id !== id) : prev));
+    await leadService.remove(id);
+  }
+
+  const ownerName = (id: string, unassignedLabel: string) => nameOf(id, unassignedLabel);
 
   const donutData = useMemo(() => {
     if (!rows) return [];
@@ -167,9 +161,7 @@ export default function AgenciesPage() {
       header: t('colAgreement'),
       sortValue: (a) => a.meta.agreementStatus,
       cell: (a) => (
-        <Badge variant={AGREEMENT_TONE[a.meta.agreementStatus]}>
-          {t(AGREEMENT_LABEL_KEY[a.meta.agreementStatus])}
-        </Badge>
+        <StatusBadge kind="agreementStatus" value={a.meta.agreementStatus} />
       ),
     },
     {
@@ -268,6 +260,56 @@ export default function AgenciesPage() {
         />
       </div>
 
+      {/* ── My Leads: company names auto-extracted from Gmail for the signed-in admin ── */}
+      <div className="rounded-xl border bg-card p-4 sm:p-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-gold/15 text-brand-gold">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                {t('myLeadsTitle')}{myLeads && myLeads.length > 0 ? ` (${myLeads.length})` : ''}
+              </h2>
+              <p className="text-xs text-muted-foreground">{t('myLeadsSubtitle')}</p>
+            </div>
+          </div>
+        </div>
+
+        {myLeads === null ? (
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => <div key={i} className="skeleton h-16 w-full rounded-lg" />)}
+          </div>
+        ) : myLeads.length === 0 ? (
+          <p className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
+            {t('myLeadsEmpty')}
+          </p>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {myLeads.map((lead) => (
+              <div key={lead.id} className="group flex items-center justify-between gap-2 rounded-lg border bg-muted/20 p-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{lead.companyName}</p>
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Mail className="h-3 w-3 shrink-0" />
+                    {t('myLeadsMeta', { count: lead.emailCount, time: formatRelative(lead.lastSeenAt) })}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t('myLeadsRemove')}
+                  className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                  onClick={() => removeLead(lead.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
           title={t('partnersByTypeTitle')}
@@ -351,9 +393,7 @@ export default function AgenciesPage() {
 
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary">{humanize(preview.meta.agencyType)}</Badge>
-                <Badge variant={AGREEMENT_TONE[preview.meta.agreementStatus]}>
-                  {t(AGREEMENT_LABEL_KEY[preview.meta.agreementStatus])}
-                </Badge>
+                <StatusBadge kind="agreementStatus" value={preview.meta.agreementStatus} />
                 <StatusBadge kind="ndaStatus" value={preview.ndaStatus} />
               </div>
 

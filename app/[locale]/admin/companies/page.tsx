@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 
 import { companyService } from '@/lib/mock-services';
-import { authService } from '@/lib/mock-services/authService';
+import { useStaffDirectory } from '@/lib/hooks/use-staff';
+import { useSession } from '@/components/providers/session-provider';
 import type { Company, CompanyType, RelationshipStage, Priority, Locale } from '@/lib/types';
 import { COMPANY_TYPES } from '@/lib/types';
 import { getLabel } from '@/lib/labels';
@@ -78,19 +79,13 @@ const PRIORITIES: Priority[] = ['low', 'medium', 'high', 'urgent'];
 
 const ALL = '__all__';
 
-/* ────────────────────────────── Helpers ────────────────────────────── */
-
-function ownerName(id: string): string {
-  const a = authService.getAccount(id);
-  return a ? `${a.firstName} ${a.lastName}` : 'Unassigned';
-}
-
 /* ────────────────────────────── Page ────────────────────────────── */
 
 export default function CompaniesPage() {
   const locale = useLocale() as Locale;
   const router = useRouter();
   const t = useTranslations('AdminCompanies');
+  const { nameOf } = useStaffDirectory();
 
   const [rows, setRows] = React.useState<Company[] | null>(null);
   const [stats, setStats] = React.useState<Awaited<ReturnType<typeof companyService.getStatistics>> | null>(null);
@@ -241,9 +236,9 @@ export default function CompaniesPage() {
     {
       key: 'owner',
       header: t('colOwner'),
-      sortValue: (c) => ownerName(c.accountOwnerId),
+      sortValue: (c) => nameOf(c.accountOwnerId, 'Unassigned'),
       cell: (c) => {
-        const name = ownerName(c.accountOwnerId);
+        const name = nameOf(c.accountOwnerId, 'Unassigned');
         return (
           <span className="flex items-center gap-2 whitespace-nowrap">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-navy/10 text-2xs font-semibold text-brand-navy">
@@ -659,6 +654,7 @@ function CreateCompanyDialog({
   onCreated: (c: Company) => void;
 }) {
   const t = useTranslations('AdminCompanies');
+  const { account } = useSession();
   const [legalName, setLegalName] = React.useState('');
   const [tradingName, setTradingName] = React.useState('');
   const [type, setType] = React.useState<CompanyType>('distributor');
@@ -711,7 +707,7 @@ function CreateCompanyDialog({
       preferredLanguage: 'en',
       preferredCurrency: 'EUR',
       firstContact: { date: today, channel: 'inbound_web' },
-      accountOwnerId: 'u_giuseppe',
+      accountOwnerId: account?.id ?? '',
       relationshipStage: stage,
       priority,
       ndaStatus: 'not_required',

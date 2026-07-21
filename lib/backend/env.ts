@@ -5,6 +5,8 @@ type RequiredEnvKey =
 
 type OptionalEnvKey =
   | 'APP_ENV'
+  | 'GOOGLE_TOKEN_ENC_KEY'
+  | 'CRON_SECRET'
   | 'GOOGLE_CLIENT_ID'
   | 'GOOGLE_CLIENT_SECRET'
   | 'GOOGLE_REDIRECT_URI'
@@ -51,6 +53,11 @@ export function getBackendEnv() {
     },
     auth: {
       secret: readEnv('AUTH_SECRET'),
+    },
+    security: {
+      // Falls back to AUTH_SECRET when unset (see lib/backend/crypto.ts).
+      tokenEncKey: readEnv('GOOGLE_TOKEN_ENC_KEY'),
+      cronSecret: readEnv('CRON_SECRET'),
     },
     google: {
       clientId: readEnv('GOOGLE_CLIENT_ID'),

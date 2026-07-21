@@ -22,7 +22,8 @@ import {
   Linkedin,
   StickyNote,
 } from 'lucide-react';
-import { contactService, companyService, authService } from '@/lib/mock-services';
+import { contactService, companyService } from '@/lib/mock-services';
+import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import type { Contact, Company, DecisionRole } from '@/lib/types';
 import { Link, useRouter } from '@/lib/i18n/navigation';
 import { PageHeader } from '@/components/shared/page-header';
@@ -285,11 +286,15 @@ export default function ContactsPage({ params }: { params: { locale: string } })
     [companyMap, t],
   );
 
-  const ownerName = React.useCallback((id?: string) => {
-    if (!id) return null;
-    const a = authService.getAccount(id);
-    return a ? `${a.firstName} ${a.lastName}` : null;
-  }, []);
+  const staff = useStaffDirectory();
+
+  const ownerName = React.useCallback(
+    (id?: string) => {
+      const a = staff.get(id);
+      return a ? `${a.firstName} ${a.lastName}` : null;
+    },
+    [staff],
+  );
 
   // companies that actually have contacts, sorted by name (for the filter dropdown)
   const companyOptions = React.useMemo(() => {

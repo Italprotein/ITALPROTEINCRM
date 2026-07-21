@@ -66,6 +66,9 @@ import {
 
 /* ────────────────────────────── Constants ────────────────────────────── */
 
+/** Today (YYYY-MM-DD) — upper bound for the testing-date input. */
+const TODAY = new Date().toISOString().slice(0, 10);
+
 const RESULT_OPTIONS: FeedbackResult[] = ['positive', 'mixed', 'negative', 'inconclusive'];
 const NEXT_STEP_OPTIONS: NextStep[] = [
   'new_sample',
@@ -572,7 +575,7 @@ export default function NewFeedbackPage() {
                   id="testDate"
                   type="date"
                   value={testDate}
-                  max="2026-06-17"
+                  max={TODAY}
                   onChange={(e) => setTestDate(e.target.value)}
                   disabled={submitting}
                   className={cn(showErrors && errors.testDate && 'border-danger')}
