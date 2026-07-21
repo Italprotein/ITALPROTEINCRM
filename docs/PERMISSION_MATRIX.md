@@ -1,14 +1,14 @@
 # Permission Matrix — ITALPROTEIN CRM
 
-> **⚠️ STATUS UPDATE — 2026-07-10.** A real backend (PostgreSQL + Prisma + Auth.js) now exists, so the "client-side only, no server-side enforcement" disclaimer below is outdated. **However, server-side enforcement is still PARTIAL:** read paths are company-scoped for external users, but per-mutation role/action guards (`requireAction` in `lib/backend/session.ts`) are defined yet **not yet wired into most create/update/delete actions**, and several write paths are not re-scoped (an IDOR risk). Closing this gap is a critical pre-launch task tracked in [`docs/LAUNCH_RUNBOOK.md`](./LAUNCH_RUNBOOK.md). The role→section/action tables below remain the canonical source of truth; do not treat this matrix as fully enforced yet.
+> **STATUS UPDATE — 2026-07-21.** This matrix now drives server-side `requireAction`, `requireSection`, and `requireSectionEdit` guards throughout the real service layer. Protected layouts, Server Actions, and API routes re-read the active User + Role from PostgreSQL; versioned JWTs are rejected after a password, role, or status change. External queries/mutations derive company scope from that fresh identity. The tables below remain canonical; the remaining launch work is role-by-role staging QA, comprehensive audit/denial logging, staff MFA, and database invariants or row policies as defense in depth.
 
-**Project:** ITALPROTEIN CRM (working prototype)
+**Project:** ITALPROTEIN CRM
 **Owner:** Italprotein Srl — Proamina&reg; commercial operations
-**Phase:** Frontend-first prototype (Demo Mode)
+**Phase:** Backend foundation complete; staging/launch hardening
 **Document status:** Canonical reference for *who can see what* and *who can do what*
-**Last updated:** 2026-06-16
+**Last updated:** 2026-07-21
 
-> **Security disclaimer — read first.** Every rule in this document is currently enforced **client-side only**. Permissions are computed in the browser from the role&rarr;permission matrix in `lib/permissions` and applied to navigation rendering, route guards, and UI action availability. There is **no production database, no real backend, and no server-side enforcement** in this phase. A determined user could bypass any of these checks by manipulating client state, network requests, or `localStorage`. **All rules below MUST be re-enforced server-side** (API authorization, row-level security, signed sessions, audit) when the real backend is connected. Until then, treat this matrix as **UX gating and demo fidelity — not access control.**
+> **Security boundary — read first.** `NEXT_PUBLIC_DATA_MODE=mock` remains client-side Demo Mode for development only. Production always forces Prisma/API mode even if that variable is missing or says `mock`. UI gating is backed by signed Auth.js sessions, while protected layouts, Server Actions, and API routes revalidate a database-fresh identity and derive company scope on the server. Do not treat hidden UI or middleware routing as authorization: new operations must use the matching server guard and scope helper.
 
 ---
 
@@ -21,7 +21,7 @@
 5. [Matrix 3 — External Roles × Portal Sections](#5-matrix-3--external-roles--portal-sections)
 6. [Matrix 4 — External Roles × Portal Actions](#6-matrix-4--external-roles--portal-actions)
 7. [Mapping to `lib/permissions`](#7-mapping-to-libpermissions)
-8. [Production Hand-off — Re-enforce Server-Side](#8-production-hand-off--re-enforce-server-side)
+8. [Production Hardening Status](#8-production-hardening-status)
 
 ---
 
@@ -32,7 +32,7 @@
 | Role | One-line description |
 |------|----------------------|
 | **SUPER_ADMIN** | Unrestricted platform owner — full access to every section and action, including Users & Roles, Settings, and Audit Log. |
-| **CRM_ADMIN** | Day-to-day CRM administrator — full control of all CRM data, manages registrations and data quality; bounded below platform-level Settings and Audit. |
+| **CRM_ADMIN** | Day-to-day CRM administrator — full control of CRM data, registrations, non-super-admin staff, and operational settings/Gmail; cannot create, modify, suspend, delete, or resend invitations for a SUPER_ADMIN. |
 | **BUSINESS_DEV** | Commercial owner of the partner relationship — drives Companies, Contacts, Pipeline, NDAs, Samples, and Quotes end to end. |
 | **RND_TECHNICAL** | R&D / technical specialist — owns Feedback, Application Projects, and Products, posts technical replies, and reviews the technical view of samples. |
 | **LOGISTICS** | Operations role centred on Samples and Shipments — approves, fulfils, and tracks sample dispatch and deliveries; read-only elsewhere. |
@@ -95,9 +95,9 @@ External users are **always scoped to their own company only**. They can never s
 | Analytics | Full | Full | View | View | View | **View** | View |
 | Notifications | Full | Full | Full | Full | Full | Full | View |
 | Registrations | Full | **Full** | Edit | Hidden | Hidden | Hidden | View |
-| Users & Roles | Full | Full | Hidden | Hidden | Hidden | Hidden | Hidden |
+| Users & Roles | Full | Edit | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Import/Export | Full | Full | Edit | View | View | View | Hidden |
-| Settings | **Full** | View | Hidden | Hidden | Hidden | Hidden | Hidden |
+| Settings | **Full** | Edit | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Audit Log | **Full** | View | Hidden | Hidden | Hidden | Hidden | Hidden |
 
 **Reading the emphasis:**
@@ -106,7 +106,7 @@ External users are **always scoped to their own company only**. They can never s
 - **RND_TECHNICAL** has **Full** on **Feedback & R&D**, **Application Projects**, and **Products** (its R&D home), plus **Edit** on NDAs & Documents; Finance and Registrations are **Hidden**.
 - **FINANCE** has **Full** on **Finance** and **View** on **Analytics** (finance reporting context); R&D sections are **Hidden**.
 - **MANAGEMENT_READONLY** is **View** everywhere it can see and **Hidden** on **Users & Roles**, **Settings**, **Audit Log**, and **Import/Export** — purely observational.
-- **CRM_ADMIN** is **Full** across all business and data-quality sections (incl. **Registrations**), but only **View** on **Settings** and **Audit Log** — the platform-level controls that distinguish it from **SUPER_ADMIN**.
+- **CRM_ADMIN** is **Full** across business and data-quality sections (incl. **Registrations**), **Edit** on **Users & Roles** and **Settings**, and **View** on **Audit Log**. Its edit authority is bounded: it can manage non-super-admin staff and operational integrations, but never a SUPER_ADMIN account.
 - **SUPER_ADMIN** is **Full** everywhere, including the three platform sections (Users & Roles, Settings, Audit Log).
 
 ---
@@ -124,11 +124,13 @@ External users are **always scoped to their own company only**. They can never s
 | Mark NDA signed | Allowed | Allowed | Allowed | Denied | Denied | Denied | Denied |
 | Edit finance records | Allowed | Allowed | Allowed | Denied | Denied | Allowed | Denied |
 | Approve registration | Allowed | Allowed | Allowed | Denied | Denied | Denied | Denied |
-| Manage users | Allowed | Allowed | Denied | Denied | Denied | Denied | Denied |
+| Manage users | Allowed | Allowed&nbsp;† | Denied | Denied | Denied | Denied | Denied |
 | Export data | Allowed | Allowed | Allowed | Allowed | Allowed | Allowed | Denied |
 | Edit settings | Allowed | Allowed&nbsp;* | Denied | Denied | Denied | Denied | Denied |
 
-\* **Edit settings** for **CRM_ADMIN** is limited to operational / CRM-level options. **Platform-level configuration** (locale defaults, integration keys, role-matrix changes) remains **SUPER_ADMIN** only. This is why Matrix 1 grants CRM_ADMIN only **View** on the **Settings** section while still allowing it to edit a bounded subset surfaced within it.
+\* **Edit settings** for **CRM_ADMIN** includes operational settings and the shared Gmail connection/signed-in sync guarded by `settings.edit`. Platform-only configuration and role-matrix changes remain **SUPER_ADMIN** concerns.
+
+† A **CRM_ADMIN** with `user.manage` can invite, resend, edit, suspend, or delete only non-super-admin staff. Only a **SUPER_ADMIN** can create or manage another SUPER_ADMIN. No administrator can suspend/delete their own account, and a serializable transaction prevents demotion, suspension, or deletion of the last active SUPER_ADMIN.
 
 **Notes:**
 
@@ -209,7 +211,7 @@ type Action =
   | 'company.createEdit' | 'pipeline.changeStage' | 'sample.approve'
   | 'shipment.updateStatus' | 'feedback.technicalReply' | 'nda.prepareSend'
   | 'nda.markSigned' | 'finance.edit' | 'registration.approve'
-  | 'users.manage' | 'data.export' | 'settings.edit'
+  | 'user.manage' | 'data.export' | 'settings.edit'
   // portal actions
   | 'portal.requestSample' | 'portal.confirmDelivery' | 'portal.submitFeedback'
   | 'portal.uploadResults' | 'portal.editCompany' | 'portal.submitSensitiveEdit'
@@ -258,27 +260,32 @@ function can(role: Role, action: Action): boolean {
 
 ### 7.3 Route guards
 
-Each internal route group and the portal route group wrap their layout in a guard that calls `canView(session.role, section)` for the section that route maps to. If it returns `false`, the guard redirects to a safe landing page (Overview for internal, Dashboard for portal) instead of rendering. Navigation menus iterate the section list and render only items where `canView` is `true`, so the menu and the guards stay in lock-step from one matrix.
+Middleware performs fast JWT-based workspace routing: internal users stay in `/admin`, external users stay in `/portal`. It is not the final authorization boundary. Protected layouts, Server Actions, and API routes call the database-backed session helper, which rejects inactive users, role/workspace drift, external users without a company, and an `authVersion` mismatch. Section/action authority is then enforced where data is read or changed through `requireSection`, `requireAction`, or `requireSectionEdit`. Navigation still uses `canView` for a consistent UX.
 
 ### 7.4 External company scoping
 
-External roles are additionally constrained to **their own company's data**. In this prototype that scoping is applied **inside the mock services** (`companyService`, `sampleService`, `shipmentService`, `feedbackService`, `projectService`, `documentService`, `registrationService`, …), which filter every query by the authenticated `DemoSession`'s `companyId` (managed by `authService` in `localStorage`). Components consume data **only via services** — never by importing fixtures directly — so company scoping cannot be casually bypassed at the component layer in the demo. The **sensitive-edit approval flow** is likewise a service call: the portal action enqueues a Registration / Change request (via `registrationService` / `companyService`) rather than mutating the record, and an internal `registration.approve` action commits it.
+External roles are constrained to **their own company's data**. `getCurrentUser()` re-reads the active User + Role and real service/API operations derive `companyId` from that identity; they do not trust a browser-supplied scope or a stale JWT claim. Company reassignment therefore removes access to the former company's attachments immediately. Mock mode retains fixture/localStorage filtering for development demonstration only. Registration approval is now a guarded transaction that provisions and links the Company, primary Contact, and invited owner. The separate sensitive-company-edit approval workflow remains a launch-hardening item and must not be assumed complete merely because registration approval is transactional.
 
-**Consistency rule:** navigation, route guards, and every actionable control read from these helpers. When a new section or action is added, it is added **once** to the matrix in `lib/permissions`, and both the UI and (later) the server authorization layer consume the same definition.
+**Consistency rule:** navigation, actionable controls, and server guards consume the helpers in `lib/permissions`. When a new section or action is added, update the matrix once and wire the corresponding service read/write guard in the same change.
 
 ---
 
-## 8. Production Hand-off — Re-enforce Server-Side
+## 8. Production Hardening Status
 
-> **THIS PHASE IS CLIENT-SIDE / DEMO ONLY.** The matrices and helpers above shape the **experience** — they hide what a role cannot do and gate navigation — but they **do not secure any data**. All checks run in the browser and can be bypassed.
->
-> **Every rule in this document MUST be re-enforced server-side in the real backend.** Specifically, when the backend lands:
->
-> 1. **Authentication** — replace `DemoSession` / `localStorage` with real signed sessions (HTTP-only, `Secure`, `SameSite` cookies / JWT). The role must live in the verified session, never in client state.
-> 2. **Authorization** — mirror **Matrix 1 & Matrix 2** in API middleware / server actions; reject unauthorized sections and actions on **every request**, regardless of UI state.
-> 3. **Company scoping** — enforce **row-level security** so external users physically cannot fetch another company's data. Never trust a client-supplied `companyId`; derive it from the session.
-> 4. **Confidentiality classes** — enforce Pre-NDA / Post-NDA / Company Specific / Internal Only at the document API. **Internal Only** assets must be unreachable from any portal endpoint.
-> 5. **Approval workflows** — sensitive company edits and external registrations must transactionally enqueue and require an internal approver (`registration.approve`) before commit.
-> 6. **Audit** — log all mutations and authorization decisions to a tamper-evident Audit Log.
->
-> **Reminder:** until the above is delivered, this CRM is a **demo**. The permission matrix shapes the experience; it does not protect the data.
+Delivered in API mode:
+
+1. **Authentication** — workspace-bound Auth.js Credentials, bcrypt passwords, invited-account activation, and versioned JWTs revalidated against the database; password/role/status changes revoke existing sessions.
+2. **Authorization** — service reads/writes and protected API routes use database-fresh identity plus the shared section/action/edit guards.
+3. **Admin hierarchy** — CRM admins manage non-super-admin staff; only super admins manage super admins, and the last active super admin is transactionally protected.
+4. **Google administration** — OAuth start/callback and signed-in manual Gmail sync require `settings.edit`; cron sync uses `CRON_SECRET` instead of a user session.
+5. **Company scoping** — external scope is derived from the verified User and applied to real services/APIs, including immediate attachment denial after company reassignment.
+6. **Workspace isolation** — middleware routes by JWT, while server layouts and operations revalidate the current database identity.
+7. **Registration approval** — an authorized, idempotent transaction provisions and links the company identity before invitation delivery.
+
+Still required before public launch:
+
+1. Run and retain a full role × section × action × company staging test matrix, including document confidentiality and direct-id adversarial cases.
+2. Complete audit coverage for every mutation and denied authorization decision; current coverage is targeted, not universal or tamper-evident.
+3. Add staff MFA and an operational recovery process.
+4. Finish the sensitive-company-edit approval workflow and object-storage/signed-URL hardening.
+5. Add database constraints/invariants (and consider PostgreSQL row-level policies) as defense in depth; application transactions and scoping are currently the primary boundary.

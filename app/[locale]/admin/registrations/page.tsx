@@ -15,10 +15,13 @@ import {
   CalendarClock,
   UserPlus,
   MessageSquarePlus,
-  ArrowRightCircle,
 } from 'lucide-react';
 
 import { registrationService, userService } from '@/lib/mock-services';
+import { approveRegistration, resendRegistrationInvitation } from '@/lib/services/registration.actions';
+import { can } from '@/lib/permissions';
+import { isApiMode } from '@/lib/data-mode';
+import { useSession } from '@/components/providers/session-provider';
 import type {
   Registration,
   RegistrationStatus,
@@ -27,7 +30,6 @@ import type {
 import type { StaffMember } from '@/fixtures';
 import { getLabel } from '@/lib/labels';
 import { formatRelative, formatDate, flagEmoji } from '@/lib/formatting';
-import { useSession } from '@/components/providers/session-provider';
 
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
@@ -73,7 +75,6 @@ import { toast } from '@/components/ui/use-toast';
 type Stats = Awaited<ReturnType<typeof registrationService.getStatistics>>;
 
 const ALL = '__all__';
-const TODAY = new Date().toISOString().slice(0, 10);
 
 /** Tab → which statuses are included. */
 const TAB_FILTER: Record<string, (r: Registration) => boolean> = {
@@ -87,6 +88,8 @@ const TAB_FILTER: Record<string, (r: Registration) => boolean> = {
 export default function RegistrationsPage() {
   const locale = useLocale() as Locale;
   const t = useTranslations('AdminRegistrations');
+  const { account } = useSession();
+  const canDecide = account ? can(account.role, 'registration.approve') : false;
 
   const [rows, setRows] = React.useState<Registration[] | null>(null);
   const [stats, setStats] = React.useState<Stats | null>(null);
@@ -105,8 +108,14 @@ export default function RegistrationsPage() {
   }, []);
 
   const refreshStats = React.useCallback(() => {
-    void registrationService.getStatistics().then(setStats);
+    return registrationService.getStatistics().then(setStats);
   }, []);
+
+  const replaceRow = React.useCallback((updated: Registration) => {
+    setRows((prev) => (prev ? prev.map((r) => (r.id === updated.id ? updated : r)) : prev));
+    setActive((prev) => (prev?.id === updated.id ? updated : prev));
+    void refreshStats().catch(() => undefined);
+  }, [refreshStats]);
 
   const filtered = React.useMemo(() => {
     const data = rows ?? [];
@@ -116,13 +125,13 @@ export default function RegistrationsPage() {
 
   /* ── mutations (mock) ── */
   const patchRow = React.useCallback(
-    (id: string, patch: Partial<Registration>) => {
-      setRows((prev) => (prev ? prev.map((r) => (r.id === id ? { ...r, ...patch } : r)) : prev));
-      setActive((prev) => (prev && prev.id === id ? { ...prev, ...patch } : prev));
-      void registrationService.update(id, patch);
-      refreshStats();
+    async (id: string, patch: Partial<Registration>) => {
+      const updated = await registrationService.update(id, patch);
+      if (!updated) throw new Error('REGISTRATION_NOT_FOUND');
+      replaceRow(updated);
+      return updated;
     },
-    [refreshStats],
+    [replaceRow],
   );
 
   function openReview(r: Registration) {
@@ -308,7 +317,9 @@ export default function RegistrationsPage() {
         registration={active}
         staff={staff}
         locale={locale}
+        canDecide={canDecide}
         onPatch={patchRow}
+        onReplace={replaceRow}
       />
     </div>
   );
@@ -331,17 +342,20 @@ function ReviewPanel({
   registration,
   staff,
   locale,
+  canDecide,
   onPatch,
+  onReplace,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   registration: Registration | null;
   staff: StaffMember[];
   locale: Locale;
-  onPatch: (id: string, patch: Partial<Registration>) => void;
+  canDecide: boolean;
+  onPatch: (id: string, patch: Partial<Registration>) => Promise<Registration>;
+  onReplace: (registration: Registration) => void;
 }) {
   const t = useTranslations('AdminRegistrations');
-  const { account } = useSession();
   const [assignee, setAssignee] = React.useState<string>('');
   const [rejectOpen, setRejectOpen] = React.useState(false);
   const [infoOpen, setInfoOpen] = React.useState(false);
@@ -358,68 +372,111 @@ function ReviewPanel({
 
   const decided = r.status === 'approved' || r.status === 'rejected';
 
-  async function simulate() {
-    setBusy(true);
-    await new Promise((res) => setTimeout(res, 500));
-    setBusy(false);
+  function showMutationError() {
+    toast({ variant: 'danger', title: t('toastErrorTitle'), description: t('toastErrorDescription') });
   }
 
   async function approve() {
-    await simulate();
-    onPatch(r.id, { status: 'approved', decidedAt: TODAY, decidedByUserId: assignee || account?.id || '' });
-    toast({
-      variant: 'success',
-      title: t('toastApprovedTitle'),
-      description: t('toastApprovedDescription', { reference: r.reference, company: r.legalName }),
-    });
+    setBusy(true);
+    try {
+      let delivered = true;
+      if (isApiMode) {
+        const result = await approveRegistration(r.id, assignee || undefined);
+        if (!result) throw new Error('REGISTRATION_NOT_FOUND');
+        onReplace(result.registration);
+        delivered = result.invitationDelivery?.ok !== false;
+      } else {
+        await onPatch(r.id, { status: 'approved', decidedByUserId: assignee || undefined });
+      }
+      toast({
+        variant: delivered ? 'success' : 'warning',
+        title: t(delivered ? 'toastApprovedTitle' : 'toastApprovalPendingTitle'),
+        description: t(delivered ? 'toastApprovedDescription' : 'toastApprovalPendingDescription', {
+          reference: r.reference,
+          company: r.legalName,
+        }),
+      });
+    } catch {
+      showMutationError();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function reject() {
-    await simulate();
-    onPatch(r.id, { status: 'rejected', decidedAt: TODAY, decidedByUserId: assignee || account?.id || '' });
-    toast({
-      variant: 'warning',
-      title: t('toastRejectedTitle'),
-      description: t('toastRejectedDescription', { reference: r.reference, company: r.legalName }),
-    });
+    setBusy(true);
+    try {
+      await onPatch(r.id, { status: 'rejected' });
+      toast({
+        variant: 'warning',
+        title: t('toastRejectedTitle'),
+        description: t('toastRejectedDescription', { reference: r.reference, company: r.legalName }),
+      });
+    } catch {
+      showMutationError();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function requestInfo() {
-    await simulate();
-    onPatch(r.id, {
-      status: 'more_info_requested',
-      adminNote: infoMessage.trim() || r.adminNote,
-    });
-    toast({
-      variant: 'info',
-      title: t('toastInfoRequestedTitle'),
-      description: t('toastInfoRequestedDescription', { email: r.contactEmail }),
-    });
-    setInfoOpen(false);
-    setInfoMessage('');
+    setBusy(true);
+    try {
+      await onPatch(r.id, {
+        status: 'more_info_requested',
+        adminNote: infoMessage.trim() || r.adminNote,
+      });
+      toast({
+        variant: 'info',
+        title: t('toastInfoRequestedTitle'),
+        description: t('toastInfoRequestedDescription', { email: r.contactEmail }),
+      });
+      setInfoOpen(false);
+      setInfoMessage('');
+    } catch {
+      showMutationError();
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function assign(userId: string) {
+  async function assign(userId: string) {
     setAssignee(userId);
-    onPatch(r.id, { decidedByUserId: userId });
-    const m = staff.find((s) => s.id === userId);
-    toast({
-      variant: 'success',
-      title: t('toastStaffAssignedTitle'),
-      description: m
-        ? t('toastStaffAssignedDescription', { reference: r.reference, name: `${m.firstName} ${m.lastName}` })
-        : t('toastStaffAssignedFallback'),
-    });
+    try {
+      await onPatch(r.id, { decidedByUserId: userId });
+      const member = staff.find((item) => item.id === userId);
+      toast({
+        variant: 'success',
+        title: t('toastStaffAssignedTitle'),
+        description: member
+          ? t('toastStaffAssignedDescription', {
+              reference: r.reference,
+              name: `${member.firstName} ${member.lastName}`,
+            })
+          : t('toastStaffAssignedFallback'),
+      });
+    } catch {
+      setAssignee(r.decidedByUserId ?? '');
+      showMutationError();
+    }
   }
 
-  async function convertToCompany() {
-    await simulate();
-    onPatch(r.id, { status: 'approved', decidedAt: TODAY, decidedByUserId: assignee || account?.id || '' });
-    toast({
-      variant: 'success',
-      title: t('toastCompanyCreatedTitle'),
-      description: t('toastCompanyCreatedDescription', { company: r.legalName }),
-    });
+  async function resendPortalInvitation() {
+    setBusy(true);
+    try {
+      const result = await resendRegistrationInvitation(r.id);
+      toast({
+        variant: result.ok ? 'success' : 'warning',
+        title: t(result.ok ? 'toastInviteResentTitle' : 'toastInvitePendingTitle'),
+        description: t(result.ok ? 'toastInviteResentDescription' : 'toastInvitePendingDescription', {
+          email: r.contactEmail,
+        }),
+      });
+    } catch {
+      showMutationError();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -546,7 +603,7 @@ function ReviewPanel({
             {/* Assignment */}
             <section className="space-y-2">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('sectionAssignStaff')}</h4>
-              <Select value={assignee} onValueChange={assign}>
+              <Select value={assignee} onValueChange={assign} disabled={!canDecide || decided || busy}>
                 <SelectTrigger>
                   <SelectValue placeholder={t('selectStaffPlaceholder')} />
                 </SelectTrigger>
@@ -562,7 +619,7 @@ function ReviewPanel({
           </div>
 
           <SheetFooter className="flex-col gap-2 sm:flex-col">
-            {!decided ? (
+            {canDecide && r.status === 'pending_approval' ? (
               <div className="grid w-full grid-cols-2 gap-2">
                 <Button variant="success" onClick={approve} disabled={busy}>
                   <CheckCircle2 className="h-4 w-4" />
@@ -574,14 +631,18 @@ function ReviewPanel({
                 </Button>
               </div>
             ) : null}
-            <Button variant="outline" className="w-full" onClick={() => setInfoOpen(true)} disabled={busy}>
-              <MessageSquarePlus className="h-4 w-4" />
-              {t('btnRequestInfo')}
-            </Button>
-            <Button variant="gold" className="w-full" onClick={convertToCompany} disabled={busy}>
-              <ArrowRightCircle className="h-4 w-4" />
-              {t('btnConvertToCompany')}
-            </Button>
+            {canDecide && !decided ? (
+              <Button variant="outline" className="w-full" onClick={() => setInfoOpen(true)} disabled={busy}>
+                <MessageSquarePlus className="h-4 w-4" />
+                {t('btnRequestInfo')}
+              </Button>
+            ) : null}
+            {isApiMode && canDecide && r.status === 'approved' ? (
+              <Button variant="gold" className="w-full" onClick={resendPortalInvitation} disabled={busy}>
+                <Mail className="h-4 w-4" />
+                {t('btnResendPortalInvite')}
+              </Button>
+            ) : null}
           </SheetFooter>
         </SheetContent>
       </Sheet>

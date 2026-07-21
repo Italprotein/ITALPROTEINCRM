@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { auth } from '@/auth';
 import { prisma } from '@/lib/backend/prisma';
+import { getCurrentUser } from '@/lib/backend/session';
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/backend/rate-limit';
 import { assistantAudienceForRole, type AssistantAudience } from '@/lib/ai/assistant-profile';
 import { generateAssistantReply, type AssistantTurn } from '@/lib/ai/assistant-runtime';
@@ -56,8 +56,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
   }
 
-  const session = await auth();
-  const user = session?.user ?? null;
+  const user = await getCurrentUser();
 
   if (!user && !ALLOW_PUBLIC_ASSISTANT) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });

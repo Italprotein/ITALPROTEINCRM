@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/auth";
 import { checkRateLimit } from "@/lib/backend/rate-limit";
 import { runGmailSync } from "@/lib/backend/gmail-sync";
+import { getCurrentUser } from "@/lib/backend/session";
+import { can } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -15,8 +16,8 @@ async function handle(request: Request) {
   const isCron = Boolean(cronSecret && bearer && bearer === cronSecret);
 
   if (!isCron) {
-    const session = await auth();
-    if (!session?.user || session.user.kind !== "internal") {
+    const user = await getCurrentUser();
+    if (!user || !can(user.role, "settings.edit")) {
       return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
     }
   }

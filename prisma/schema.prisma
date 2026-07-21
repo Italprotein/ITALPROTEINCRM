@@ -152,6 +152,7 @@ enum NotificationType {
   support_request
   invoice_overdue
   password_reset
+  account_invitation
   manual_email
 }
 
@@ -684,6 +685,7 @@ model User {
   contactId       String?    @unique
   status          UserStatus @default(invited)
   passwordHash    String?
+  authVersion     Int        @default(0) @map("auth_version")
   mfaEnrolled     Boolean    @default(false)
   language        Locale     @default(en)
   lastLoginAt     DateTime?
@@ -758,6 +760,7 @@ model User {
   matchedEmailMessages EmailMessage[]      @relation("EmailMessageMatchedAdmin")
   leads                Lead[]              @relation("LeadAdmin")
   passwordResetCodes   PasswordResetCode[] @relation("UserPasswordResetCodes")
+  activationTokens     AccountActivationToken[] @relation("UserAccountActivationTokens")
 
   @@index([roleId])
   @@index([companyId])
@@ -2428,6 +2431,27 @@ model PasswordResetCode {
   @@index([email])
   @@index([expiresAt])
   @@map("password_reset_codes")
+}
+
+// Account invitations use high-entropy, single-use tokens. Only an HMAC hash
+// is stored; the plaintext token exists just long enough to build the emailed
+// activation link. This is deliberately separate from Auth.js's
+// VerificationToken adapter model.
+model AccountActivationToken {
+  id              String    @id @default(cuid())
+  userId          String
+  tokenHash       String    @unique
+  expiresAt       DateTime
+  usedAt          DateTime?
+  createdByUserId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation("UserAccountActivationTokens", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("account_activation_tokens")
 }
 
 // Fixed-window rate-limit counters (login, password reset, mail send, sync).

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/auth";
 import { prisma } from "@/lib/backend/prisma";
 import { verifyState } from "@/lib/backend/crypto";
 import { exchangeOAuthCode, getGmailProfile, storeMailboxTokens } from "@/lib/backend/gmail";
+import { getCurrentUser } from "@/lib/backend/session";
+import { can } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -24,9 +25,8 @@ export async function GET(request: Request) {
   const state = verifyState<{ uid: string }>(stateRaw);
   if (!state?.uid) return settingsUrl("error");
 
-  const session = await auth();
-  const user = session?.user;
-  if (!user || user.kind !== "internal" || user.id !== state.uid) return settingsUrl("error");
+  const user = await getCurrentUser();
+  if (!user || !can(user.role, "settings.edit") || user.id !== state.uid) return settingsUrl("error");
 
   try {
     const tokens = await exchangeOAuthCode(code);

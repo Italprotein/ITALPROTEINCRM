@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { ArrowRight, ChevronLeft, KeyRound, Loader2, MailCheck, ShieldCheck } from 'lucide-react';
 import { Link, useRouter } from '@/lib/i18n/navigation';
 import { confirmPasswordReset, requestPasswordReset } from '@/lib/services/auth.actions';
+import { isApiMode } from '@/lib/data-mode';
 import { Logo } from '@/components/brand/logo';
 import { LanguageSwitcher } from '@/components/i18n/language-switcher';
 import { Button } from '@/components/ui/button';
@@ -25,9 +27,11 @@ const ERROR_KEYS: Record<string, string> = {
 };
 
 /** Password reset for admin accounts: email → six-digit code → new password. */
-export default function ForgotPasswordPage() {
+function ForgotPasswordForm() {
   const t = useTranslations('ForgotPassword');
   const router = useRouter();
+  const workspace = useSearchParams().get('workspace') === 'external' ? 'external' : 'internal';
+  const loginPath = workspace === 'external' ? '/login' : '/team-login';
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -36,7 +40,7 @@ export default function ForgotPasswordPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const isApi = (process.env.NEXT_PUBLIC_DATA_MODE ?? 'mock') === 'api';
+  const isApi = isApiMode;
 
   async function submitEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -68,7 +72,7 @@ export default function ForgotPasswordPage() {
     setBusy(false);
     if (res.ok) {
       setStep('done');
-      setTimeout(() => router.push('/team-login'), 2500);
+      setTimeout(() => router.push(loginPath), 2500);
     } else {
       setError(t(ERROR_KEYS[res.error ?? ''] ?? 'errorGeneric'));
     }
@@ -192,7 +196,7 @@ export default function ForgotPasswordPage() {
                 <ShieldCheck className="h-5 w-5 shrink-0 text-success" />
                 <span>{t('doneNotice')}</span>
               </div>
-              <Button onClick={() => router.push('/team-login')} className="h-12 w-full gap-2 text-sm font-semibold">
+              <Button onClick={() => router.push(loginPath)} className="h-12 w-full gap-2 text-sm font-semibold">
                 {t('backToLogin')} <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
@@ -200,7 +204,7 @@ export default function ForgotPasswordPage() {
 
           <div className="mt-6 text-center">
             <Link
-              href="/team-login"
+              href={loginPath}
               className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
               <ChevronLeft className="h-3 w-3" /> {t('backToLogin')}
@@ -209,5 +213,13 @@ export default function ForgotPasswordPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ForgotPasswordForm />
+    </Suspense>
   );
 }

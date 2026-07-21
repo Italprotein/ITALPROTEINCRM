@@ -332,6 +332,26 @@ function encodeHeaderWord(value: string): string {
   return /^[\x20-\x7e]*$/.test(value) ? value : `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`;
 }
 
+/** Normalize one mailbox address and reject MIME header/control injection. */
+export function normalizeEmailAddress(value: string): string | null {
+  const email = value.trim().toLowerCase();
+  if (
+    email.length < 3 ||
+    email.length > 254 ||
+    /[\x00-\x20\x7f<>,]/.test(email) ||
+    !/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i.test(email)
+  ) {
+    return null;
+  }
+  return email;
+}
+
+function requireEmailAddress(value: string): string {
+  const email = normalizeEmailAddress(value);
+  if (!email) throw new GmailError("Invalid email address", 400);
+  return email;
+}
+
 export function buildRawEmail(options: {
   from: string;
   fromName?: string;
@@ -341,7 +361,12 @@ export function buildRawEmail(options: {
   subject: string;
   text: string;
 }): string {
-  const { from, fromName, to, cc, replyTo, subject, text } = options;
+  const { fromName, subject, text } = options;
+  const from = requireEmailAddress(options.from);
+  const to = options.to.map(requireEmailAddress);
+  const cc = options.cc?.map(requireEmailAddress);
+  const replyTo = options.replyTo ? requireEmailAddress(options.replyTo) : undefined;
+  if (to.length === 0) throw new GmailError("At least one recipient is required", 400);
   const fromHeader = fromName ? `${encodeHeaderWord(fromName)} <${from}>` : from;
   const body = Buffer.from(text, "utf8").toString("base64").replace(/(.{76})/g, "$1\r\n");
   const lines = [

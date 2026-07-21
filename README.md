@@ -1,6 +1,6 @@
 # ITALPROTEIN CRM
 
-Bilingual (EN/IT) B2B CRM + client portal for **Italprotein Srl** and its **Proamina®** protein-sweetener business. Next.js app with a real backend: PostgreSQL (Prisma), Auth.js login, and a Gmail OAuth/sync/send integration.
+Bilingual (EN/IT) B2B CRM + client portal for **Italprotein Srl** and its **Proamina®** protein-sweetener business. Next.js app with a real backend: PostgreSQL (Prisma), workspace-aware Auth.js credential login for staff and portal users, account invitations/activation, and Gmail OAuth/sync/send.
 
 > **Current phase:** backend foundation working; hardening toward a staging-ready launch. See [`docs/LAUNCH_RUNBOOK.md`](docs/LAUNCH_RUNBOOK.md) for the exact go-live steps and what is still outstanding.
 
@@ -11,20 +11,20 @@ Bilingual (EN/IT) B2B CRM + client portal for **Italprotein Srl** and its **Proa
 | Framework | Next.js 16 (App Router, React 19), `next-intl` (EN/IT) |
 | Language | TypeScript (strict) |
 | Database | PostgreSQL via **Prisma 7** (`@prisma/adapter-pg`) |
-| Auth | **Auth.js / next-auth v5** (Credentials, bcrypt, JWT sessions) |
+| Auth | **Auth.js / next-auth v5** (workspace-bound Credentials, bcrypt, revocable/versioned JWT sessions, single-use activation links) |
 | Email / Leads | Hand-rolled Gmail OAuth2 + REST (`lib/backend/gmail*.ts`) |
 | AI assistant (Amina) | Anthropic Claude (`@anthropic-ai/sdk`) — not yet wired to UI |
 | Styling | Tailwind CSS, Radix UI |
 | Hosting | Vercel (`vercel.json` cron for Gmail sync) |
 
-## The mock / api switch — read this first
+## Development mock mode / production API mode — read this first
 
-Every data call goes through `lib/mock-services/index.ts`, which picks an implementation from the public env var **`NEXT_PUBLIC_DATA_MODE`**:
+Every data call goes through `lib/mock-services/index.ts`. `lib/data-mode.ts` selects the implementation with a fail-safe production rule:
 
-- `mock` (default) — in-memory fixtures + `localStorage`. No database, Demo-Mode login. Good for UI work.
-- `api` — real Prisma/Postgres services, real Auth.js login, real Gmail. **Production must run `api`.**
+- **Development:** `NEXT_PUBLIC_DATA_MODE=mock` (or omitted) uses fixtures + `localStorage`; `api` uses the real backend.
+- **Production:** always uses real Prisma/Postgres services and Auth.js, even if `NEXT_PUBLIC_DATA_MODE` is missing or says `mock`. Demo Mode is development-only.
 
-Middleware auth enforcement, real login, and Gmail all activate **only** in `api` mode.
+Internal accounts use `/[locale]/team-login`; company-scoped external accounts use `/[locale]/login`. Invited users first set a password through a hashed, single-use 72-hour `/[locale]/activate?token=...` link. Protected layouts, Server Actions, and API routes re-read the current database identity; password, role, or status changes increment `authVersion` so existing JWTs are rejected immediately.
 
 ## Local development
 
@@ -57,19 +57,20 @@ npm run dev
 | `lint` / `typecheck` | ESLint (flat config) / `tsc --noEmit` |
 | `db:generate` | `prisma generate` |
 | `db:migrate` | `prisma migrate deploy` (apply migrations) |
-| `db:seed` | seed 12 RBAC roles + admin allowlist |
+| `db:seed` | non-destructively upsert 12 RBAC roles + bootstrap super-admins |
 | `db:studio` | Prisma Studio (browse the DB) |
 | `import:dry` / `import` | validate / import real company+contact CSVs |
-| `verify` | backend smoke test (crypto, rate-limit, Gmail MIME, reset flow) — needs `DATABASE_URL` |
+| `verify` | backend/DB smoke test (crypto, limits, header safety, reset/activation/resend lifecycle) — needs `DATABASE_URL` |
+| `verify:auth` | live Auth.js/API/workspace/revocation/scoping suite — run against a production server; defaults to `http://localhost:3121` or set `SMOKE_BASE_URL` |
 
 ## Secrets & data hygiene
 
-`.gitignore` protects `/data/` (admin allowlist + import CSVs), `.env*`, and `/assets/` (confidential source material). **Never commit real credentials or client data.** The `data/admins.json` allowlist and `data/import/*.csv` files exist only locally and must be provided to the host out-of-band (see runbook).
+`.gitignore` protects `/data/` (bootstrap admins + import CSVs), `.env*`, and `/assets/` (confidential source material). **Never commit real credentials or client data.** `data/admins.json` and `data/import/*.csv` exist only locally and must be provided to the host out-of-band (see runbook). Re-running `db:seed` upserts configured bootstrap admins, increments their `authVersion`, and never deletes invited staff or portal users.
 
 ## Documentation
 
 - [`docs/LAUNCH_RUNBOOK.md`](docs/LAUNCH_RUNBOOK.md) — **start here for deploy/launch** (ordered steps, every env var, where to get each secret).
-- [`docs/GMAIL_AUTH_SECURITY_SETUP.md`](docs/GMAIL_AUTH_SECURITY_SETUP.md) — Gmail OAuth + password-auth setup (accurate/current).
-- [`docs/PERMISSION_MATRIX.md`](docs/PERMISSION_MATRIX.md) — role → section/action rules (canonical; server enforcement still partial).
-- [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md), [`docs/USER_FLOWS.md`](docs/USER_FLOWS.md) — product & flows (phase headers stale; bodies valid).
+- [`docs/GMAIL_AUTH_SECURITY_SETUP.md`](docs/GMAIL_AUTH_SECURITY_SETUP.md) — Gmail OAuth, password auth, invitation activation, and security setup.
+- [`docs/PERMISSION_MATRIX.md`](docs/PERMISSION_MATRIX.md) — canonical role → section/action rules and current server-enforcement boundaries.
+- [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md), [`docs/USER_FLOWS.md`](docs/USER_FLOWS.md) — product specification and current login/registration flows; later feature flows retain historical mock markers where noted.
 - `docs/BACKEND_HANDOFF.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/FRONTEND_ARCHITECTURE.md`, `docs/LAUNCH_READINESS_ROADMAP.md` — historical design docs (carry a status banner; predate the backend build).

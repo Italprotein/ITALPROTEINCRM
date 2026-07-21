@@ -22,11 +22,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        workspace: { label: "Workspace", type: "text" },
       },
       authorize: async (credentials, request) => {
         const email = String(credentials?.email ?? "").trim().toLowerCase();
         const password = String(credentials?.password ?? "");
-        if (!email || !password) return null;
+        const workspace = String(credentials?.workspace ?? "");
+        if (!email || !password || (workspace !== "internal" && workspace !== "external")) return null;
 
         const ip = clientIpFromHeaders(request?.headers);
         // Volumetric guard: every attempt spends per-IP quota.
@@ -48,9 +50,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
         if (!user || !user.passwordHash || user.status !== "active") return null;
 
-        // Only admins may sign in.
-        const ADMIN_ROLES = ["super_admin", "crm_admin"];
-        if (!ADMIN_ROLES.includes(user.role.key)) return null;
+        // Both login doors use this provider, so the requested door is part of
+        // the credential contract. Role, user kind and door must agree; portal
+        // users additionally need a company scope before they can authenticate.
+        if (
+          user.kind !== workspace ||
+          user.role.kind !== user.kind ||
+          (user.kind === "external" && !user.companyId)
+        ) {
+          return null;
+        }
 
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) {
@@ -88,6 +97,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role.key,
           kind: user.kind,
           companyId: user.companyId ?? null,
+          authVersion: user.authVersion,
         };
       },
     }),

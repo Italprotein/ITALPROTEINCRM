@@ -8,8 +8,9 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../lib/generated/prisma/client";
 
 // Run with: npx prisma db seed   (or: npx tsx prisma/seed.ts)
-// Seeds the 12 RBAC roles, then the admin allowlist (the ONLY users who may log
-// in) from the gitignored data/admins.json. Every other user is purged.
+// Seeds the 12 RBAC roles, then upserts the bootstrap admin allowlist from the
+// gitignored data/admins.json. Re-running this seed is non-destructive so it
+// cannot remove invited staff or provisioned portal users.
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is not set");
 
@@ -60,16 +61,21 @@ async function main() {
       const passwordHash = await bcrypt.hash(a.password, 12);
       await prisma.user.upsert({
         where: { email },
-        update: { name, roleId: superRole.id, kind: "internal", status: "active", passwordHash, emailVerified: now },
+        update: {
+          name,
+          roleId: superRole.id,
+          kind: "internal",
+          status: "active",
+          passwordHash,
+          emailVerified: now,
+          authVersion: { increment: 1 },
+        },
         create: { email, name, roleId: superRole.id, kind: "internal", status: "active", passwordHash, emailVerified: now },
       });
     }
-    // Only the allowlisted admins may exist / log in — purge everyone else.
-    const purged = await prisma.user.deleteMany({ where: { email: { notIn: emails } } });
     console.log(`✓ Seeded ${ROLES.length} roles.`);
-    console.log(`✓ Seeded ${emails.length} admins (the only login-enabled users):`);
+    console.log(`✓ Upserted ${emails.length} bootstrap admins:`);
     for (const e of emails) console.log(`    ${e}`);
-    if (purged.count) console.log(`✓ Purged ${purged.count} non-admin user(s).`);
     return;
   }
 
@@ -79,7 +85,7 @@ async function main() {
   const passwordHash = await bcrypt.hash(password, 12);
   await prisma.user.upsert({
     where: { email },
-    update: { roleId: superRole.id, status: "active", passwordHash },
+    update: { roleId: superRole.id, status: "active", passwordHash, authVersion: { increment: 1 } },
     create: { email, name: "Super Admin", roleId: superRole.id, kind: "internal", status: "active", passwordHash, emailVerified: now },
   });
   console.log(`✓ Seeded ${ROLES.length} roles + super admin (${email}).`);

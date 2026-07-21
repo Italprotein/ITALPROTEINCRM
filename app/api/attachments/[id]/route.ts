@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { auth } from "@/auth";
 import { prisma } from "@/lib/backend/prisma";
 import { canEdit, canView } from "@/lib/permissions";
-import type { SessionUser } from "@/lib/backend/session";
+import { getCurrentUser } from "@/lib/backend/session";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +11,7 @@ export const dynamic = "force-dynamic";
 // belong to their own company.
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await auth();
-  const user = session?.user as SessionUser | undefined;
+  const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 
   const attachment = await prisma.attachment.findUnique({

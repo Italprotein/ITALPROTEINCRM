@@ -17,6 +17,7 @@ export const authConfig = {
         token.role = user.role;
         token.kind = user.kind;
         token.companyId = user.companyId ?? null;
+        token.authVersion = user.authVersion;
       }
       return token;
     },
@@ -28,6 +29,7 @@ export const authConfig = {
         session.user.role = token.role as Role;
         session.user.kind = token.kind as "internal" | "external";
         session.user.companyId = (token.companyId as string | null) ?? null;
+        session.user.authVersion = token.authVersion as number;
       }
       return session;
     },

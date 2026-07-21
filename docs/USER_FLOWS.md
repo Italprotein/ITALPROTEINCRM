@@ -1,22 +1,22 @@
 # ITALPROTEIN CRM — User Flows
 
-> **⚠️ STATUS UPDATE — 2026-07-10 (backend now built).** The prototype disclaimer below ("everything runs entirely in the frontend … Email sending is simulated … Demo Mode … no passwords") is **outdated** for auth and email. Real flows now exist: credential login at `/en/team-login`, forgot-password with a six-digit code sent via the connected Gmail mailbox (`app/[locale]/forgot-password/`), and real outbound Gmail send. Data reads/writes hit the real backend when `NEXT_PUBLIC_DATA_MODE=api`. Flows still marked **[Future]** (e.g. external-portal self-login, e-signature) remain unbuilt — see [`docs/LAUNCH_RUNBOOK.md`](./LAUNCH_RUNBOOK.md).
+> **STATUS UPDATE — 2026-07-21.** In `api` mode, staff and company users now have real workspace-bound Auth.js credentials, server sessions, account invitations, password activation/reset, server-side workspace guards, and Prisma-backed services. Registration approval transactionally provisions the company, primary contact, and invited portal owner. Flows 1 and 2 below describe that current implementation. Later business flows retain **[Mock]** or **[Future]** markers where their side effects or integrations are still simulated/unbuilt; see [`docs/LAUNCH_RUNBOOK.md`](./LAUNCH_RUNBOOK.md).
 
-**Project:** ITALPROTEIN CRM (working prototype)
+**Project:** ITALPROTEIN CRM
 **Owner:** Italprotein Srl — Proamina&reg; commercial operations
-**Phase:** Frontend-first prototype (mock service layer, no production backend)
+**Phase:** Backend foundation complete; staging/launch hardening
 **Document status:** Canonical step-by-step user-flow reference
-**Last updated:** 2026-06-16
+**Last updated:** 2026-07-21
 
-> **Prototype disclaimer — read first.** Everything described below runs **entirely in the frontend**. There is **no production database, no real backend, and no live third-party integrations**. All reads come from typed mock services (`lib/mock-services`) over TypeScript/JSON **fixtures**, and all writes are a **`localStorage` overlay** on top of those fixtures. "Email sending" is **simulated**: there is no real outbound mail — instead, a mock **Email Delivery Log** records an `EmailLogEntry`-shaped event (see [Conventions](#conventions--legend)) so the flow is demonstrable. Demo Mode authentication is **not** a production security boundary. Every step that a real backend would later own is marked **[Mock]** (simulated now) or **[Future]** (does not exist at all yet). Routes follow `/[locale]/…` with locales `en` (default) and `it`.
+> **Mode boundary — read first.** Fixture/localStorage Demo Mode is development-only. In development, `NEXT_PUBLIC_DATA_MODE=mock` (or omission) selects it and `api` selects the backend. Production always forces PostgreSQL/Prisma, Auth.js, guarded Server Actions/Route Handlers, and live integrations even if the public variable is missing or says `mock`. Routes follow `/[locale]/…` with locales `en` (default) and `it`.
 
 ---
 
 ## Table of Contents
 
 - [Conventions & Legend](#conventions--legend)
-- [Flow 1 — Demo Login & Role Selection (Internal & External)](#flow-1--demo-login--role-selection-internal--external)
-- [Flow 2 — Public Registration → Verification → Approval → Portal Access](#flow-2--public-registration--verification--approval--portal-access)
+- [Flow 1 — Credential Login & Workspace Separation](#flow-1--credential-login--workspace-separation)
+- [Flow 2 — Public Registration → Approval → Activation → Portal Access](#flow-2--public-registration--approval--activation--portal-access)
 - [Flow 3 — Sample Request Creation (External) & Admin Review](#flow-3--sample-request-creation-external--admin-review)
 - [Flow 4 — Sample Preparation → Shipment → Transit → Delivery → Receipt Confirmation](#flow-4--sample-preparation--shipment--transit--delivery--receipt-confirmation)
 - [Flow 5 — Feedback Submission & R&D Review Round-Trip](#flow-5--feedback-submission--rd-review-round-trip)
@@ -26,7 +26,7 @@
 - [Flow 9 — Import Wizard (Client-Side Mock)](#flow-9--import-wizard-client-side-mock)
 - [Flow 10 — Language Switch Preserving Route & Record](#flow-10--language-switch-preserving-route--record)
 - [Flow 11 — Global Search & Command Palette](#flow-11--global-search--command-palette)
-- [Cross-Flow Mock Seams Summary](#cross-flow-mock-seams-summary)
+- [Cross-Flow Implementation Seams Summary](#cross-flow-implementation-seams-summary)
 
 ---
 
@@ -34,12 +34,12 @@
 
 | Marker | Meaning |
 |---|---|
-| **[Mock]** | Behavior is **simulated** in the frontend today (fixture read / `localStorage` overlay write / simulated latency). A real backend will own it later. |
-| **[Future]** | Capability does **not exist at all** in the prototype (e.g. real email send, e-signature, MFA). Only its placeholder is referenced. |
+| **[Mock]** | Behavior is simulated when `NEXT_PUBLIC_DATA_MODE=mock`, or a named business side effect is still fixture/overlay-only. |
+| **[Future]** | Capability does not exist yet (for example e-signature or staff MFA). |
 | `service.method()` | A call into a named mock service in `lib/mock-services`. Components **never** import fixtures directly. |
-| **State change** | A mutation written to the `localStorage` overlay over the fixture. |
-| **Notification** | An in-app `notificationService.create(...)` entry; surfaces in the relevant Notifications section + unread badge. Scope is `internal` or `company`. |
-| **Email-log event** | A **mock** `EmailLogEntry`-shaped record (`triggerType`, `toAddresses[]`, `templateKey`, `relatedEntityType/Id`, `status: queued`) written to the Email Delivery Log view. **No real email is sent. [Future]** real send via Gmail API. |
+| **State change** | In `api` mode, a guarded Prisma write; in mock mode, a `localStorage` overlay mutation. |
+| **Notification** | An in-app notification entry scoped by workspace, role, user, and/or company. Some lifecycle fan-out remains planned. |
+| **Email-log event** | In `api` mode, a durable `email_logs` row whose delivery status is updated by Gmail; older mock-only flows explicitly say so. |
 | **Activity** | An append-only `activityService.create(...)` timeline entry (verb + entity + summary), shown on Company 360 timelines and `/admin/activities`. |
 
 **Status taxonomies referenced** (from `docs/PRODUCT_SPEC.md` §7–8):
@@ -56,119 +56,93 @@
 
 ---
 
-## Flow 1 — Demo Login & Role Selection (Internal & External)
+## Flow 1 — Credential Login & Workspace Separation
 
-**Actors:** Any visitor choosing a demo persona.
-**Routes:** `/[locale]` (landing) → `/[locale]/login` → `/[locale]/admin/overview` *or* `/[locale]/portal/dashboard`.
-**Services:** `authService`.
-**Goal:** Adopt a demo persona and land in the correct product (internal CRM vs external portal) by role.
+**Actors:** Active internal staff and activated external company users.
+**Routes:** `/[locale]/team-login` → `/[locale]/admin/*`; `/[locale]/login` → `/[locale]/portal/*`.
+**Services:** Auth.js Credentials provider, `getCurrentUser()`, server authorization helpers, Prisma.
+**Goal:** Authenticate at the correct door, use the current database identity, and prevent cross-workspace access.
 
-> **[Mock]** There are **no passwords**. `fixtures/users.ts` pre-seeds one working demo account per role (7 internal + 5 external). `authService` stores a `DemoSession` in `localStorage`. A persistent **Demo Mode** banner is shown. **[Future]** real credentials, email verification, MFA, server sessions.
+> In `mock` mode the two pages still use seeded demo personas. The steps below describe production-intended `api` mode.
 
 ### 1.1 Internal staff login
 
-1. **Landing → Login.** Visitor opens `/[locale]` and clicks **Sign in**. Route → `/[locale]/login`.
-   - Screen: Login page renders two persona groups — **Internal team** and **Company portal** — each labelled with a Demo Mode notice.
-2. **Pick demo account / role.** Visitor selects an internal persona (e.g. `BUSINESS_DEV`). A role/persona picker lists all 7 internal demo accounts from `fixtures/users.ts`.
-   - **[Mock]** No password field is required to proceed (Demo Mode); a disabled/placeholder field may be shown for realism.
-3. **Establish session.** UI calls `authService.login(selectedUser)` **[Mock]** (simulated latency).
-   - **State change:** `DemoSession` written to `localStorage` (`{ userId, roleKey, kind: 'internal', companyId: null, language }`).
-4. **Resolve landing by role.** `authService.getSession()` resolves `kind = internal`; `can`/`canView` are now computed from the role.
-   - **Redirect:** → `/[locale]/admin/overview`.
-5. **Overview renders role-aware.** `/admin/overview` reads via `companyService`, `opportunityService`, `sampleService`, `shipmentService`, `feedbackService`, `taskService`, `notificationService`, `activityService` — each filtered by `canView(role, section)`.
-   - `MANAGEMENT_READONLY` lands on the same Overview but every write action is hidden/disabled (read-only).
-6. **Role switcher (fast demoing).** A header role switcher calls `authService.login(otherUser)` to swap persona without returning to `/login`; nav re-filters immediately. **[Mock]**
-
-```
-/[locale]  →  /[locale]/login  →  pick INTERNAL role  →  authService.login()  →  DemoSession  →  /[locale]/admin/overview
-```
+1. Staff enters email/password at `/[locale]/team-login`; the form submits `workspace = internal` to Auth.js.
+2. Authentication accepts any active internal role whose role row is also internal and whose bcrypt password matches. Login is rate-limited by IP and failed-account attempts.
+3. Auth.js issues a JWT containing an `authVersion` snapshot. Protected layouts, Server Actions, and API routes re-read the User + Role row and compare the version. Suspension, role/status changes, password change/reset, or forced revocation therefore invalidate existing JWTs immediately.
+4. The user lands in `/[locale]/admin`. Middleware and the admin server layout both reject an external identity; service reads/writes also enforce section/action permissions.
+5. A valid internal session that requests `/portal` is redirected back to `/admin`.
 
 ### 1.2 External company-user login
 
-1. **Login → Company portal group.** On `/[locale]/login`, visitor selects the **Company portal** group and an external persona (e.g. `COMPANY_OWNER` of a seeded demo company).
-2. **Establish session.** `authService.login(selectedUser)` **[Mock]**.
-   - **State change:** `DemoSession` = `{ userId, roleKey, kind: 'external', companyId: <ownCompanyId>, language }`. The bound `companyId` is the **only** company this session may ever read.
-3. **Resolve landing.** `kind = external` → **Redirect:** `/[locale]/portal/dashboard`.
-4. **Company-scoped dashboard.** `/portal/dashboard` reads `companyService`, `sampleService`, `shipmentService`, `feedbackService`, `notificationService` — all hard-filtered to `session.companyId`. **[Mock]** scoping enforced in the mock services by company id (server-side later).
-5. **Logout.** `authService.logout()` clears the `DemoSession` and returns to `/[locale]/login`.
+1. The company user enters email/password at `/[locale]/login`; the form submits `workspace = external`.
+2. Authentication requires an active external User, an external Role, a matching password, and a non-null `companyId`. Internal credentials are rejected at this door.
+3. The user lands in `/[locale]/portal`. Middleware and the portal server layout reject an internal identity.
+4. Real service reads and writes derive company scope from the verified current User, not from a client-supplied company id. Cross-company ids return no data or are forbidden.
+5. A valid external session that requests `/admin` is redirected back to `/portal`.
 
-```
-/[locale]/login  →  pick EXTERNAL role  →  authService.login()  →  DemoSession(companyId)  →  /[locale]/portal/dashboard
+### 1.3 Staff invitation and account administration
+
+1. A user with `user.manage` can invite or resend invitations for non-super-admin staff. Recipient addresses are normalized and rejected if they are invalid or contain header/control injection.
+2. Only a `super_admin` may create, resend, change, suspend, demote, or delete another `super_admin`; a `crm_admin` remains below that boundary.
+3. An invited account cannot be manually marked active—it must consume its activation link. Administrators cannot suspend or delete themselves.
+4. A serializable transaction refuses any demotion, suspension, or deletion that would remove the last active `super_admin`.
+5. Role/status changes increment `authVersion`, revoke existing JWTs, and write an audit event.
+6. Invite/resend quotas are 20 per acting user per hour and 5 per recipient account/email per hour. A resend token is staged first: successful delivery retires the older link; failed delivery retires only the candidate, preserving the previous working link.
+
+```text
+/team-login + internal credentials → Auth.js session → /admin
+/login      + external credentials → Auth.js session(companyId) → /portal
+wrong door or wrong workspace route → rejected / redirected
 ```
 
-**Notifications / email-log:** none generated by login itself (demo).
+**Still required before public launch:** staff MFA, broader denied-access monitoring, and a full staging matrix across all roles and company-scoped resources.
 
 ---
 
-## Flow 2 — Public Registration → Verification → Approval → Portal Access
+## Flow 2 — Public Registration → Approval → Activation → Portal Access
 
-**Actors:** Prospective customer (applicant) → internal `CRM_ADMIN` (or `SUPER_ADMIN`).
-**Routes:** `/[locale]/register` → **Verify email** screen → **Pending approval** screen → `/[locale]/admin/registrations` → applicant → `/[locale]/portal/dashboard`.
-**Services:** `registrationService`, `notificationService`, `companyService`, `contactService`, `authService`, Email Delivery Log.
-**Goal:** A self-registered prospect is reviewed by an admin and, if approved, provisioned a company + owner user and lands in the portal.
+**Actors:** Prospective customer → internal approver with `registration.approve` → invited portal owner.
+**Routes:** `/[locale]/register` → `/[locale]/admin/registrations` → `/[locale]/activate?token=...` → `/[locale]/login` → `/[locale]/portal`.
+**Services:** real `registrationService` actions, Prisma transaction, account-invitation helper, Auth.js, Gmail.
+**Goal:** Review a public intake, provision one coherent company identity, and let the approved owner establish portal credentials.
 
-> Mirrors Implementation Plan vertical slice 4 (Registration → Approval → Portal access).
+### Part A — Public intake
 
-### Part A — Applicant submits (public)
+1. The applicant submits the public registration form. `createRegistration()` is intentionally anonymous, but a strict server schema validates bounded text, enums, arrays, normalized email, and required privacy/terms consent.
+2. The submission does **not** create a User or session and grants no portal access.
+3. The server—not the browser—generates the reference, forces `pending_approval`, clears linkage/decision/admin fields, and records no forged creator. Limits are 8 submissions/IP/hour and 3/contact-email/hour.
+4. CAPTCHA/WAF bot defense and the policy decision on a distinct pre-approval verification step remain. The current activation link proves mailbox control after approval.
 
-1. **Open registration.** Applicant opens `/[locale]/register`.
-   - Screen: company + applicant form (`companyName`, `companyType`, `country`, `applicantName`, `applicantEmail`, `applicantRoleRequested`, message). Validated via `lib/validation` with localized errors.
-2. **Submit.** `registrationService.create(input)` **[Mock]**.
-   - **State change:** new `Registration` with `status = pending` in the `localStorage` overlay.
-   - **Notification (internal):** `notificationService.create({ scope: 'internal', type: 'new_registration', recipients: CRM_ADMIN })`.
-   - **Email-log event [Mock]:** `EmailLogEntry { triggerType: 'email_verification', templateKey: 'email_verification', to: applicantEmail, status: queued }`. **[Future]** real verification mail.
-3. **Verify-email screen.** Redirect → an in-app **Verify your email** screen.
-   - **[Mock / Future]** No real token is mailed. The prototype shows a simulated "verification sent" state with a demo **Mark as verified** affordance so the flow can proceed. Marking verified sets a demo `emailVerifiedAt`-style flag on the registration overlay. **[Future]** single-use expiring token.
-4. **Pending-approval screen.** After (simulated) verification → **Pending approval** screen explaining the registration is awaiting Italprotein review. No portal access yet; `authService` holds no usable session for the applicant.
+### Part B — Guarded review and transactional provisioning
 
+5. Internal staff can read the queue, but approval/rejection requires the `registration.approve` permission.
+6. On approval, the server validates the assigned active internal account owner, the external `company_owner` role, and that the applicant email is not already a User account.
+7. One Prisma transaction atomically:
+   - claims the undecided Registration and marks it approved;
+   - creates one Company and one primary Contact;
+   - creates an `invited` external `company_owner` bound to both records;
+   - stores only a hash of a new 72-hour activation token;
+   - creates the RegistrationDecision and backfills all provisioned ids plus `linkedCompanyId`;
+   - creates a queued invitation `email_logs` row and an audit event.
+8. A repeated approval returns the already-complete result rather than duplicating records. A legacy/incomplete approval fails closed. Rejection is also transactional and provisions no account.
+9. Gmail delivery runs only after the provisioning transaction commits. The durable email-log row becomes `sent` or `failed`; a mail outage does not roll back valid CRM records.
+10. An authorized reviewer can resend the approved portal invitation. Resends use the same 20/actor/hour and 5/recipient/hour quotas and staged-token rule: only successful delivery retires the older working link.
+
+### Part C — Single-use activation and portal login
+
+11. The applicant opens the localized `/activate` link from the invitation and chooses a password of at least 10 characters containing a letter and a digit.
+12. Activation is rate-limited. The server HMAC-hashes the presented token, rejects malformed/expired/used tokens, and atomically consumes a valid token.
+13. The User becomes `active`, `emailVerified` is stamped, the bcrypt password hash is stored, all other live tokens for the User are invalidated, and an audit event is written.
+14. The page redirects an external account to `/[locale]/login`; after credential login, all portal service and protected API access uses the database-fresh `companyId`. Reassigning the User immediately removes access to the former company's attachments, even with an older JWT.
+
+```text
+/register → Registration only → guarded approval
+  → transaction(Company + primary Contact + invited company_owner + decision links + token hash + email log)
+  → Gmail activation link → one-time password setup → /login → company-scoped /portal
 ```
-/[locale]/register  →  registrationService.create()  →  Verify email (mock)  →  Pending approval
-                                          │
-                                          ├─ Notification → CRM_ADMIN
-                                          └─ Email-log: email_verification (queued, mock)
-```
 
-### Part B — Internal review & decision
-
-5. **Admin opens queue.** `CRM_ADMIN`/`SUPER_ADMIN` opens `/[locale]/admin/registrations` (`canView(role, 'registrations')`). `registrationService.list({ status: 'pending' })` renders inbound registrations; the new one carries a notification badge.
-6. **Open registration detail.** Admin selects the record; `registrationService.get(id)` shows applicant + company details. Four decisions are available:
-
-   **(a) Approve** — `registrationService.changeStatus(id, 'approved')` **[Mock]**.
-   - **State change:** registration `status = approved`; provisions a new `Company` (`companyService.create`) + an owner `Contact`/`User` (`contactService.create`, `COMPANY_OWNER`) bound to that company.
-   - **Activity:** `activityService.create({ verb: 'registration_approved', entity: company })`.
-   - **Notification (company):** welcome notification scoped to the new company.
-   - **Email-log event [Mock]:** `registration_approved` (welcome + activation/verification link), `status: queued`, `to: applicantEmail`.
-
-   **(b) Reject** — `registrationService.changeStatus(id, 'rejected', { reason })`.
-   - **State change:** `status = rejected`, `rejectionReason` stored. No company/user provisioned.
-   - **Email-log event [Mock]:** `registration_rejected` (with reason), `status: queued`.
-
-   **(c) Request more information** — admin posts a clarification request.
-   - **State change:** registration stays `pending` with a `moreInfoRequested` note/timestamp on the overlay.
-   - **Notification (to applicant scope) + Email-log event [Mock]:** `registration_more_info` (template), `status: queued`. The applicant's **Pending approval** screen reflects "information requested."
-   - **[Mock]** this is a prototype sub-state of `pending`; the canonical taxonomy remains `pending → approved → rejected`.
-
-   **(d) Link to existing company** — applicant matches a company already in `companyService`.
-   - Admin searches existing companies (`companyService.list`) and links the applicant to one instead of creating a new `Company`.
-   - **State change:** `status = approved`; a new `COMPANY_OWNER`/`COMPANY_MEMBER` user is attached to the **existing** `companyId` (no duplicate company created).
-   - **Email-log event [Mock]:** `registration_approved` (joined existing company).
-
-7. **Audit (illustrative).** Approve/reject/link is shown on `/admin/audit` as an activity-style entry. **[Mock]** real immutable audit later.
-
-### Part C — Approved applicant enters portal
-
-8. **Applicant activates / logs in.** In Demo Mode the approved external user now appears as a usable persona. The applicant returns to `/[locale]/login`, selects their company persona → `authService.login()` → **Redirect:** `/[locale]/portal/dashboard`.
-   - **[Future]** in production this is an activation-link → set-password → verify flow; here it is the Demo Mode session described in Flow 1.2.
-9. **Portal scoped to provisioned company.** Dashboard reads are filtered to the new/linked `companyId`.
-
-```
-/admin/registrations  →  registrationService.changeStatus(approve)
-        │                         │
-        │                         ├─ companyService.create + contactService.create (COMPANY_OWNER)
-        │                         ├─ Notification (company welcome)
-        │                         └─ Email-log: registration_approved (queued, mock)
-        └─ applicant → /[locale]/login → authService.login() → /portal/dashboard
-```
+**Remaining flow gaps:** linking an applicant to an existing Company, CAPTCHA, the pre-approval verification policy, and rejection/more-info decision-email templates remain planned.
 
 ---
 
@@ -534,20 +508,19 @@ Ctrl/Cmd+K  →  type query
 
 ---
 
-## Cross-Flow Mock Seams Summary
+## Cross-Flow Implementation Seams Summary
 
-Every flow above is **frontend-only**. The table below summarizes what is simulated and where a real backend will later attach (see `docs/BACKEND_HANDOFF.md`).
+The app deliberately retains both mock and API implementations. This table describes current `api` mode and the remaining production seam (see `docs/BACKEND_HANDOFF.md`).
 
-| Concern | Today (this prototype) | Marker | Future owner |
-|---|---|---|---|
-| **Identity / session** | `authService` + `DemoSession` in `localStorage`; no passwords | [Mock]/[Future] | Real auth / IdP; verification; MFA; server sessions |
-| **Data reads** | Mock services over fixtures | [Mock] | Backend API / Server Actions (same signatures) |
-| **Data writes** | `localStorage` overlay (simulated latency) | [Mock] | Persisted, audited DB writes |
-| **Email** | **Mock Email Delivery Log** (`EmailLogEntry`, `status: queued`); nothing sent | [Future] | Gmail API send + log + retry |
-| **Notifications** | `notificationService` in-app entries + unread badge | [Mock] | Persisted notifications (+ email mirror) |
-| **Status transitions** | Manual `changeStatus(...)` calls | [Mock] | Webhooks/jobs (carrier tracking, e-sign, finance) |
-| **Document access** | `documentService` class + NDA + scope checks; simulated URLs | [Mock]/[Future] | Private object store + signed URLs, server-checked |
-| **Company scoping** | Filtered by company id inside services | [Mock] | Server-side authorization from verified session |
-| **Stage/drag, import, search** | Client-side handlers over the overlay | [Mock] | Persisted transitions, server ingest, search index |
+| Concern | Current API-mode implementation | Remaining work |
+|---|---|---|
+| **Identity / session** | Auth.js credentials + bcrypt + versioned JWT; DB-fresh protected layouts/actions/APIs; staff/portal invitations and activation | Staff MFA, recovery policy, broader security monitoring |
+| **Data reads/writes** | Prisma-backed service actions with section/action/edit guards | Complete audit coverage and staging role matrix |
+| **Email** | Gmail send/sync plus durable delivery logs; reset and invitation mail are live when Gmail is connected | Retry/queue operations and remaining lifecycle templates |
+| **Notifications** | Persisted, workspace/role/company-scoped notifications | Complete automatic fan-out for every lifecycle transition |
+| **Status transitions** | Guarded persisted transitions | Carrier/e-sign/finance webhooks and background jobs |
+| **Document access** | Server session/company/confidentiality checks; private attachment handler | Production object storage, signed URLs, and end-to-end confidentiality QA |
+| **Company scoping** | Derived from the current verified User in real service queries/mutations and protected APIs; reassignment takes effect immediately | Defense-in-depth DB row-level policies/invariants if adopted |
+| **Stage/drag, import, search** | Mixed: persisted service actions and the existing import scripts/UI | Audited bulk ingest and production search indexing |
 
-> **Invariant.** Across all flows, the UI touches data and identity **only** through the named services and the `can`/`canView` matrix. Swapping the mock service bodies for a real backend (preserving signatures) leaves these flows unchanged — only the **[Mock]** seams become real.
+> **Invariant.** Components use the service seam and the shared `can`/`canView` matrix. Mock mode remains useful for UI demos, while API mode is the security and persistence path used for staging/production.

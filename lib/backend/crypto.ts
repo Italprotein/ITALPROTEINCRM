@@ -57,6 +57,16 @@ export function generateResetCode(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }
 
+/** 256-bit bearer token for account activation links. */
+export function generateActivationToken(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+/** HMAC hash used for activation-token lookup; plaintext is never persisted. */
+export function hashActivationToken(token: string): string {
+  return createHmac("sha256", secretKeySource()).update(`account-activation:${token}`).digest("hex");
+}
+
 // ── HMAC-signed state for the Google OAuth round-trip ─────────────────────
 
 export function signState(payload: Record<string, unknown>, ttlSeconds = 600): string {

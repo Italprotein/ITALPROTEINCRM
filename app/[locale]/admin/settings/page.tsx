@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { toast } from '@/components/ui/use-toast';
+import { isApiMode } from '@/lib/data-mode';
 
 const NOTIF_PREFS = [
   'notifNewRegistrations', 'notifNdaStatusChanges', 'notifNewSampleRequests',
@@ -45,7 +46,7 @@ export default function SettingsPage() {
   const [counts, setCounts] = React.useState<{ records: number; team: number } | null>(null);
   const [resetOpen, setResetOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
-  const isApi = (process.env.NEXT_PUBLIC_DATA_MODE ?? 'mock') === 'api';
+  const isApi = isApiMode;
 
   // General form state
   const [orgName, setOrgName] = React.useState('Italprotein Srl');

@@ -14,8 +14,9 @@ import {
   DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { initials } from '@/lib/utils';
+import { isApiMode } from '@/lib/data-mode';
 
-const isApi = (process.env.NEXT_PUBLIC_DATA_MODE ?? 'mock') === 'api';
+const isApi = isApiMode;
 
 function rolesFor(workspace: Workspace): Role[] {
   // In api mode the role switcher is hidden, so never touch the fixture-backed authService.

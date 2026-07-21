@@ -17,6 +17,7 @@ import { LanguageSwitcher } from '@/components/i18n/language-switcher';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { isApiMode } from '@/lib/data-mode';
 
 /* ── Floating orb ────────────────────────────────────────────────────────── */
 function Orb({ className, delay = 0, duration = 8 }: { className: string; delay?: number; duration?: number }) {
@@ -80,7 +81,7 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
   const isTeam = variant === 'team';
   // Real auth (Auth.js Credentials) activates when NEXT_PUBLIC_DATA_MODE=api;
   // otherwise the local preview login is used.
-  const isApi = (process.env.NEXT_PUBLIC_DATA_MODE ?? 'mock') === 'api';
+  const isApi = isApiMode;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -95,6 +96,7 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
       const res = await signIn('credentials', {
         email: email.trim().toLowerCase(),
         password,
+        workspace,
         redirect: false,
       });
       if (!res || res.error) {
@@ -295,7 +297,7 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
                       {t('passwordLabel')}
                     </label>
                     <Link
-                      href="/forgot-password"
+                      href={`/forgot-password?workspace=${workspace}`}
                       className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
                     >
                       {t('forgotPassword')}

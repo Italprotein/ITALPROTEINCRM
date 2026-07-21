@@ -59,7 +59,7 @@ import { emailService as mockEmailService } from './emailService';
 import { emailService as apiEmailService } from '@/lib/services/email';
 import { leadService as mockLeadService } from './leadService';
 import { leadService as apiLeadService } from '@/lib/services/lead';
-const isApiMode = (process.env.NEXT_PUBLIC_DATA_MODE ?? 'mock') === 'api';
+import { isApiMode } from '@/lib/data-mode';
 export const companyService = isApiMode ? apiCompanyService : mockCompanyService;
 export const sampleService = isApiMode ? apiSampleService : mockSampleService;
 export type { CompanyQuery } from './companyService';

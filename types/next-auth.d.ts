@@ -13,6 +13,7 @@ declare module "next-auth" {
       role: Role;
       kind: UserKindValue;
       companyId: string | null;
+      authVersion: number;
     } & DefaultSession["user"];
   }
 
@@ -20,6 +21,7 @@ declare module "next-auth" {
     role: Role;
     kind: UserKindValue;
     companyId: string | null;
+    authVersion: number;
   }
 }
 
@@ -29,5 +31,6 @@ declare module "next-auth/jwt" {
     role: Role;
     kind: UserKindValue;
     companyId: string | null;
+    authVersion: number;
   }
 }

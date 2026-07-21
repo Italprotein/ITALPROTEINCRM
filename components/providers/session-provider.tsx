@@ -8,11 +8,12 @@ import {
 } from 'next-auth/react';
 import type { UserAccount, UserSession, Role } from '@/lib/types';
 import { authService } from '@/lib/mock-services';
+import { isApiMode } from '@/lib/data-mode';
 
 // Real auth (Auth.js) drives the session after the backend cutover; otherwise
 // the demo "sign in as" preview session is used. NEXT_PUBLIC so it is readable
 // on the client — switching modes requires a rebuild / dev restart.
-const isApi = (process.env.NEXT_PUBLIC_DATA_MODE ?? 'mock') === 'api';
+const isApi = isApiMode;
 
 interface SessionContextValue {
   session: UserSession | null;

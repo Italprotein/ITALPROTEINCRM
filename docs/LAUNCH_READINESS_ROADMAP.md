@@ -1,52 +1,54 @@
 # ITALPROTEIN CRM - Launch Readiness Roadmap
 
-> **⚠️ STATUS UPDATE — 2026-07-10 (backend now built).** The "Current app reality" line and "What Exists Today" section below (frontend prototype, fixture data, localStorage, Demo Mode) are **outdated.** Several critical blockers are now DONE: a real PostgreSQL database via **Prisma**, real **Auth.js** login, and real **Gmail** send/sync. Remaining launch work (server-side permission enforcement on mutations, external-portal login + registration provisioning, audit/notification side-effects, production env + deploy) is tracked concretely in [`docs/LAUNCH_RUNBOOK.md`](./LAUNCH_RUNBOOK.md).
+> **STATUS UPDATE — 2026-07-21.** The backend foundation now includes PostgreSQL/Prisma, guarded real services and APIs, workspace-aware Auth.js login, revocable versioned JWTs, staff/portal invitation resend with single-use activation, transactional registration provisioning, password reset, and Gmail send/sync. This roadmap preserves the broader launch plan; current blockers are summarized below and tracked operationally in [`docs/LAUNCH_RUNBOOK.md`](./LAUNCH_RUNBOOK.md).
 
-**Status:** production planning and backend-prep notes  
-**Last updated:** 2026-06-23  
-**Current app reality:** Next.js frontend prototype with fixture data, browser localStorage writes and Demo Mode login. It is not production-secure yet.
+**Status:** backend foundation built; production hardening in progress
+**Last updated:** 2026-07-21
+**Current app reality:** Next.js 16 app with a development mock/API switch. Production always forces PostgreSQL/API mode even if `NEXT_PUBLIC_DATA_MODE` is missing or says `mock`. Protected layouts, Server Actions, and API routes revalidate the current database identity. It is not launch-complete yet.
 
 This document turns the current prototype into a practical launch plan. It keeps the existing UI/service seam, then adds the backend, Google Drive, Gmail, AI assistant, security, legal and deployment work needed before going online.
 
 ## 1. What Exists Today
 
-- A bilingual Next.js 14 app with public landing, team login, company portal and internal CRM routes.
-- Mock services in `lib/mock-services` that act like a backend contract.
+- A bilingual Next.js 16/React 19 app with public landing, separate team/portal login doors, company portal and internal CRM routes.
+- A stable service seam that uses `NEXT_PUBLIC_DATA_MODE` as a development selector; production always selects real Prisma-backed actions.
 - Typed domain model in `lib/types.ts`.
-- Role matrix in `lib/permissions`.
-- Fixture-backed modules for companies, agencies, contacts, samples, shipments, documents, support requests, tasks, finance and notifications.
-- Document confidentiality classes already modeled: `public`, `portal_general`, `pre_nda`, `post_nda`, `company_specific`, `internal`.
+- Role matrix in `lib/permissions`, enforced by server section/action/edit guards in API mode.
+- Auth.js credentials for every active internal role and company-scoped external role, database-fresh protected operations, revocable `authVersion` JWTs, and hashed single-use activation links for invited accounts.
+- Transactional registration approval that provisions Company + primary Contact + external owner and records all linkage ids.
+- Real persisted modules for companies, agencies, contacts, samples, shipments, documents, support requests, tasks, finance and notifications.
+- Document confidentiality classes modeled and checked by the document/attachment service boundary: `public`, `portal_general`, `pre_nda`, `post_nda`, `company_specific`, `internal`.
+- Gmail OAuth and signed-in manual sync guarded by `settings.edit`, Gmail send/cron sync, password reset, invitation delivery/resend, and durable email logs.
 - Public contact details now exposed through `lib/config/site.ts` and `.env.example`.
 
 ## 2. What Must Change Before Launch
 
 ### Critical blockers
 
-- Replace Demo Mode auth with real user accounts, invite flows, password reset, email verification and MFA for staff.
-- Move all data writes from localStorage into a server database.
-- Enforce roles, company scoping and document confidentiality on the server.
+- Complete staff MFA, recovery operations, and role-by-role staging verification. Credential auth, invitations/activation, password reset, and server sessions are implemented.
+- Add CAPTCHA/WAF bot defense and decide whether a distinct pre-approval verification step is required. Strict validation, mandatory consent, server-owned admin fields, and IP/email registration limits are implemented; approved users currently prove mailbox control through activation.
+- Add database constraints/invariants (and consider row-level policies) as defense in depth for critical identity, role, company-scope, and last-super-admin rules now enforced transactionally in application code.
 - Remove, quarantine or reclassify any real confidential files from web-visible paths.
-- Add audit logging for every login, read of sensitive docs, mutation, AI answer and Google Drive/Gmail action.
-- Add real email sending, terms/privacy/cookie pages, backup strategy and production monitoring.
+- Complete audit logging for every sensitive read, mutation, denial, AI answer and Google Drive/Gmail action; current auth/invitation/registration/Gmail coverage is targeted.
+- Add terms/privacy/cookie pages, decision/more-info registration email templates, backup strategy, error/uptime monitoring, and production operations. Real Gmail sending and staff/portal invitation recovery are implemented.
 
 ### Launch minimum
 
-- Public website/landing page can go online with contact links and registration intake.
-- Team CRM can go online only after real auth, server-side permissions and database persistence exist.
-- Partner portal can go online only after company scoping and document access checks are server-side.
+- Public website/landing can go online after legal pages, CAPTCHA/WAF protection, and the pre-approval verification policy decision are in place.
+- Team CRM now has real auth, server-side permissions and database persistence; launch still requires MFA/security QA, production configuration, monitoring and recovery operations.
+- Partner portal now has activation/login, invitation resend/recovery, and application-level company/document checks; launch still requires adversarial scoping QA and production object-storage/signed-URL hardening.
 - AI assistant can go online only after its retrieval layer respects document access classes.
 
 ## 3. Recommended Backend Direction
 
-Use the current Next.js app as the production web app and add backend capability inside it first:
+The chosen direction is to use the current Next.js app as the production web app. Implemented choices and remaining platform work are:
 
-- **Database:** PostgreSQL.
-- **ORM:** Prisma or Drizzle. Prisma is easiest for handoff and migrations.
-- **Auth:** Auth.js/NextAuth, Clerk, Auth0 or Keycloak. Pick one; do not build all auth security by hand unless there is a strong reason.
-- **API style:** Next.js Route Handlers / Server Actions behind the existing service contracts.
+- **Database/ORM:** PostgreSQL + Prisma 7, with four migrations through `20260721143000_auth_version`.
+- **Auth:** Auth.js/NextAuth Credentials + bcrypt + versioned JWTs, with database-fresh identity checks and workspace-bound login. Password, role, and status changes increment `authVersion` to revoke existing JWTs.
+- **API style:** Next.js Route Handlers / Server Actions behind the existing service contracts, guarded with the canonical permission matrix.
 - **Storage:** Google Drive for team-managed docs plus private object storage for app uploads that should not live in Drive.
-- **Background jobs:** Vercel Cron, Trigger.dev, Inngest, BullMQ or a small worker service.
-- **Deployment:** Vercel is the fastest path for this Next app; a VPS/container path is fine later if custom workers are needed.
+- **Background jobs:** Vercel Cron currently schedules Gmail sync; a durable workflow/queue remains an option for retries and heavier jobs.
+- **Deployment:** Vercel is the active repository target.
 
 The first implementation step is not to rewrite UI pages. Replace each `lib/mock-services/*` body with a production service adapter while keeping the same method names and return shapes.
 
@@ -62,7 +64,7 @@ Create database tables for at least:
 - `support_requests`, `support_messages`, `attachments`
 - `activities`, `tasks`, `meetings`, `notifications`
 - `quotes`, `orders`, `invoices`, `payments`
-- `registrations`, `registration_decisions`
+- `registrations`, `registration_decisions`, `account_activation_tokens`
 - `audit_events`
 - `email_logs`
 - `google_oauth_tokens`, `google_drive_file_links`
@@ -74,22 +76,23 @@ Every table should have `id`, `createdAt`, `updatedAt`; mutable business tables 
 
 ### Staff
 
-- Invitation only.
-- Staff email verification required.
-- MFA required for all staff.
-- `super_admin` seeds the first team invitations.
-- Role changes require `super_admin` or approved `crm_admin`, and every change is audited.
+- Bootstrap super-admins are upserted by the non-destructive seed; additional staff are invitation-only.
+- A CRM admin with `user.manage` can create, resend, and manage non-super-admin staff. Only a super admin can create or manage a super admin; self-suspend/delete and removal of the last active super admin are blocked.
+- Invitation links expire after 72 hours, are stored only as HMAC hashes, are single-use, and stamp `emailVerified` when the user sets a password. Recipient addresses are normalized/header-safe; invite/resend quotas are 20 per actor/hour and 5 per recipient/hour.
+- Resend stages a replacement token: successful delivery retires older links, while failed delivery preserves the previous working link.
+- MFA remains required before public launch and is not implemented yet.
+- Role/status changes require `user.manage`, increment `authVersion`, and write targeted audit events; comprehensive audit and denial-path QA remains outstanding.
 
 ### Agencies and partner companies
 
-- Public registration creates a `registration` record only.
-- Internal approval creates the company, contacts and portal users.
-- External users are always scoped to one company or agency.
-- Sensitive company profile changes create approval requests, not direct writes.
+- Public registration creates a `registration` record only; it grants no identity or portal access. A strict server schema, required privacy/terms consent, server-generated admin fields, and limits of 8/IP/hour plus 3/contact-email/hour are implemented.
+- An authorized approval transaction creates the company, primary contact, invited `company_owner`, activation token, decision linkage, email log and audit event atomically.
+- Activated external users authenticate through the portal door and are always scoped to one company (including agency-typed companies).
+- Authorized reviewers can resend a portal invitation with the same actor/recipient quotas and failed-delivery preservation semantics as staff resend. The sensitive-company-profile approval flow remains to be completed.
 
 ### Server-side permission rule
 
-The browser can hide buttons for UX, but the server must reject unauthorized reads/writes. Never trust a role or company id sent from the client.
+The browser can hide buttons for UX, but the server is authoritative. Protected layouts, Server Actions, and API routes re-read the active User + Role, reject `authVersion` drift, and derive external company scope from that fresh identity. Google OAuth and signed-in manual Gmail sync additionally require `settings.edit`; cron sync requires the `CRON_SECRET` bearer. New endpoints must preserve these rules and never trust a client-supplied role, company id, or stale JWT claim.
 
 ## 6. Google Drive And Google Docs Integration
 
@@ -136,7 +139,7 @@ Production Gmail integration should:
 - Use `gmail.send` for outbound email where possible.
 - Store every outbound email in `email_logs` with status: queued, sent, failed, bounced.
 - Never attach internal-only or post-NDA files directly. Send portal links or signed-view links after access checks.
-- Add rate limiting and retry logic.
+- Login, reset, registration, invitation/resend, manual send, and sync limits are implemented. Add durable retry/backoff operations and limits for remaining public/support/AI surfaces.
 
 ## 8. AI Chatbot
 
@@ -205,7 +208,8 @@ Why: short, Italian-friendly, tied to Proamina and amino acids, easy for agencie
 - Document confidentiality checks.
 - Secure cookies.
 - CSRF protection for mutations where applicable.
-- Rate limits for login, registration, support and AI.
+- Existing limits for login, reset, registration, invitation/resend, email send, and Gmail sync; add CAPTCHA/WAF plus support/AI-specific limits.
+- Database constraints/invariants and optional row-level policies as defense in depth.
 - Audit log and admin alerting for denied access attempts.
 
 ### Legal and compliance
@@ -231,24 +235,24 @@ Why: short, Italian-friendly, tied to Proamina and amino acids, easy for agencie
 
 ### Phase 1 - Production shell
 
-- Add `.env.example`, staging/prod env setup and backend config.
-- Create database schema and migrations.
-- Implement auth and server sessions.
-- Mirror permission checks server-side.
+- [x] Add `.env.example` and backend config templates. Production values still require manual setup.
+- [x] Create the PostgreSQL schema and four migrations through `auth_version`.
+- [x] Implement workspace-aware auth, invitations/activation/resend, password reset, versioned JWTs, and database-fresh server sessions.
+- [x] Mirror permission and company-scope checks in the real service layer and protected API routes.
 
 ### Phase 2 - Core CRM persistence
 
-- Replace company/contact/user/registration services.
-- Replace samples/shipments/support/document metadata services.
-- Add audit events and email logs.
+- [x] Replace company/contact/user/registration services.
+- [x] Replace samples/shipments/support/document metadata services.
+- **Partial:** Audit events and email logs exist; comprehensive mutation/denial coverage and retry operations remain.
 
 ### Phase 3 - Google Workspace
 
-- OAuth setup.
+- [x] Gmail OAuth/send/sync code and configuration contract.
 - Drive document linking.
 - Docs read/edit workflows.
-- Gmail send with templates.
-- Scheduled reminders.
+- **Partial:** Gmail templates exist for reset and account invitations; expand lifecycle templates.
+- **Partial:** Scheduled Gmail sync exists; broader reminders/jobs remain.
 
 ### Phase 4 - Amina assistant
 
@@ -259,11 +263,11 @@ Why: short, Italian-friendly, tied to Proamina and amino acids, easy for agencie
 
 ### Phase 5 - Launch hardening
 
-- Security review.
-- QA test matrix by role.
+- Security review, staff MFA, CAPTCHA/WAF, and database-invariant hardening.
+- QA test matrix by role, including audit/denial paths and adversarial company reassignment/direct-id access.
 - Data import from real files.
-- Production deploy.
-- Post-launch monitoring.
+- Production object storage/signed URLs, decision-email templates, and deploy configuration.
+- Backup/recovery drills and post-launch monitoring/alerting.
 
 ## 12. Source Notes
 

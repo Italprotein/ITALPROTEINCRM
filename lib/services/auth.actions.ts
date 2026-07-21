@@ -6,17 +6,26 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/backend/prisma";
 import { getCurrentUser } from "@/lib/backend/session";
 import { checkRateLimit, clientIpFromHeaders } from "@/lib/backend/rate-limit";
-import { generateResetCode, hashOneTimeCode, verifyOneTimeCode } from "@/lib/backend/crypto";
-import { buildRawEmail, getGmailAuth, sendRawMessage } from "@/lib/backend/gmail";
+import {
+  generateResetCode,
+  hashActivationToken,
+  hashOneTimeCode,
+  verifyOneTimeCode,
+} from "@/lib/backend/crypto";
+import { buildRawEmail, getGmailAuth, normalizeEmailAddress, sendRawMessage } from "@/lib/backend/gmail";
 import { getBackendEnv } from "@/lib/backend/env";
+import {
+  activateInvitedAccount,
+  isStrongPassword,
+  type AccountActivationResult,
+} from "@/lib/backend/account-invitations";
 
-// Password lifecycle for admin accounts: change (authenticated) and reset via
-// a six-digit code emailed from the connected org mailbox. All entry points
+// Password lifecycle for internal and external accounts: change while signed
+// in or reset via a six-digit code emailed from the connected org mailbox. All entry points
 // are rate-limited (DB-backed, fail-closed) against brute force.
 
 const RESET_CODE_TTL_MS = 15 * 60 * 1000;
 const RESET_MAX_ATTEMPTS = 5;
-const ADMIN_ROLES = ["super_admin", "crm_admin"];
 
 export interface AuthActionResult {
   ok: boolean;
@@ -33,10 +42,6 @@ export interface AuthActionResult {
 }
 
 /** ≥10 chars with at least one letter and one digit. */
-function isStrongPassword(password: string): boolean {
-  return password.length >= 10 && /[a-zA-Z]/.test(password) && /\d/.test(password);
-}
-
 async function requestIp(): Promise<string> {
   return clientIpFromHeaders(await headers());
 }
@@ -69,7 +74,7 @@ export async function changePassword(
   newPassword: string,
 ): Promise<AuthActionResult> {
   const session = await getCurrentUser();
-  if (!session || session.kind !== "internal") return { ok: false, error: "unauthenticated" };
+  if (!session) return { ok: false, error: "unauthenticated" };
 
   const limit = await checkRateLimit(`pwchange:${session.id}`, 5, 15 * 60);
   if (!limit.ok) return { ok: false, error: "rate_limited" };
@@ -87,17 +92,20 @@ export async function changePassword(
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash: await bcrypt.hash(newPassword, 12) },
+    data: {
+      passwordHash: await bcrypt.hash(newPassword, 12),
+      authVersion: { increment: 1 },
+    },
   });
-  await audit("auth.password_changed", "Password changed from the admin settings page", user.id);
+  await audit("auth.password_changed", "Password changed by the signed-in account", user.id);
   return { ok: true };
 }
 
 // ── Password reset (pre-auth, emailed six-digit code) ──────────────────────
 
 export async function requestPasswordReset(emailRaw: string): Promise<AuthActionResult> {
-  const email = emailRaw.trim().toLowerCase();
-  if (!email || !email.includes("@")) return { ok: true }; // don't leak anything
+  const email = normalizeEmailAddress(emailRaw);
+  if (!email) return { ok: true }; // don't leak anything
 
   const ip = await requestIp();
   const [byIp, byEmail] = await Promise.all([
@@ -120,9 +128,14 @@ export async function requestPasswordReset(emailRaw: string): Promise<AuthAction
   }
 
   const user = await prisma.user.findUnique({ where: { email }, include: { role: true } });
-  // Only active admin accounts can reset — but always answer "ok" so the
-  // endpoint cannot be used to probe which emails exist.
-  if (!user?.passwordHash || user.status !== "active" || !ADMIN_ROLES.includes(user.role.key)) {
+  // Any active, structurally valid account can reset, but always answer "ok"
+  // so the endpoint cannot be used to probe which emails exist.
+  const identityIsValid =
+    user?.status === "active" &&
+    Boolean(user.passwordHash) &&
+    user.kind === user.role.kind &&
+    (user.kind === "internal" || Boolean(user.companyId));
+  if (!identityIsValid || !user) {
     return { ok: true };
   }
 
@@ -207,7 +220,8 @@ export async function confirmPasswordReset(
   code: string,
   newPassword: string,
 ): Promise<AuthActionResult> {
-  const email = emailRaw.trim().toLowerCase();
+  const email = normalizeEmailAddress(emailRaw);
+  if (!email) return { ok: false, error: "invalid_code" };
   const ip = await requestIp();
   const limit = await checkRateLimit(`resetconfirm:ip:${ip}`, 10, 15 * 60);
   if (!limit.ok) return { ok: false, error: "rate_limited" };
@@ -241,14 +255,52 @@ export async function confirmPasswordReset(
     return { ok: false, error: "invalid_code" };
   }
 
-  await prisma.$transaction([
-    prisma.passwordResetCode.update({ where: { id: entry.id }, data: { usedAt: new Date() } }),
-    prisma.passwordResetCode.deleteMany({ where: { userId: entry.userId, usedAt: null, id: { not: entry.id } } }),
-    prisma.user.update({
-      where: { id: entry.userId },
-      data: { passwordHash: await bcrypt.hash(newPassword, 12) },
-    }),
-  ]);
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  const consumed = await prisma.$transaction(async (tx) => {
+    const current = await tx.passwordResetCode.findUnique({
+      where: { id: entry.id },
+      include: { user: { include: { role: true } } },
+    });
+    if (!current || current.usedAt || current.expiresAt <= new Date()) return false;
+
+    const user = current.user;
+    const identityIsValid =
+      user.status === "active" &&
+      user.email?.trim().toLowerCase() === current.email &&
+      user.kind === user.role.kind &&
+      (user.kind === "internal" || Boolean(user.companyId));
+    if (!identityIsValid) return false;
+
+    const claimed = await tx.passwordResetCode.updateMany({
+      where: { id: current.id, usedAt: null, expiresAt: { gt: new Date() } },
+      data: { usedAt: new Date() },
+    });
+    if (claimed.count !== 1) return false;
+
+    await tx.passwordResetCode.deleteMany({
+      where: { userId: current.userId, usedAt: null, id: { not: current.id } },
+    });
+    await tx.user.update({
+      where: { id: current.userId },
+      data: { passwordHash, authVersion: { increment: 1 } },
+    });
+    return true;
+  });
+  if (!consumed) return { ok: false, error: "invalid_code" };
   await audit("auth.password_reset_completed", "Password reset via emailed code", entry.userId);
   return { ok: true };
+}
+
+export async function acceptAccountInvitation(
+  tokenRaw: string,
+  password: string,
+): Promise<AccountActivationResult | { ok: false; error: "rate_limited" }> {
+  const ip = await requestIp();
+  const tokenKey = hashActivationToken(tokenRaw.trim() || "malformed").slice(0, 32);
+  const [byIp, byToken] = await Promise.all([
+    checkRateLimit(`activate:ip:${ip}`, 12, 15 * 60),
+    checkRateLimit(`activate:token:${tokenKey}`, 6, 15 * 60),
+  ]);
+  if (!byIp.ok || !byToken.ok) return { ok: false, error: "rate_limited" };
+  return activateInvitedAccount(tokenRaw, password, ip);
 }

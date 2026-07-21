@@ -70,6 +70,7 @@ import {
 import { getLabel } from '@/lib/labels';
 import { formatRelative, formatDate, daysUntil } from '@/lib/formatting';
 import { cn, initials } from '@/lib/utils';
+import { canView } from '@/lib/permissions';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
 import { AmineDashboard } from '@/components/dashboard/amine-dashboard';
@@ -112,7 +113,7 @@ interface DashboardData {
   sampleStats: Awaited<ReturnType<typeof sampleService.getStatistics>>;
   shipmentStats: Awaited<ReturnType<typeof shipmentService.getStatistics>>;
   taskStats: Awaited<ReturnType<typeof taskService.getStatistics>>;
-  regStats: Awaited<ReturnType<typeof registrationService.getStatistics>>;
+  regStats: Awaited<ReturnType<typeof registrationService.getStatistics>> | null;
   companiesOverTime: Awaited<ReturnType<typeof analyticsService.companiesOverTime>>;
   companiesByCategory: Awaited<ReturnType<typeof analyticsService.companiesByCategory>>;
   pipelineDistribution: Awaited<ReturnType<typeof analyticsService.pipelineDistribution>>;
@@ -137,7 +138,7 @@ const RANGE_DAYS: Record<string, number | null> = {
 
 /* ───────────────────────────── page ───────────────────────────── */
 
-function StandardOverview() {
+function StandardOverview({ showRegistrations }: { showRegistrations: boolean }) {
   const t = useTranslations('Overview');
   const { nameOf } = useStaffDirectory();
   const [data, setData] = React.useState<DashboardData | null>(null);
@@ -152,7 +153,7 @@ function StandardOverview() {
       sampleService.getStatistics(),
       shipmentService.getStatistics(),
       taskService.getStatistics(),
-      registrationService.getStatistics(),
+      showRegistrations ? registrationService.getStatistics() : Promise.resolve(null),
       analyticsService.companiesOverTime(),
       analyticsService.companiesByCategory(),
       analyticsService.pipelineDistribution(),
@@ -217,7 +218,7 @@ function StandardOverview() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [showRegistrations]);
 
   const loading = data === null;
 
@@ -367,9 +368,11 @@ function StandardOverview() {
           <StaggerItem>
             <StatCard label={t('kpiOverdueTasks')} value={data.taskStats.overdue} icon={AlertTriangle} tone="danger" href="/admin/tasks" />
           </StaggerItem>
-          <StaggerItem>
-            <StatCard label={t('kpiNewRegistrations')} value={data.regStats.pending} icon={UserPlus} tone="success" href="/admin/registrations" />
-          </StaggerItem>
+          {data.regStats && (
+            <StaggerItem>
+              <StatCard label={t('kpiNewRegistrations')} value={data.regStats.pending} icon={UserPlus} tone="success" href="/admin/registrations" />
+            </StaggerItem>
+          )}
         </Stagger>
       )}
 
@@ -713,5 +716,5 @@ export default function OverviewPage() {
   if (account?.email?.toLowerCase() === AMINE_EMAIL) {
     return <AmineDashboard />;
   }
-  return <StandardOverview />;
+  return <StandardOverview showRegistrations={Boolean(account && canView(account.role, 'registrations'))} />;
 }

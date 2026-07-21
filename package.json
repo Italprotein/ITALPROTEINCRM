@@ -15,7 +15,8 @@
     "db:studio": "prisma studio",
     "import:dry": "tsx scripts/import-data.ts --dry",
     "import": "tsx scripts/import-data.ts",
-    "verify": "tsx scripts/verify-backend.ts"
+    "verify": "tsx scripts/verify-backend.ts",
+    "verify:auth": "tsx scripts/verify-auth-runtime.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.106.0",

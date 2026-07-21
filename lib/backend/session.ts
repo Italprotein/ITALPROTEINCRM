@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { prisma } from "@/lib/backend/prisma";
 import { can, canView, canEdit, isInternal, type Action, type Section } from "@/lib/permissions";
 import type { Role } from "@/lib/types";
 
@@ -7,6 +8,7 @@ export interface SessionUser {
   role: Role;
   kind: "internal" | "external";
   companyId: string | null;
+  authVersion: number;
   name?: string | null;
   email?: string | null;
 }
@@ -14,7 +16,35 @@ export interface SessionUser {
 /** Returns the authenticated user (from the verified session) or null. */
 export async function getCurrentUser(): Promise<SessionUser | null> {
   const session = await auth();
-  return (session?.user as SessionUser | undefined) ?? null;
+  const tokenUser = session?.user as SessionUser | undefined;
+  if (!tokenUser?.id) return null;
+
+  // JWT claims are a sign-in snapshot. Re-read the identity row so suspension,
+  // disablement, role changes and company reassignment take effect immediately
+  // on every protected server action instead of waiting for JWT expiry.
+  const current = await prisma.user.findUnique({
+    where: { id: tokenUser.id },
+    include: { role: true },
+  });
+  if (
+    !current ||
+    current.status !== "active" ||
+    tokenUser.authVersion !== current.authVersion ||
+    current.kind !== current.role.kind ||
+    (current.kind === "external" && !current.companyId)
+  ) {
+    return null;
+  }
+
+  return {
+    id: current.id,
+    role: current.role.key as Role,
+    kind: current.kind,
+    companyId: current.companyId,
+    authVersion: current.authVersion,
+    name: current.name,
+    email: current.email,
+  };
 }
 
 /** Server-side guard: throws UNAUTHENTICATED if there is no session. */

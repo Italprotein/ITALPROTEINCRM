@@ -3,6 +3,7 @@ import NextAuth from "next-auth";
 
 import { routing } from "@/lib/i18n/routing";
 import { authConfig } from "@/auth.config";
+import { isApiMode } from "@/lib/data-mode";
 
 const intlMiddleware = createMiddleware(routing);
 const { auth } = NextAuth(authConfig);
@@ -18,15 +19,24 @@ export default auth((req) => {
   const area = segments[2];
   const isProtected = area === "admin" || area === "portal";
 
-  // Real-auth enforcement activates only after the backend cutover
-  // (NEXT_PUBLIC_DATA_MODE=api). In mock mode the prototype still uses the demo
-  // login (localStorage), so enforcing a real session here would break it.
-  const enforceAuth = process.env.NEXT_PUBLIC_DATA_MODE === "api";
+  // Production always enforces real auth. Development may still opt into the
+  // fixture/localStorage demo with NEXT_PUBLIC_DATA_MODE=mock.
+  const enforceAuth = isApiMode;
   if (enforceAuth && isProtected && !isLoggedIn) {
     const loginPath = area === "admin" ? "team-login" : "login";
     const loginUrl = new URL(`/${locale}/${loginPath}`, nextUrl);
     loginUrl.searchParams.set("callbackUrl", nextUrl.pathname);
     return Response.redirect(loginUrl);
+  }
+
+  if (enforceAuth && isProtected && isLoggedIn) {
+    const kind = req.auth?.user?.kind;
+    if (area === "admin" && kind !== "internal") {
+      return Response.redirect(new URL(`/${locale}/portal`, nextUrl));
+    }
+    if (area === "portal" && kind !== "external") {
+      return Response.redirect(new URL(`/${locale}/admin`, nextUrl));
+    }
   }
 
   return intlMiddleware(req);

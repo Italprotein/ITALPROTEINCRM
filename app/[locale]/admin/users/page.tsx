@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { UserCog, UserCheck, MailPlus, Briefcase, MoreHorizontal, Shield, Ban, RefreshCw, Plus } from 'lucide-react';
 import { userService, companyService } from '@/lib/mock-services';
+import { resendUserInvitation } from '@/lib/services/user.actions';
 import type { Company, InternalRole } from '@/lib/types';
 import type { StaffMember } from '@/fixtures/staff';
 import { getLabel } from '@/lib/labels';
@@ -24,16 +25,21 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { toast } from '@/components/ui/use-toast';
+import { InviteStaffDialog } from '@/components/admin/invite-staff-dialog';
+import { useSession } from '@/components/providers/session-provider';
 
 const ROLES: InternalRole[] = ['super_admin', 'crm_admin', 'business_dev', 'rnd_technical', 'logistics', 'finance', 'management_readonly'];
 const statusBadge: Record<StaffMember['status'], 'success' | 'info' | 'muted'> = { active: 'success', invited: 'info', suspended: 'muted' };
 
 export default function UsersPage() {
   const t = useTranslations('AdminUsers');
+  const { account } = useSession();
+  const isSuperAdmin = account?.role === 'super_admin';
   const [rows, setRows] = React.useState<StaffMember[] | null>(null);
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
   const [stats, setStats] = React.useState<Awaited<ReturnType<typeof userService.getStatistics>> | null>(null);
   const [permRole, setPermRole] = React.useState<StaffMember | null>(null);
+  const [inviteOpen, setInviteOpen] = React.useState(false);
 
   React.useEffect(() => {
     userService.list().then(setRows);
@@ -48,15 +54,43 @@ export default function UsersPage() {
       .map(([k, v], i) => ({ name: getLabel('role', k), value: v, color: CHART_COLORS[i % CHART_COLORS.length] }));
   }, [stats]);
 
-  function setStatus(u: StaffMember, status: StaffMember['status']) {
-    setRows((prev) => prev ? prev.map((x) => x.id === u.id ? { ...x, status } : x) : prev);
-    void userService.update(u.id, { status });
-    toast({ variant: status === 'suspended' ? 'warning' : 'success', title: status === 'suspended' ? t('userSuspendedTitle') : t('userActivatedTitle'), description: `${u.firstName} ${u.lastName}` });
+  async function setStatus(u: StaffMember, status: StaffMember['status']) {
+    try {
+      const updated = await userService.update(u.id, { status });
+      if (!updated) throw new Error('USER_NOT_FOUND');
+      setRows((prev) => prev ? prev.map((x) => x.id === u.id ? updated : x) : prev);
+      void userService.getStatistics().then(setStats).catch(() => undefined);
+      toast({ variant: status === 'suspended' ? 'warning' : 'success', title: status === 'suspended' ? t('userSuspendedTitle') : t('userActivatedTitle'), description: `${u.firstName} ${u.lastName}` });
+    } catch {
+      toast({ variant: 'danger', title: t('updateFailedTitle'), description: t('updateFailedDescription') });
+    }
   }
-  function setRole(u: StaffMember, role: InternalRole) {
-    setRows((prev) => prev ? prev.map((x) => x.id === u.id ? { ...x, role } : x) : prev);
-    void userService.update(u.id, { role });
-    toast({ variant: 'success', title: t('roleUpdatedTitle'), description: `${u.firstName} ${u.lastName} → ${getLabel('role', role)}` });
+  async function setRole(u: StaffMember, role: InternalRole) {
+    try {
+      const updated = await userService.update(u.id, { role });
+      if (!updated) throw new Error('USER_NOT_FOUND');
+      setRows((prev) => prev ? prev.map((x) => x.id === u.id ? updated : x) : prev);
+      setPermRole((current) => current?.id === u.id ? updated : current);
+      void userService.getStatistics().then(setStats).catch(() => undefined);
+      toast({ variant: 'success', title: t('roleUpdatedTitle'), description: `${u.firstName} ${u.lastName} → ${getLabel('role', role)}` });
+    } catch {
+      toast({ variant: 'danger', title: t('updateFailedTitle'), description: t('updateFailedDescription') });
+    }
+  }
+
+  async function resendInvite(user: StaffMember) {
+    try {
+      const result = await resendUserInvitation(user.id);
+      toast({
+        variant: result.ok ? 'success' : 'warning',
+        title: result.ok ? t('inviteSentTitle') : t('invitePendingTitle'),
+        description: result.ok
+          ? t('inviteSentDescription', { email: user.email })
+          : t('invitePendingDescription', { email: user.email }),
+      });
+    } catch {
+      toast({ variant: 'danger', title: t('inviteFailedTitle'), description: t('inviteFailedDescription') });
+    }
   }
 
   const columns: Column<StaffMember>[] = [
@@ -94,10 +128,15 @@ export default function UsersPage() {
         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label={t('actionsLabel')}><MoreHorizontal /></Button></DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem onSelect={() => setPermRole(u)}><Shield /> {t('viewPermissions')}</DropdownMenuItem>
+          {u.status === 'invited' && (u.role !== 'super_admin' || isSuperAdmin) ? (
+            <DropdownMenuItem onSelect={() => void resendInvite(u)}><MailPlus /> {t('resendInvite')}</DropdownMenuItem>
+          ) : null}
           <DropdownMenuSeparator />
-          {u.status !== 'suspended'
-            ? <DropdownMenuItem onSelect={() => setStatus(u, 'suspended')} className="text-danger focus:text-danger"><Ban /> {t('suspend')}</DropdownMenuItem>
-            : <DropdownMenuItem onSelect={() => setStatus(u, 'active')}><RefreshCw /> {t('activate')}</DropdownMenuItem>}
+          {u.role !== 'super_admin' || isSuperAdmin ? (
+            u.status !== 'suspended'
+              ? <DropdownMenuItem onSelect={() => void setStatus(u, 'suspended')} className="text-danger focus:text-danger"><Ban /> {t('suspend')}</DropdownMenuItem>
+              : <DropdownMenuItem onSelect={() => void setStatus(u, 'active')}><RefreshCw /> {t('activate')}</DropdownMenuItem>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -121,7 +160,7 @@ export default function UsersPage() {
       <PageHeader
         title={t('title')}
         subtitle={t('subtitle')}
-        actions={<Button variant="gold" onClick={() => toast({ title: t('inviteSentTitle'), description: t('inviteSentDescription'), variant: 'success' })}><Plus /> {t('inviteUser')}</Button>}
+        actions={<Button variant="gold" onClick={() => setInviteOpen(true)}><Plus /> {t('inviteUser')}</Button>}
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -186,9 +225,13 @@ export default function UsersPage() {
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">{t('roleLabel')}</label>
-                <Select value={permRole.role} onValueChange={(v) => { setRole(permRole, v as InternalRole); setPermRole({ ...permRole, role: v as InternalRole }); }}>
+                <Select
+                  value={permRole.role}
+                  onValueChange={(v) => void setRole(permRole, v as InternalRole)}
+                  disabled={permRole.role === 'super_admin' && !isSuperAdmin}
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{getLabel('role', r)}</SelectItem>)}</SelectContent>
+                  <SelectContent>{ROLES.filter((r) => isSuperAdmin || r !== 'super_admin').map((r) => <SelectItem key={r} value={r}>{getLabel('role', r)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
 
@@ -218,6 +261,15 @@ export default function UsersPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      <InviteStaffDialog
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+        onInvited={(user) => {
+          setRows((current) => (current ? [...current, user] : [user]));
+          void userService.getStatistics().then(setStats);
+        }}
+      />
     </div>
   );
 }
