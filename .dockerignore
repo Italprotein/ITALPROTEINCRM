@@ -1,0 +1,24 @@
+# Keep the build context small and — critically — keep secrets/real data OUT of
+# the image. /data (admin credentials + real client CSVs) and every .env file
+# must never be baked into an image that could be pushed to a registry.
+node_modules
+.next
+.git
+.claude
+.codex
+.agents
+assets
+data
+*.env
+.env
+.env.*
+!.env.production.example
+!.env.example
+!.env.vercel.example
+docker-compose*.yml
+Dockerfile
+.dockerignore
+npm-debug.log*
+*.tsbuildinfo
+README.md
+docs

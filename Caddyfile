@@ -1,0 +1,7 @@
+# Caddy fetches and renews a Let's Encrypt certificate for APP_DOMAIN
+# automatically, and reverse-proxies HTTPS traffic to the app container.
+# APP_DOMAIN comes from .env.production (e.g. crm.italprotein.com).
+{$APP_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}

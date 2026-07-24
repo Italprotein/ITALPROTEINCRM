@@ -1,0 +1,79 @@
+# Production stack for a single VPS: Next.js app + Postgres + Caddy (auto-HTTPS).
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#
+# Postgres is internal-only (no published port). Caddy terminates TLS on 80/443
+# and reverse-proxies to the app. The app applies migrations on boot; seeding and
+# the CRM import are one-off operator steps (see docs/DEPLOY_VPS.md) so admin
+# credentials / real data never live inside the image.
+services:
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: italprotein_crm
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}"
+      POSTGRES_DB: italprotein_crm
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U italprotein_crm -d italprotein_crm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      # NEXT_PUBLIC_* are baked into the client bundle at build time — they MUST
+      # be passed here, not only as runtime env, or the app runs in mock mode.
+      args:
+        NEXT_PUBLIC_DATA_MODE: "api"
+        NEXT_PUBLIC_SITE_URL: "${NEXT_PUBLIC_SITE_URL:-https://www.italprotein.com}"
+        NEXT_PUBLIC_CONTACT_EMAIL: "${NEXT_PUBLIC_CONTACT_EMAIL:-ad@italprotein.com}"
+        NEXT_PUBLIC_CONTACT_PHONE_PRIMARY: "${NEXT_PUBLIC_CONTACT_PHONE_PRIMARY:-}"
+        NEXT_PUBLIC_CONTACT_ADDRESS: "${NEXT_PUBLIC_CONTACT_ADDRESS:-}"
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      # Runtime (server-side) secrets and config.
+      DATABASE_URL: "postgresql://italprotein_crm:${POSTGRES_PASSWORD}@db:5432/italprotein_crm"
+      APP_URL: "${APP_URL:?set APP_URL in .env.production}"
+      APP_ENV: "production"
+      AUTH_SECRET: "${AUTH_SECRET:?set AUTH_SECRET in .env.production}"
+      AUTH_COOKIE_DOMAIN: "${AUTH_COOKIE_DOMAIN:-}"
+      GOOGLE_TOKEN_ENC_KEY: "${GOOGLE_TOKEN_ENC_KEY:-}"
+      CRON_SECRET: "${CRON_SECRET:-}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
+      GOOGLE_REDIRECT_URI: "${GOOGLE_REDIRECT_URI:-}"
+      GMAIL_SENDER_EMAIL: "${GMAIL_SENDER_EMAIL:-ad@italprotein.com}"
+      GMAIL_REPLY_TO: "${GMAIL_REPLY_TO:-ad@italprotein.com}"
+      AI_PROVIDER: "${AI_PROVIDER:-anthropic}"
+      AI_MODEL: "${AI_MODEL:-claude-opus-4-8}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2
+    restart: always
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: "${APP_DOMAIN:?set APP_DOMAIN in .env.production}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:

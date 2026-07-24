@@ -1,0 +1,6 @@
+# Files that run inside the Linux container must keep LF endings — a CRLF
+# shebang (`#!/bin/sh\r`) makes the entrypoint fail to execute.
+*.sh text eol=lf
+scripts/docker-entrypoint.sh text eol=lf
+Dockerfile text eol=lf
+Caddyfile text eol=lf
