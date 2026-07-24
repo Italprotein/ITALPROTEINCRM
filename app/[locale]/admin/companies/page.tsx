@@ -13,6 +13,7 @@ import {
   MoreHorizontal,
   ExternalLink,
   Pencil,
+  Trash2,
   StickyNote,
   ListTodo,
   Tag as TagIcon,
@@ -34,7 +35,7 @@ import { useRouter } from '@/lib/i18n/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
-import { ChartCard, CategoryBar, DonutChart, CHART_COLORS } from '@/components/charts/chart-kit';
+import { CHART_COLORS } from '@/components/charts/chart-kit';
 import { DataTable, type Column } from '@/components/ui/data-table';
 
 import { Button } from '@/components/ui/button';
@@ -66,6 +67,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Card } from '@/components/ui/card';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { toast } from '@/components/ui/use-toast';
 
 /* ────────────────────────────── Option lists ────────────────────────────── */
@@ -91,10 +93,11 @@ export default function CompaniesPage() {
   const role = session?.role;
   const canCreateCompany = !!role && can(role, 'company.create');
 
+  const canEditCompany = !!role && can(role, 'company.edit');
+  const { confirm, ConfirmDialog: confirmDialog } = useConfirm();
+
   const [rows, setRows] = React.useState<Company[] | null>(null);
   const [stats, setStats] = React.useState<Awaited<ReturnType<typeof companyService.getStatistics>> | null>(null);
-  const [byType, setByType] = React.useState<{ type: CompanyType; count: number }[]>([]);
-  const [byCountry, setByCountry] = React.useState<{ country: string; countryCode: string; count: number }[]>([]);
 
   // toolbar filters
   const [fType, setFType] = React.useState<string>(ALL);
@@ -112,8 +115,6 @@ export default function CompaniesPage() {
   React.useEffect(() => {
     companyService.list().then(setRows);
     companyService.getStatistics().then(setStats);
-    companyService.byType().then(setByType);
-    companyService.byCountry().then(setByCountry);
   }, []);
 
   /* ── derived filter option lists ── */
@@ -148,21 +149,6 @@ export default function CompaniesPage() {
     setFPriority(ALL);
   };
 
-  /* ── chart data ── */
-  const typeChart = React.useMemo(
-    () => byType.map((t) => ({ label: getLabel('companyType', t.type), count: t.count })),
-    [byType],
-  );
-  const countryChart = React.useMemo(
-    () =>
-      byCountry.slice(0, 7).map((c, i) => ({
-        name: c.country,
-        value: c.count,
-        color: CHART_COLORS[i % CHART_COLORS.length],
-      })),
-    [byCountry],
-  );
-
   /* ── mutations (mock) ── */
   function handleCreate(c: Company) {
     setRows((prev) => (prev ? [c, ...prev] : [c]));
@@ -179,6 +165,27 @@ export default function CompaniesPage() {
       prev ? prev.map((c) => (ids.includes(c.id) ? { ...c, ...patch } : c)) : prev,
     );
     for (const id of ids) void companyService.update(id, patch);
+  }
+
+  async function handleDelete(c: Company) {
+    const name = c.tradingName || c.legalName;
+    const ok = await confirm({
+      title: t('deleteConfirmTitle'),
+      description: t('deleteConfirmDescription', { name }),
+      confirmLabel: t('delete'),
+      variant: 'danger',
+    });
+    if (!ok) return;
+    const prev = rows;
+    setRows((r) => (r ? r.filter((x) => x.id !== c.id) : r));
+    setStats((s) => (s ? { ...s, total: Math.max(0, s.total - 1) } : s));
+    try {
+      await companyService.remove(c.id);
+      toast({ variant: 'success', title: t('toastDeletedTitle'), description: t('toastDeletedDescription', { name }) });
+    } catch {
+      setRows(prev ?? null); // roll back the optimistic removal
+      toast({ variant: 'danger', title: t('toastActionFailedTitle'), description: t('toastActionFailedDescription') });
+    }
   }
 
   /* ── table columns ── */
@@ -516,6 +523,15 @@ export default function CompaniesPage() {
             <ListTodo />
             {t('createTask')}
           </DropdownMenuItem>
+          {canEditCompany && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-danger focus:text-danger" onSelect={() => void handleDelete(c)}>
+                <Trash2 />
+                {t('delete')}
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -593,28 +609,8 @@ export default function CompaniesPage() {
         <StatCard label={t('statHighPriority')} value={stats?.highPriority ?? 0} icon={Flame} tone="warning" delay={0.2} />
       </div>
 
-      {/* Charts */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard
-          title={t('chartByTypeTitle')}
-          description={t('chartByTypeDescription')}
-          loading={rows === null}
-          isEmpty={typeChart.length === 0}
-        >
-          <CategoryBar data={typeChart} xKey="label" barKey="count" horizontal color={CHART_COLORS[0]} name={t('pageTitle')} />
-        </ChartCard>
-
-        <ChartCard
-          title={t('chartTopMarketsTitle')}
-          description={t('chartTopMarketsDescription')}
-          loading={rows === null}
-          isEmpty={countryChart.length === 0}
-        >
-          <DonutChart data={countryChart} centerLabel={t('donutCenterLabel')} />
-        </ChartCard>
-      </div>
-
-      {/* Table */}
+      {/* Table — the work surface. Analytics live on /admin/analytics; this
+          landing page stays focused on finding and acting on companies. */}
       <DataTable<Company>
         data={filtered}
         columns={columns}
@@ -642,6 +638,7 @@ export default function CompaniesPage() {
 
       <NoteDialog company={noteFor} onOpenChange={(o) => !o && setNoteFor(null)} />
       <TaskDialog company={taskFor} onOpenChange={(o) => !o && setTaskFor(null)} />
+      {confirmDialog}
     </div>
   );
 }
@@ -684,12 +681,14 @@ function CreateCompanyDialog({
     setCountryCode('');
   }
 
-  const valid = legalName.trim().length > 0 && country.trim().length > 0 && city.trim().length > 0;
+  // Smart add: only the legal name and country are required. City, code, stage,
+  // priority and website all have sensible defaults, so a company can be created
+  // in two fields and enriched later on its detail page.
+  const valid = legalName.trim().length > 0 && country.trim().length > 0;
 
   async function submit() {
     if (!valid || submitting) return;
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 500));
 
     const code = (countryCode.trim() || country.trim().slice(0, 2)).toUpperCase();
     const nowIso = new Date().toISOString();

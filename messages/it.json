@@ -489,6 +489,13 @@
   "AdminCompanies": {
     "pageTitle": "Aziende",
     "pageSubtitle": "Tutte le aziende nella pipeline Proamina®.",
+    "delete": "Elimina",
+    "deleteConfirmTitle": "Eliminare l'azienda?",
+    "deleteConfirmDescription": "{name} e la sua scheda verranno rimossi definitivamente. Operazione irreversibile.",
+    "toastDeletedTitle": "Azienda eliminata",
+    "toastDeletedDescription": "{name} è stata rimossa.",
+    "toastActionFailedTitle": "Azione non riuscita",
+    "toastActionFailedDescription": "Riprova.",
     "export": "Esporta",
     "addCompany": "Aggiungi azienda",
     "statTotalCompanies": "Aziende totali",

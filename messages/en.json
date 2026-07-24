@@ -489,6 +489,13 @@
   "AdminCompanies": {
     "pageTitle": "Companies",
     "pageSubtitle": "Every company in the Proamina® pipeline.",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Delete company?",
+    "deleteConfirmDescription": "{name} and its record will be permanently removed. This cannot be undone.",
+    "toastDeletedTitle": "Company deleted",
+    "toastDeletedDescription": "{name} was removed.",
+    "toastActionFailedTitle": "Action failed",
+    "toastActionFailedDescription": "Please try again.",
     "export": "Export",
     "addCompany": "Add company",
     "statTotalCompanies": "Total companies",
