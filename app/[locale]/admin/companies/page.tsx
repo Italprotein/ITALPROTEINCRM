@@ -631,6 +631,8 @@ export default function CompaniesPage() {
         emptyTitle={t('emptyTitle')}
         emptyDescription={t('emptyDescription')}
         exportFilename="companies"
+        defaultSortKey="lastActivity"
+        defaultSortDir="desc"
         storageKey="companies-table"
       />
 

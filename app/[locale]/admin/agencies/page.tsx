@@ -323,6 +323,8 @@ export default function AgenciesPage() {
         enableColumnVisibility
         enableDensityToggle
         exportFilename="agencies"
+        defaultSortKey="lastInteraction"
+        defaultSortDir="desc"
         storageKey="agencies"
         emptyTitle={t('emptyTitle')}
         emptyDescription={t('emptyDescription')}

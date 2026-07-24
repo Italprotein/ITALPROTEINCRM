@@ -79,6 +79,9 @@ export interface DataTableProps<T> {
   emptyDescription?: string;
   exportFilename?: string;
   storageKey?: string;
+  /** Column key + direction to sort by on first render (until the user clicks a header). */
+  defaultSortKey?: string;
+  defaultSortDir?: 'asc' | 'desc';
   className?: string;
 }
 
@@ -141,13 +144,15 @@ export function DataTable<T>(props: DataTableProps<T>): React.JSX.Element {
     emptyDescription,
     exportFilename,
     storageKey,
+    defaultSortKey,
+    defaultSortDir,
     className,
   } = props;
 
   // ── state ──────────────────────────────────────────────────────────────
   const [query, setQuery] = React.useState('');
-  const [sortKey, setSortKey] = React.useState<string | null>(null);
-  const [sortDir, setSortDir] = React.useState<SortDir>(null);
+  const [sortKey, setSortKey] = React.useState<string | null>(defaultSortKey ?? null);
+  const [sortDir, setSortDir] = React.useState<SortDir>(defaultSortDir ?? null);
   const [page, setPage] = React.useState(0);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
