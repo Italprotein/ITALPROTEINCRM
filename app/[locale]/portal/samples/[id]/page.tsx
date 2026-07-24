@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   Home,
 } from 'lucide-react';
+import { useParams } from 'next/navigation';
 import { Link, useRouter } from '@/lib/i18n/navigation';
 import { useSession } from '@/components/providers/session-provider';
 import {
@@ -92,10 +93,11 @@ function activeTrackIndex(sample: SampleRequest, shipment?: Shipment): number {
   return -1; // not yet in fulfilment (submitted / under review)
 }
 
-export default function SampleDetailPage({ params }: { params: { id: string } }) {
+export default function SampleDetailPage() {
   const { session, ready } = useSession();
   const { get: getStaff } = useStaffDirectory();
   const router = useRouter();
+  const params = useParams<{ id: string }>();
   const companyId = session?.companyId;
   const role = session?.role;
 

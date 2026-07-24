@@ -19,6 +19,7 @@ import {
 import { taskService, companyService } from '@/lib/mock-services';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
+import { canEdit } from '@/lib/permissions';
 import type { Task, TaskType, TaskStatus, Company, Priority, Locale } from '@/lib/types';
 import { getLabel } from '@/lib/labels';
 import { formatDate, isOverdue, flagEmoji } from '@/lib/formatting';
@@ -104,7 +105,9 @@ export default function TasksPage() {
   const locale = useLocale() as Locale;
   const t = useTranslations('AdminTasks');
   const router = useRouter();
-  const { account } = useSession();
+  const { account, session } = useSession();
+  const role = session?.role;
+  const canEditTasks = !!role && canEdit(role, 'tasks');
   const { nameOf } = useStaffDirectory();
 
   const [rows, setRows] = React.useState<Task[] | null>(null);
@@ -190,11 +193,22 @@ export default function TasksPage() {
   );
 
   /* ── mutations (mock) ── */
-  function completeTask(task: Task) {
+  function toastActionFailed() {
+    toast({ variant: 'danger', title: 'Action failed', description: 'The task could not be updated. Please try again.' });
+  }
+
+  async function completeTask(task: Task) {
+    const snapshot = rows;
     setRows((prev) =>
       prev ? prev.map((x) => (x.id === task.id ? { ...x, status: 'done', completedAt: TODAY } : x)) : prev,
     );
-    void taskService.update(task.id, { status: 'done', completedAt: TODAY });
+    try {
+      await taskService.update(task.id, { status: 'done', completedAt: TODAY });
+    } catch {
+      setRows(snapshot);
+      toastActionFailed();
+      return;
+    }
     refreshStats();
     toast({
       variant: 'success',
@@ -203,13 +217,20 @@ export default function TasksPage() {
     });
   }
 
-  function reopenTask(task: Task) {
+  async function reopenTask(task: Task) {
+    const snapshot = rows;
     setRows((prev) =>
       prev
         ? prev.map((x) => (x.id === task.id ? { ...x, status: 'open', completedAt: undefined } : x))
         : prev,
     );
-    void taskService.update(task.id, { status: 'open', completedAt: undefined });
+    try {
+      await taskService.update(task.id, { status: 'open', completedAt: undefined });
+    } catch {
+      setRows(snapshot);
+      toastActionFailed();
+      return;
+    }
     refreshStats();
     toast({
       variant: 'info',
@@ -218,8 +239,9 @@ export default function TasksPage() {
     });
   }
 
-  function moveTo(task: Task, status: TaskStatus) {
+  async function moveTo(task: Task, status: TaskStatus) {
     if (status === task.status) return;
+    const snapshot = rows;
     setRows((prev) =>
       prev
         ? prev.map((x) =>
@@ -233,10 +255,16 @@ export default function TasksPage() {
           )
         : prev,
     );
-    void taskService.update(task.id, {
-      status,
-      completedAt: status === 'done' ? TODAY : undefined,
-    });
+    try {
+      await taskService.update(task.id, {
+        status,
+        completedAt: status === 'done' ? TODAY : undefined,
+      });
+    } catch {
+      setRows(snapshot);
+      toastActionFailed();
+      return;
+    }
     refreshStats();
     toast({
       variant: status === 'done' ? 'success' : 'info',
@@ -263,6 +291,7 @@ export default function TasksPage() {
         <span onClick={(e) => e.stopPropagation()} className="flex items-center justify-center">
           <Checkbox
             checked={task.status === 'done'}
+            disabled={!canEditTasks}
             aria-label={task.status === 'done' ? t('reopenTaskAria') : t('completeTaskAria')}
             onCheckedChange={(c) => (c ? completeTask(task) : reopenTask(task))}
           />
@@ -389,12 +418,16 @@ export default function TasksPage() {
               <DropdownMenuSeparator />
             </>
           ) : null}
-          <DropdownMenuLabel>{t('moveTo')}</DropdownMenuLabel>
-          {BOARD_LANES.map((lane) => (
-            <DropdownMenuItem key={lane} disabled={lane === task.status} onSelect={() => moveTo(task, lane)}>
-              {getLabel('taskStatus', lane)}
-            </DropdownMenuItem>
-          ))}
+          {canEditTasks ? (
+            <>
+              <DropdownMenuLabel>{t('moveTo')}</DropdownMenuLabel>
+              {BOARD_LANES.map((lane) => (
+                <DropdownMenuItem key={lane} disabled={lane === task.status} onSelect={() => moveTo(task, lane)}>
+                  {getLabel('taskStatus', lane)}
+                </DropdownMenuItem>
+              ))}
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -409,6 +442,7 @@ export default function TasksPage() {
           <span onClick={(e) => e.stopPropagation()} className="pt-0.5">
             <Checkbox
               checked={task.status === 'done'}
+              disabled={!canEditTasks}
               aria-label={t('completeTaskAria')}
               onCheckedChange={(c) => (c ? completeTask(task) : reopenTask(task))}
             />
@@ -466,10 +500,12 @@ export default function TasksPage() {
                 {t('viewBoard')}
               </Button>
             </div>
-            <Button variant="gold" onClick={() => setCreateOpen(true)}>
-              <Plus />
-              {t('newTask')}
-            </Button>
+            {canEditTasks ? (
+              <Button variant="gold" onClick={() => setCreateOpen(true)}>
+                <Plus />
+                {t('newTask')}
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -548,6 +584,7 @@ export default function TasksPage() {
           loading={rows === null}
           locale={locale}
           companyName={companyName}
+          canEditTasks={canEditTasks}
           onMove={moveTo}
         />
       )}
@@ -570,12 +607,14 @@ function TaskBoard({
   loading,
   locale,
   companyName,
+  canEditTasks,
   onMove,
 }: {
   rows: Task[];
   loading: boolean;
   locale: Locale;
   companyName: (id?: string) => string;
+  canEditTasks: boolean;
   onMove: (t: Task, status: TaskStatus) => void;
 }) {
   const t = useTranslations('AdminTasks');
@@ -623,25 +662,27 @@ function TaskBoard({
                       >
                         {task.title}
                       </p>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon-sm" aria-label={t('moveTaskAria')}>
-                            <MoreHorizontal />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>{t('moveTo')}</DropdownMenuLabel>
-                          {BOARD_LANES.map((lane) => (
-                            <DropdownMenuItem
-                              key={lane}
-                              disabled={lane === task.status}
-                              onSelect={() => onMove(task, lane)}
-                            >
-                              {getLabel('taskStatus', lane)}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {canEditTasks ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon-sm" aria-label={t('moveTaskAria')}>
+                              <MoreHorizontal />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>{t('moveTo')}</DropdownMenuLabel>
+                            {BOARD_LANES.map((lane) => (
+                              <DropdownMenuItem
+                                key={lane}
+                                disabled={lane === task.status}
+                                onSelect={() => onMove(task, lane)}
+                              >
+                                {getLabel('taskStatus', lane)}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : null}
                     </div>
                     <p className="mt-1 truncate text-xs text-muted-foreground">{companyName(task.companyId)}</p>
                     <div className="mt-2 flex items-center justify-between gap-2">
@@ -727,16 +768,21 @@ function CreateTaskDialog({
       createdAt: TODAY,
     };
 
-    await taskService.create(task);
-    onCreated(task);
-    toast({
-      variant: 'success',
-      title: t('toastCreatedTitle'),
-      description: t('toastCreatedDescription', { title: task.title }),
-    });
-    setSubmitting(false);
-    reset();
-    onOpenChange(false);
+    try {
+      await taskService.create(task);
+      onCreated(task);
+      toast({
+        variant: 'success',
+        title: t('toastCreatedTitle'),
+        description: t('toastCreatedDescription', { title: task.title }),
+      });
+      reset();
+      onOpenChange(false);
+    } catch {
+      toast({ variant: 'danger', title: 'Action failed', description: 'The task could not be created. Please try again.' });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (

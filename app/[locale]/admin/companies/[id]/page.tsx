@@ -34,8 +34,10 @@ import {
   Target,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useParams } from 'next/navigation';
 import { Link, useRouter } from '@/lib/i18n/navigation';
 import { useSession } from '@/components/providers/session-provider';
+import { can, canEdit } from '@/lib/permissions';
 import {
   companyService,
   contactService,
@@ -158,13 +160,21 @@ function TabHeading({ title, count, action }: { title: string; count?: number; a
 
 /* ────────────────────────────── page ────────────────────────────── */
 
-export default function CompanyProfilePage({ params }: { params: { id: string } }) {
+export default function CompanyProfilePage() {
   const t = useTranslations('AdminCompanyDetail');
   const locale = useLocale() as Locale;
   const router = useRouter();
-  const { account } = useSession();
+  const params = useParams<{ id: string }>();
+  const { account, session } = useSession();
+  const role = session?.role;
   const staff = useStaffDirectory();
   const id = params.id;
+
+  const canLogActivity = !!role && canEdit(role, 'activities');
+  const canRequestSample = !!role && canEdit(role, 'samples');
+  const canCreateTask = !!role && canEdit(role, 'tasks');
+  const canMarkNdaSent = !!role && canEdit(role, 'ndas') && can(role, 'nda.send');
+  const canMarkNdaSigned = !!role && can(role, 'nda.mark_signed');
 
   const ownerName = (ownerId: string | undefined, t: T) => {
     if (!ownerId) return t('unassigned');
@@ -275,22 +285,37 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
 
   /* ── mutations ── */
   const completeTask = async (task: Task) => {
-    await sleep(400);
-    await taskService.update(task.id, { status: 'done', completedAt: new Date().toISOString() });
+    if (!role || !canEdit(role, 'tasks')) return;
+    // optimistic
     setData((d) => (d ? { ...d, tasks: d.tasks.map((t) => (t.id === task.id ? { ...t, status: 'done' } : t)) } : d));
-    toast({ title: t('toastTaskCompleted'), description: task.title, variant: 'success' });
+    try {
+      await sleep(400);
+      await taskService.update(task.id, { status: 'done', completedAt: new Date().toISOString() });
+      toast({ title: t('toastTaskCompleted'), description: task.title, variant: 'success' });
+    } catch {
+      // roll back
+      setData((d) =>
+        d ? { ...d, tasks: d.tasks.map((t) => (t.id === task.id ? { ...t, status: task.status } : t)) } : d,
+      );
+      toast({ title: 'Action failed', description: 'Please try again.', variant: 'danger' });
+    }
   };
 
   const applyNdaStatus = async () => {
     if (!ndaConfirm) return;
     const { nda, to, label } = ndaConfirm;
-    await sleep(400);
     const patch: Partial<NDA> =
       to === 'sent' ? { status: to, dateSent: new Date().toISOString().slice(0, 10) } : { status: to };
-    await ndaService.update(nda.id, patch);
-    setData((d) => (d ? { ...d, ndas: d.ndas.map((n) => (n.id === nda.id ? { ...n, ...patch } : n)) } : d));
-    setNdaConfirm(null);
-    toast({ title: t('toastNdaMarked', { label }), description: nda.reference, variant: 'success' });
+    try {
+      await sleep(400);
+      await ndaService.update(nda.id, patch);
+      setData((d) => (d ? { ...d, ndas: d.ndas.map((n) => (n.id === nda.id ? { ...n, ...patch } : n)) } : d));
+      toast({ title: t('toastNdaMarked', { label }), description: nda.reference, variant: 'success' });
+    } catch {
+      toast({ title: 'Action failed', description: 'Please try again.', variant: 'danger' });
+    } finally {
+      setNdaConfirm(null);
+    }
   };
 
   return (
@@ -367,22 +392,30 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
 
               {/* quick actions */}
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => setAction('activity')}>
-                  <ActivityIcon />
-                  {t('logActivity')}
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setAction('task')}>
-                  <PenSquare />
-                  {t('createTask')}
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setAction('note')}>
-                  <StickyNote />
-                  {t('addNote')}
-                </Button>
-                <Button variant="gold" size="sm" onClick={() => setAction('sample')}>
-                  <PackagePlus />
-                  {t('requestSample')}
-                </Button>
+                {canLogActivity && (
+                  <Button variant="outline" size="sm" onClick={() => setAction('activity')}>
+                    <ActivityIcon />
+                    {t('logActivity')}
+                  </Button>
+                )}
+                {canCreateTask && (
+                  <Button variant="outline" size="sm" onClick={() => setAction('task')}>
+                    <PenSquare />
+                    {t('createTask')}
+                  </Button>
+                )}
+                {canLogActivity && (
+                  <Button variant="outline" size="sm" onClick={() => setAction('note')}>
+                    <StickyNote />
+                    {t('addNote')}
+                  </Button>
+                )}
+                {canRequestSample && (
+                  <Button variant="gold" size="sm" onClick={() => setAction('sample')}>
+                    <PackagePlus />
+                    {t('requestSample')}
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -679,23 +712,27 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                       )}
 
                       <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={n.status === 'fully_signed'}
-                          onClick={() => setNdaConfirm({ nda: n, to: 'sent', label: t('ndaLabelSent') })}
-                        >
-                          {t('markSent')}
-                        </Button>
-                        <Button
-                          variant="success"
-                          size="sm"
-                          disabled={n.status === 'fully_signed'}
-                          onClick={() => setNdaConfirm({ nda: n, to: 'fully_signed', label: t('ndaLabelSigned') })}
-                        >
-                          <Check />
-                          {t('markSigned')}
-                        </Button>
+                        {canMarkNdaSent && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={n.status === 'fully_signed'}
+                            onClick={() => setNdaConfirm({ nda: n, to: 'sent', label: t('ndaLabelSent') })}
+                          >
+                            {t('markSent')}
+                          </Button>
+                        )}
+                        {canMarkNdaSigned && (
+                          <Button
+                            variant="success"
+                            size="sm"
+                            disabled={n.status === 'fully_signed'}
+                            onClick={() => setNdaConfirm({ nda: n, to: 'fully_signed', label: t('ndaLabelSigned') })}
+                          >
+                            <Check />
+                            {t('markSigned')}
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -710,10 +747,12 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
               title={t('sampleRequestsTitle')}
               count={data.samples.length}
               action={
-                <Button size="sm" variant="gold" onClick={() => setAction('sample')}>
-                  <PackagePlus />
-                  {t('requestSample')}
-                </Button>
+                canRequestSample ? (
+                  <Button size="sm" variant="gold" onClick={() => setAction('sample')}>
+                    <PackagePlus />
+                    {t('requestSample')}
+                  </Button>
+                ) : undefined
               }
             />
             <DataTable<SampleRequest>
@@ -878,10 +917,12 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
               title={t('activityTimelineTitle')}
               count={data.activities.length}
               action={
-                <Button size="sm" variant="outline" onClick={() => setAction('activity')}>
-                  <Plus />
-                  {t('logActivity')}
-                </Button>
+                canLogActivity ? (
+                  <Button size="sm" variant="outline" onClick={() => setAction('activity')}>
+                    <Plus />
+                    {t('logActivity')}
+                  </Button>
+                ) : undefined
               }
             />
             {data.activities.length === 0 ? (
@@ -923,10 +964,12 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
               title={t('tabTasks')}
               count={data.tasks.length}
               action={
-                <Button size="sm" onClick={() => setAction('task')}>
-                  <Plus />
-                  {t('createTask')}
-                </Button>
+                canCreateTask ? (
+                  <Button size="sm" onClick={() => setAction('task')}>
+                    <Plus />
+                    {t('createTask')}
+                  </Button>
+                ) : undefined
               }
             />
             {data.tasks.length === 0 ? (
@@ -941,7 +984,7 @@ export default function CompanyProfilePage({ params }: { params: { id: string } 
                       <div key={task.id} className="flex items-start gap-3 p-4">
                         <Checkbox
                           checked={done}
-                          disabled={done}
+                          disabled={done || !canCreateTask}
                           onCheckedChange={() => !done && completeTask(task)}
                           aria-label={t('completeTaskAria', { title: task.title })}
                           className="mt-0.5"

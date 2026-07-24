@@ -28,6 +28,7 @@ import {
 } from '@/lib/mock-services';
 import { useStaffDirectory, type StaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
+import { can } from '@/lib/permissions';
 import type {
   Feedback,
   Company,
@@ -128,7 +129,9 @@ export default function FeedbackPage() {
   const t = useTranslations('AdminFeedback');
   const router = useRouter();
   const staff = useStaffDirectory();
-  const { account } = useSession();
+  const { account, session } = useSession();
+  const role = session?.role;
+  const canReply = !!role && can(role, 'feedback.reply');
 
   const [rows, setRows] = React.useState<Feedback[] | null>(null);
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
@@ -200,12 +203,24 @@ export default function FeedbackPage() {
   }, [rows]);
 
   /* ── mutations (mock) ── */
-  function applyPatch(id: string, patch: Partial<Feedback>) {
-    setRows((prev) => (prev ? prev.map((f) => (f.id === id ? { ...f, ...patch } : f)) : prev));
-    void feedbackService.update(id, patch);
+  function toastActionFailed() {
+    toast({ variant: 'danger', title: 'Action failed', description: 'The change could not be saved. Please try again.' });
   }
 
-  function addComment(id: string, body: string, visibility: 'internal' | 'client') {
+  async function applyPatch(id: string, patch: Partial<Feedback>): Promise<boolean> {
+    const snapshot = rows;
+    setRows((prev) => (prev ? prev.map((f) => (f.id === id ? { ...f, ...patch } : f)) : prev));
+    try {
+      await feedbackService.update(id, patch);
+      return true;
+    } catch {
+      setRows(snapshot);
+      return false;
+    }
+  }
+
+  async function addComment(id: string, body: string, visibility: 'internal' | 'client'): Promise<boolean> {
+    const snapshot = rows;
     const comment: FeedbackComment = {
       id: uid('cm'),
       byUserId: account?.id,
@@ -213,17 +228,24 @@ export default function FeedbackPage() {
       body,
       at: new Date().toISOString(),
     };
+    const target = rows?.find((f) => f.id === id);
     setRows((prev) =>
       prev ? prev.map((f) => (f.id === id ? { ...f, comments: [...f.comments, comment] } : f)) : prev,
     );
-    const target = rows?.find((f) => f.id === id);
-    if (target) void feedbackService.update(id, { comments: [...target.comments, comment] });
-    return comment;
+    if (!target) return true;
+    try {
+      await feedbackService.update(id, { comments: [...target.comments, comment] });
+      return true;
+    } catch {
+      setRows(snapshot);
+      return false;
+    }
   }
 
   async function sendTechnicalReply(f: Feedback) {
     await new Promise((r) => setTimeout(r, 500));
-    applyPatch(f.id, { status: 'technical_reply_sent' });
+    const ok = await applyPatch(f.id, { status: 'technical_reply_sent' });
+    if (!ok) { toastActionFailed(); return; }
     toast({
       variant: 'success',
       title: t('toastTechnicalReplySentTitle'),
@@ -236,7 +258,8 @@ export default function FeedbackPage() {
 
   async function requestMoreInfo(f: Feedback) {
     await new Promise((r) => setTimeout(r, 500));
-    applyPatch(f.id, { status: 'additional_info_requested' });
+    const ok = await applyPatch(f.id, { status: 'additional_info_requested' });
+    if (!ok) { toastActionFailed(); return; }
     toast({
       variant: 'info',
       title: t('toastMoreInfoRequestedTitle'),
@@ -246,7 +269,8 @@ export default function FeedbackPage() {
 
   async function markResolved(f: Feedback) {
     await new Promise((r) => setTimeout(r, 500));
-    applyPatch(f.id, { status: 'resolved' });
+    const ok = await applyPatch(f.id, { status: 'resolved' });
+    if (!ok) { toastActionFailed(); return; }
     setStats((prev) => (prev ? { ...prev, open: Math.max(0, prev.open - 1) } : prev));
     toast({
       variant: 'success',
@@ -257,7 +281,8 @@ export default function FeedbackPage() {
 
   async function scheduleTechnicalCall(f: Feedback) {
     await new Promise((r) => setTimeout(r, 500));
-    applyPatch(f.id, { status: 'technical_call_needed' });
+    const ok = await applyPatch(f.id, { status: 'technical_call_needed' });
+    if (!ok) { toastActionFailed(); return; }
     toast({
       variant: 'info',
       title: t('toastTechnicalCallScheduledTitle'),
@@ -446,27 +471,31 @@ export default function FeedbackPage() {
             <Eye />
             {t('actionReview')}
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => void sendTechnicalReply(f)}>
-            <Send />
-            {t('actionSendTechnicalReply')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => void requestMoreInfo(f)}>
-            <HelpCircle />
-            {t('actionRequestMoreInfo')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => void scheduleTechnicalCall(f)}>
-            <CalendarClock />
-            {t('actionScheduleTechnicalCall')}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            disabled={f.status === 'resolved'}
-            onSelect={() => void markResolved(f)}
-          >
-            <CheckCircle2 />
-            {t('actionMarkResolved')}
-          </DropdownMenuItem>
+          {canReply ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => void sendTechnicalReply(f)}>
+                <Send />
+                {t('actionSendTechnicalReply')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void requestMoreInfo(f)}>
+                <HelpCircle />
+                {t('actionRequestMoreInfo')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void scheduleTechnicalCall(f)}>
+                <CalendarClock />
+                {t('actionScheduleTechnicalCall')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={f.status === 'resolved'}
+                onSelect={() => void markResolved(f)}
+              >
+                <CheckCircle2 />
+                {t('actionMarkResolved')}
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -599,6 +628,7 @@ export default function FeedbackPage() {
 
       <ReviewSheet
         t={t}
+        canReply={canReply}
         feedback={reviewItem}
         company={reviewItem ? companyMap.get(reviewItem.companyId) ?? null : null}
         sample={
@@ -634,6 +664,7 @@ function SensoryField({ label, value }: { label: string; value?: string }) {
 
 function ReviewSheet({
   t,
+  canReply,
   feedback,
   company,
   sample,
@@ -647,12 +678,13 @@ function ReviewSheet({
   onOpenSample,
 }: {
   t: TFunc;
+  canReply: boolean;
   feedback: Feedback | null;
   company: Company | null;
   sample: SampleRequest | null;
   locale: Locale;
   onOpenChange: (open: boolean) => void;
-  onAddComment: (id: string, body: string, visibility: 'internal' | 'client') => FeedbackComment;
+  onAddComment: (id: string, body: string, visibility: 'internal' | 'client') => Promise<boolean>;
   onSendReply: (f: Feedback) => Promise<void>;
   onRequestInfo: (f: Feedback) => Promise<void>;
   onResolve: (f: Feedback) => Promise<void>;
@@ -675,8 +707,12 @@ function ReviewSheet({
     if (!reply.trim() || posting || !feedback) return;
     setPosting(true);
     await new Promise((r) => setTimeout(r, 500));
-    onAddComment(feedback.id, reply.trim(), visibility);
+    const ok = await onAddComment(feedback.id, reply.trim(), visibility);
     setPosting(false);
+    if (!ok) {
+      toast({ variant: 'danger', title: 'Action failed', description: 'The reply could not be posted. Please try again.' });
+      return;
+    }
     setReply('');
     toast({
       variant: 'success',
@@ -831,6 +867,7 @@ function ReviewSheet({
               )}
 
               {/* Reply box */}
+              {canReply ? (
               <div className="mt-4 space-y-2 rounded-lg border bg-card p-3">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="reply" className="text-sm font-medium">
@@ -863,42 +900,47 @@ function ReviewSheet({
                   </Button>
                 </div>
               </div>
+              ) : null}
             </div>
 
             <SheetFooter className="flex-row flex-wrap gap-2 sm:justify-start">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void onRequestInfo(feedback)}
-              >
-                <HelpCircle />
-                {t('footerRequestInfo')}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void onScheduleCall(feedback)}
-              >
-                <CalendarClock />
-                {t('footerTechnicalCall')}
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => void onSendReply(feedback)}
-              >
-                <Send />
-                {t('footerSendReply')}
-              </Button>
-              <Button
-                variant="success"
-                size="sm"
-                disabled={feedback.status === 'resolved'}
-                onClick={() => void onResolve(feedback)}
-              >
-                <CheckCircle2 />
-                {t('footerResolve')}
-              </Button>
+              {canReply ? (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void onRequestInfo(feedback)}
+                  >
+                    <HelpCircle />
+                    {t('footerRequestInfo')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void onScheduleCall(feedback)}
+                  >
+                    <CalendarClock />
+                    {t('footerTechnicalCall')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => void onSendReply(feedback)}
+                  >
+                    <Send />
+                    {t('footerSendReply')}
+                  </Button>
+                  <Button
+                    variant="success"
+                    size="sm"
+                    disabled={feedback.status === 'resolved'}
+                    onClick={() => void onResolve(feedback)}
+                  >
+                    <CheckCircle2 />
+                    {t('footerResolve')}
+                  </Button>
+                </>
+              ) : null}
             </SheetFooter>
           </>
         ) : (

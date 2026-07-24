@@ -48,7 +48,13 @@ async function main() {
   }
 
   const superRole = await prisma.role.findUniqueOrThrow({ where: { key: "super_admin" } });
+  const crmRole = await prisma.role.findUniqueOrThrow({ where: { key: "crm_admin" } });
   const now = new Date();
+
+  // Only this identity is the platform super-admin (adds/removes admins, edits
+  // Settings, sees the Audit log). Every other seeded admin is crm_admin: full
+  // business CRUD, no admin powers. Change this constant to move super-admin.
+  const SUPER_ADMIN_EMAIL = "labidimedamine53@gmail.com";
 
   const adminsPath = "data/admins.json";
   if (existsSync(adminsPath)) {
@@ -59,18 +65,19 @@ async function main() {
       emails.push(email);
       const name = `${a.firstName} ${a.lastName}`.trim();
       const passwordHash = await bcrypt.hash(a.password, 12);
+      const roleId = email === SUPER_ADMIN_EMAIL ? superRole.id : crmRole.id;
       await prisma.user.upsert({
         where: { email },
         update: {
           name,
-          roleId: superRole.id,
+          roleId,
           kind: "internal",
           status: "active",
           passwordHash,
           emailVerified: now,
           authVersion: { increment: 1 },
         },
-        create: { email, name, roleId: superRole.id, kind: "internal", status: "active", passwordHash, emailVerified: now },
+        create: { email, name, roleId, kind: "internal", status: "active", passwordHash, emailVerified: now },
       });
     }
     console.log(`✓ Seeded ${ROLES.length} roles.`);

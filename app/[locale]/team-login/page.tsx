@@ -8,7 +8,7 @@ export default function TeamLoginPage() {
     <EmailLogin
       workspace="internal"
       ns="TeamLogin"
-      redirectTo="/admin"
+      redirectTo="/admin/companies"
       altHref="/login"
       variant="team"
     />

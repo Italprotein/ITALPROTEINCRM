@@ -25,6 +25,7 @@ import {
 import { contactService, companyService } from '@/lib/mock-services';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import type { Contact, Company, DecisionRole } from '@/lib/types';
+import { useParams } from 'next/navigation';
 import { Link, useRouter } from '@/lib/i18n/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
@@ -222,7 +223,8 @@ function ContactAvatar({ c, size = 'h-9 w-9' }: { c: Contact; size?: string }) {
 
 /* ────────────────────────────── page ────────────────────────────── */
 
-export default function ContactsPage({ params }: { params: { locale: string } }) {
+export default function ContactsPage() {
+  const params = useParams<{ locale: string }>();
   const locale = params.locale as 'en' | 'it';
   const router = useRouter();
   const t = useTranslations('AdminContacts');

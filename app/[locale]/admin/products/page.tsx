@@ -4,6 +4,8 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { Boxes, Rocket, FlaskConical, Sparkles, Plus, Search } from 'lucide-react';
 import { productService, companyService } from '@/lib/mock-services';
+import { useSession } from '@/components/providers/session-provider';
+import { canEdit } from '@/lib/permissions';
 import type { Product, Company, ApplicationCategory } from '@/lib/types';
 import { APPLICATION_CATEGORIES } from '@/lib/types';
 import { getLabel } from '@/lib/labels';
@@ -32,6 +34,9 @@ const STATUSES: Product['status'][] = ['in_development', 'tested', 'launched', '
 
 export default function ProductsPage() {
   const t = useTranslations('AdminProducts');
+  const { session } = useSession();
+  const role = session?.role;
+  const canCreate = !!role && canEdit(role, 'products');
   const [rows, setRows] = React.useState<Product[] | null>(null);
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
   const [stats, setStats] = React.useState<Awaited<ReturnType<typeof productService.getStatistics>> | null>(null);
@@ -71,7 +76,7 @@ export default function ProductsPage() {
       <PageHeader
         title={t('title')}
         subtitle={t('subtitle')}
-        actions={<Button variant="gold" onClick={() => setCreateOpen(true)}><Plus /> {t('addProduct')}</Button>}
+        actions={canCreate ? <Button variant="gold" onClick={() => setCreateOpen(true)}><Plus /> {t('addProduct')}</Button> : null}
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -171,12 +176,17 @@ function AddProductDialog({ open, onOpenChange, companies, onCreated }: {
       brandName: brandName.trim() || undefined, proaminaDosage: dosage.trim() || undefined,
       status: 'in_development', createdAt: new Date().toISOString().slice(0, 10),
     };
-    await productService.create(p);
-    onCreated(p);
-    toast({ variant: 'success', title: t('toastTitle'), description: t('toastDescription', { name: p.name }) });
-    setSubmitting(false);
-    setName(''); setBrandName(''); setDosage(''); setCompanyId('');
-    onOpenChange(false);
+    try {
+      await productService.create(p);
+      onCreated(p);
+      toast({ variant: 'success', title: t('toastTitle'), description: t('toastDescription', { name: p.name }) });
+      setName(''); setBrandName(''); setDosage(''); setCompanyId('');
+      onOpenChange(false);
+    } catch {
+      toast({ variant: 'danger', title: t('addProduct'), description: 'Something went wrong adding the product. Please try again.' });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (

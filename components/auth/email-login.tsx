@@ -56,8 +56,9 @@ export interface EmailLoginProps {
   workspace: Workspace;
   /** Translation namespace ('Login' | 'TeamLogin'). */
   ns: 'Login' | 'TeamLogin';
-  /** Where to send the user after a successful sign-in. */
-  redirectTo: '/admin' | '/portal';
+  /** Where to send the user after a successful sign-in. Internal staff land on
+   *  the Companies (Aziende) list — the CRM's home base — not the overview. */
+  redirectTo: '/admin/companies' | '/portal';
   /** The other login page, offered when the wrong workspace email is entered. */
   altHref: string;
   /** Visual treatment. */

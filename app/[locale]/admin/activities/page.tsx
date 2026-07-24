@@ -10,6 +10,7 @@ import type { LucideIcon } from 'lucide-react';
 import { activityService, companyService } from '@/lib/mock-services';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
+import { canEdit } from '@/lib/permissions';
 import type { Activity, ActivityType, Company } from '@/lib/types';
 import { getLabel, humanize } from '@/lib/labels';
 import { formatDate, formatRelative } from '@/lib/formatting';
@@ -53,6 +54,9 @@ const TYPE_OPTIONS: ActivityType[] = ['email', 'call', 'meeting', 'note', 'nda_e
 export default function ActivitiesPage() {
   const t = useTranslations('AdminActivities');
   const staff = useStaffDirectory();
+  const { session } = useSession();
+  const role = session?.role;
+  const canLogActivity = !!role && canEdit(role, 'activities');
   const [rows, setRows] = React.useState<Activity[] | null>(null);
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
   const [stats, setStats] = React.useState<Awaited<ReturnType<typeof activityService.getStatistics>> | null>(null);
@@ -109,7 +113,7 @@ export default function ActivitiesPage() {
       <PageHeader
         title={t('title')}
         subtitle={t('subtitle')}
-        actions={<Button variant="gold" onClick={() => setLogOpen(true)}><Plus /> {t('logActivity')}</Button>}
+        actions={canLogActivity ? <Button variant="gold" onClick={() => setLogOpen(true)}><Plus /> {t('logActivity')}</Button> : undefined}
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -210,11 +214,17 @@ function LogActivityDialog({ open, onOpenChange, companies, onLogged }: {
       body: body.trim() || undefined, byUserId: account?.id, visibility: 'internal',
       at: new Date().toISOString(),
     };
-    await activityService.create(a);
-    onLogged(a);
-    toast({ variant: 'success', title: t('toastLogged'), description: title.trim() });
-    setSubmitting(false); setTitle(''); setBody(''); setCompanyId('');
-    onOpenChange(false);
+    try {
+      await activityService.create(a);
+      onLogged(a);
+      toast({ variant: 'success', title: t('toastLogged'), description: title.trim() });
+      setTitle(''); setBody(''); setCompanyId('');
+      onOpenChange(false);
+    } catch {
+      toast({ variant: 'danger', title: 'Action failed', description: 'Please try again.' });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (

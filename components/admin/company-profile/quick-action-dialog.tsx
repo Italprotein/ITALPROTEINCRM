@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { toast } from '@/components/ui/use-toast';
 import { sleep } from '@/lib/utils';
 
 export interface QuickField {
@@ -68,10 +69,16 @@ export function QuickActionDialog({
     e.preventDefault();
     if (missingRequired || submitting) return;
     setSubmitting(true);
-    await sleep(500);
-    await onSubmit(values);
-    setSubmitting(false);
-    onOpenChange(false);
+    try {
+      await sleep(500);
+      await onSubmit(values);
+      onOpenChange(false);
+    } catch {
+      // keep the dialog open so the user can retry
+      toast({ title: 'Action failed', description: 'Please try again.', variant: 'danger' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (

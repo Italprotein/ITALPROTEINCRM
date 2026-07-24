@@ -41,6 +41,8 @@ import { getLabel } from '@/lib/labels';
 import { formatDate, daysUntil, flagEmoji } from '@/lib/formatting';
 import { cn, uid } from '@/lib/utils';
 import { useRouter, Link } from '@/lib/i18n/navigation';
+import { useSession } from '@/components/providers/session-provider';
+import { can, canEdit } from '@/lib/permissions';
 
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
@@ -129,6 +131,12 @@ export default function NdasPage() {
   const locale = useLocale() as Locale;
   const t = useTranslations('AdminNdas');
   const router = useRouter();
+  const { session } = useSession();
+  const role = session?.role;
+  const canPrepare = !!role && can(role, 'nda.prepare');
+  const canSend = !!role && can(role, 'nda.send');
+  const canMarkSigned = !!role && can(role, 'nda.mark_signed');
+  const canEditNdas = !!role && canEdit(role, 'ndas');
 
   const [rows, setRows] = React.useState<NDA[] | null>(null);
   const [companies, setCompanies] = React.useState<Map<string, Company>>(new Map());
@@ -202,7 +210,8 @@ export default function NdasPage() {
 
   /* ── mutations (mock) ── */
   const applyPatch = React.useCallback(
-    (id: string, patch: Partial<NDA>, addVersion?: NDAVersion) => {
+    async (id: string, patch: Partial<NDA>, addVersion?: NDAVersion): Promise<boolean> => {
+      const snapshot = rows;
       setRows((prev) =>
         prev
           ? prev.map((n) =>
@@ -220,48 +229,64 @@ export default function NdasPage() {
       const fullPatch: Partial<NDA> = addVersion
         ? { ...patch, versions: [...(target?.versions ?? []), addVersion] }
         : patch;
-      void ndaService.update(id, fullPatch);
-      refreshStats();
+      try {
+        await ndaService.update(id, fullPatch);
+        refreshStats();
+        return true;
+      } catch {
+        setRows(snapshot);
+        refreshStats();
+        return false;
+      }
     },
     [rows, refreshStats],
   );
 
+  function toastActionFailed() {
+    toast({ variant: 'danger', title: 'Action failed', description: 'The change could not be saved. Please try again.' });
+  }
+
   async function markSent(n: NDA) {
     await new Promise((r) => setTimeout(r, 500));
-    applyPatch(n.id, { status: 'sent', dateSent: n.dateSent ?? TODAY });
+    const ok = await applyPatch(n.id, { status: 'sent', dateSent: n.dateSent ?? TODAY });
+    if (!ok) { toastActionFailed(); return; }
     toast({ variant: 'success', title: t('toastMarkedSentTitle'), description: t('toastMarkedSentDescription', { reference: n.reference, company: companyName(n.companyId) }) });
   }
 
   async function markSigned(n: NDA) {
     await new Promise((r) => setTimeout(r, 500));
     const effective = n.effectiveDate ?? TODAY;
-    applyPatch(
+    const ok = await applyPatch(
       n.id,
       { status: 'fully_signed', effectiveDate: effective },
       { version: nextVersion(n), date: TODAY, note: t('versionNoteCounterSigned') },
     );
+    if (!ok) { toastActionFailed(); return; }
     toast({ variant: 'success', title: t('toastFullySignedTitle'), description: t('toastFullySignedDescription', { reference: n.reference }) });
   }
 
   async function requestRevision(n: NDA, note: string) {
     await new Promise((r) => setTimeout(r, 500));
-    applyPatch(
+    const ok = await applyPatch(
       n.id,
       { status: 'changes_requested', requestedModifications: note || n.requestedModifications },
       { version: nextVersion(n), date: TODAY, note: note ? t('versionNoteRevisionRequestedWithNote', { note }) : t('versionNoteRevisionRequested') },
     );
+    if (!ok) { toastActionFailed(); return; }
     toast({ variant: 'warning', title: t('toastRevisionRequestedTitle'), description: t('toastRevisionRequestedDescription', { reference: n.reference }) });
   }
 
   async function replaceDocument(n: NDA) {
     await new Promise((r) => setTimeout(r, 500));
-    applyPatch(n.id, {}, { version: nextVersion(n), date: TODAY, note: t('versionNoteDocumentReplaced') });
+    const ok = await applyPatch(n.id, {}, { version: nextVersion(n), date: TODAY, note: t('versionNoteDocumentReplaced') });
+    if (!ok) { toastActionFailed(); return; }
     toast({ variant: 'success', title: t('toastDocumentReplacedTitle'), description: t('toastDocumentReplacedDescription', { reference: n.reference }) });
   }
 
   async function addNote(n: NDA, note: string) {
     await new Promise((r) => setTimeout(r, 500));
-    applyPatch(n.id, {}, { version: nextVersion(n), date: TODAY, note });
+    const ok = await applyPatch(n.id, {}, { version: nextVersion(n), date: TODAY, note });
+    if (!ok) { toastActionFailed(); return; }
     toast({ variant: 'success', title: t('toastNoteAddedTitle'), description: t('toastNoteAddedDescription', { reference: n.reference }) });
   }
 
@@ -445,29 +470,41 @@ export default function NdasPage() {
             <Download />
             {t('actionDownload')}
           </DropdownMenuItem>
+          {canSend || canMarkSigned || canEditNdas ? <DropdownMenuSeparator /> : null}
+          {canSend || canMarkSigned || canEditNdas ? (
+            <DropdownMenuLabel>{t('lifecycleLabel')}</DropdownMenuLabel>
+          ) : null}
+          {canSend ? (
+            <DropdownMenuItem disabled={n.status === 'sent' || isSigned} onSelect={() => void markSent(n)}>
+              <Send />
+              {t('actionMarkSent')}
+            </DropdownMenuItem>
+          ) : null}
+          {canMarkSigned ? (
+            <DropdownMenuItem disabled={isSigned} onSelect={() => void markSigned(n)}>
+              <PenLine />
+              {t('actionMarkSigned')}
+            </DropdownMenuItem>
+          ) : null}
+          {canEditNdas ? (
+            <DropdownMenuItem onSelect={() => setRevisionFor(n)}>
+              <RotateCcw />
+              {t('actionRequestRevision')}
+            </DropdownMenuItem>
+          ) : null}
+          {canEditNdas ? (
+            <DropdownMenuItem onSelect={() => void replaceDocument(n)}>
+              <FileUp />
+              {t('actionReplaceDocument')}
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuSeparator />
-          <DropdownMenuLabel>{t('lifecycleLabel')}</DropdownMenuLabel>
-          <DropdownMenuItem disabled={n.status === 'sent' || isSigned} onSelect={() => void markSent(n)}>
-            <Send />
-            {t('actionMarkSent')}
-          </DropdownMenuItem>
-          <DropdownMenuItem disabled={isSigned} onSelect={() => void markSigned(n)}>
-            <PenLine />
-            {t('actionMarkSigned')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setRevisionFor(n)}>
-            <RotateCcw />
-            {t('actionRequestRevision')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => void replaceDocument(n)}>
-            <FileUp />
-            {t('actionReplaceDocument')}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => setNoteFor(n)}>
-            <StickyNote />
-            {t('actionAddNote')}
-          </DropdownMenuItem>
+          {canEditNdas ? (
+            <DropdownMenuItem onSelect={() => setNoteFor(n)}>
+              <StickyNote />
+              {t('actionAddNote')}
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem onSelect={() => createFollowUpTask(n)}>
             <ListChecks />
             {t('actionCreateFollowUp')}
@@ -513,16 +550,18 @@ export default function NdasPage() {
         title={t('pageTitle')}
         subtitle={t('pageSubtitle')}
         actions={
-          <>
-            <Button variant="outline" onClick={() => setUploadOpen(true)}>
-              <Upload />
-              {t('uploadNda')}
-            </Button>
-            <Button variant="gold" onClick={() => setCreateOpen(true)}>
-              <Plus />
-              {t('newNda')}
-            </Button>
-          </>
+          canPrepare ? (
+            <>
+              <Button variant="outline" onClick={() => setUploadOpen(true)}>
+                <Upload />
+                {t('uploadNda')}
+              </Button>
+              <Button variant="gold" onClick={() => setCreateOpen(true)}>
+                <Plus />
+                {t('newNda')}
+              </Button>
+            </>
+          ) : null
         }
       />
 
@@ -601,6 +640,9 @@ export default function NdasPage() {
         nda={detailItem}
         company={detailItem ? companies.get(detailItem.companyId) ?? null : null}
         locale={locale}
+        canSend={canSend}
+        canMarkSigned={canMarkSigned}
+        canEditNdas={canEditNdas}
         onOpenChange={(o) => !o && setDetailId(null)}
         onMarkSent={markSent}
         onMarkSigned={markSigned}
@@ -685,6 +727,9 @@ function DetailSheet({
   nda,
   company,
   locale,
+  canSend,
+  canMarkSigned,
+  canEditNdas,
   onOpenChange,
   onMarkSent,
   onMarkSigned,
@@ -698,6 +743,9 @@ function DetailSheet({
   nda: NDA | null;
   company: Company | null;
   locale: Locale;
+  canSend: boolean;
+  canMarkSigned: boolean;
+  canEditNdas: boolean;
   onOpenChange: (open: boolean) => void;
   onMarkSent: (n: NDA) => Promise<void>;
   onMarkSigned: (n: NDA) => Promise<void>;
@@ -875,30 +923,40 @@ function DetailSheet({
                 <Download />
                 {t('sheetDownload')}
               </Button>
-              <Button variant="outline" size="sm" disabled={nda.status === 'sent' || isSigned} onClick={() => void onMarkSent(nda)}>
-                <Send />
-                {t('sheetMarkSent')}
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => onRequestRevision(nda)}>
-                <RotateCcw />
-                {t('sheetRequestRevision')}
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => void onReplace(nda)}>
-                <FileUp />
-                {t('sheetReplace')}
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => onAddNote(nda)}>
-                <StickyNote />
-                {t('sheetAddNote')}
-              </Button>
+              {canSend ? (
+                <Button variant="outline" size="sm" disabled={nda.status === 'sent' || isSigned} onClick={() => void onMarkSent(nda)}>
+                  <Send />
+                  {t('sheetMarkSent')}
+                </Button>
+              ) : null}
+              {canEditNdas ? (
+                <Button variant="outline" size="sm" onClick={() => onRequestRevision(nda)}>
+                  <RotateCcw />
+                  {t('sheetRequestRevision')}
+                </Button>
+              ) : null}
+              {canEditNdas ? (
+                <Button variant="outline" size="sm" onClick={() => void onReplace(nda)}>
+                  <FileUp />
+                  {t('sheetReplace')}
+                </Button>
+              ) : null}
+              {canEditNdas ? (
+                <Button variant="outline" size="sm" onClick={() => onAddNote(nda)}>
+                  <StickyNote />
+                  {t('sheetAddNote')}
+                </Button>
+              ) : null}
               <Button variant="outline" size="sm" onClick={() => onFollowUp(nda)}>
                 <ListChecks />
                 {t('sheetFollowUpTask')}
               </Button>
-              <Button variant="success" size="sm" disabled={isSigned} onClick={() => void onMarkSigned(nda)}>
-                <PenLine />
-                {t('sheetMarkSigned')}
-              </Button>
+              {canMarkSigned ? (
+                <Button variant="success" size="sm" disabled={isSigned} onClick={() => void onMarkSigned(nda)}>
+                  <PenLine />
+                  {t('sheetMarkSigned')}
+                </Button>
+              ) : null}
             </SheetFooter>
           </>
         ) : (
@@ -982,16 +1040,21 @@ function CreateNdaDialog({
       createdAt: TODAY,
     };
 
-    await ndaService.create(nda);
-    onCreated(nda);
-    toast({
-      variant: 'success',
-      title: t('toastNdaCreatedTitle'),
-      description: t('toastNdaCreatedDescription', { reference, company: company?.tradingName || company?.legalName || t('fallbackCompany') }),
-    });
-    setSubmitting(false);
-    reset();
-    onOpenChange(false);
+    try {
+      await ndaService.create(nda);
+      onCreated(nda);
+      toast({
+        variant: 'success',
+        title: t('toastNdaCreatedTitle'),
+        description: t('toastNdaCreatedDescription', { reference, company: company?.tradingName || company?.legalName || t('fallbackCompany') }),
+      });
+      reset();
+      onOpenChange(false);
+    } catch {
+      toast({ variant: 'danger', title: 'Action failed', description: 'The NDA could not be created. Please try again.' });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -1168,16 +1231,21 @@ function UploadNdaDialog({
       createdAt: TODAY,
     };
 
-    await ndaService.create(nda);
-    onCreated(nda);
-    toast({
-      variant: 'success',
-      title: t('toastNdaUploadedTitle'),
-      description: t('toastNdaUploadedDescription', { reference, company: company?.tradingName || company?.legalName || t('fallbackCompany') }),
-    });
-    setSubmitting(false);
-    reset();
-    onOpenChange(false);
+    try {
+      await ndaService.create(nda);
+      onCreated(nda);
+      toast({
+        variant: 'success',
+        title: t('toastNdaUploadedTitle'),
+        description: t('toastNdaUploadedDescription', { reference, company: company?.tradingName || company?.legalName || t('fallbackCompany') }),
+      });
+      reset();
+      onOpenChange(false);
+    } catch {
+      toast({ variant: 'danger', title: 'Action failed', description: 'The NDA could not be uploaded. Please try again.' });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (

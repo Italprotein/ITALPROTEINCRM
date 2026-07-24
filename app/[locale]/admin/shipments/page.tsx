@@ -34,6 +34,8 @@ import type {
   Incoterm,
 } from '@/lib/types';
 import type { DerivedShipmentStatus } from '@/lib/mock-services';
+import { useSession } from '@/components/providers/session-provider';
+import { can } from '@/lib/permissions';
 import { getLabel } from '@/lib/labels';
 import { formatDate, flagEmoji } from '@/lib/formatting';
 import { uid } from '@/lib/utils';
@@ -114,6 +116,9 @@ export default function ShipmentsPage() {
   const t = useTranslations('AdminShipments');
   const locale = useLocale() as Locale;
   const router = useRouter();
+  const { session } = useSession();
+  const role = session?.role;
+  const canWrite = !!role && can(role, 'shipment.update');
 
   const [rows, setRows] = React.useState<Shipment[] | null>(null);
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
@@ -182,15 +187,28 @@ export default function ShipmentsPage() {
   }, [rows]);
 
   /* ── mutations (mock) ── */
-  function applyPatch(id: string, patch: Partial<Shipment>) {
+  async function applyPatch(id: string, patch: Partial<Shipment>): Promise<boolean> {
+    const snapshot = rows;
     setRows((prev) => (prev ? prev.map((s) => (s.id === id ? { ...s, ...patch } : s)) : prev));
-    void shipmentService.update(id, patch);
+    try {
+      await shipmentService.update(id, patch);
+      return true;
+    } catch {
+      // roll back the optimistic patch
+      setRows(snapshot);
+      toast({
+        variant: 'danger',
+        title: 'Update failed',
+        description: 'The shipment could not be updated. Please try again.',
+      });
+      return false;
+    }
   }
 
   async function markDispatched(s: Shipment) {
     await new Promise((r) => setTimeout(r, 500));
     const today = new Date().toISOString().slice(0, 10);
-    applyPatch(s.id, { shipmentDate: s.shipmentDate ?? today });
+    if (!(await applyPatch(s.id, { shipmentDate: s.shipmentDate ?? today }))) return;
     toast({
       variant: 'success',
       title: t('toastDispatchedTitle'),
@@ -201,7 +219,7 @@ export default function ShipmentsPage() {
   async function markDelivered(s: Shipment) {
     await new Promise((r) => setTimeout(r, 500));
     const today = new Date().toISOString().slice(0, 10);
-    applyPatch(s.id, { actualDelivery: today, isDelayed: false, customsStatus: 'cleared' });
+    if (!(await applyPatch(s.id, { actualDelivery: today, isDelayed: false, customsStatus: 'cleared' }))) return;
     toast({
       variant: 'success',
       title: t('toastDeliveredTitle'),
@@ -417,13 +435,13 @@ export default function ShipmentsPage() {
             Open detail
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          {status === 'preparing' ? (
+          {canWrite && status === 'preparing' ? (
             <DropdownMenuItem onSelect={() => void markDispatched(s)}>
               <Send />
               Mark dispatched
             </DropdownMenuItem>
           ) : null}
-          {status !== 'delivered' ? (
+          {canWrite && status !== 'delivered' ? (
             <DropdownMenuItem onSelect={() => void markDelivered(s)}>
               <CheckCircle2 />
               Mark delivered
@@ -433,11 +451,15 @@ export default function ShipmentsPage() {
             <MapPin />
             Add tracking update
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-danger focus:text-danger" onSelect={() => setIssueFor(s)}>
-            <Flag />
-            Report issue
-          </DropdownMenuItem>
+          {canWrite ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-danger focus:text-danger" onSelect={() => setIssueFor(s)}>
+                <Flag />
+                Report issue
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -474,10 +496,12 @@ export default function ShipmentsPage() {
         title="Shipments & Logistics"
         subtitle="Track every sample dispatch from preparation to delivery."
         actions={
-          <Button variant="gold" onClick={() => setCreateOpen(true)}>
-            <Plus />
-            New shipment
-          </Button>
+          canWrite ? (
+            <Button variant="gold" onClick={() => setCreateOpen(true)}>
+              <Plus />
+              New shipment
+            </Button>
+          ) : null
         }
       />
 
@@ -650,12 +674,21 @@ function CreateShipmentDialog({
       createdAt: nowIso,
     };
 
-    await shipmentService.create(shipment);
-    onCreated(shipment);
-    toast({ variant: 'success', title: 'Shipment created', description: `${shipment.reference} added to logistics.` });
-    setSubmitting(false);
-    reset();
-    onOpenChange(false);
+    try {
+      await shipmentService.create(shipment);
+      onCreated(shipment);
+      toast({ variant: 'success', title: 'Shipment created', description: `${shipment.reference} added to logistics.` });
+      reset();
+      onOpenChange(false);
+    } catch {
+      toast({
+        variant: 'danger',
+        title: 'Could not create shipment',
+        description: 'Something went wrong creating the shipment. Please try again.',
+      });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (

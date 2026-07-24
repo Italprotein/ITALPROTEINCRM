@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import {
   ArrowLeft,
@@ -27,6 +28,8 @@ import {
 } from 'lucide-react';
 
 import { shipmentService, companyService, sampleService } from '@/lib/mock-services';
+import { useSession } from '@/components/providers/session-provider';
+import { can } from '@/lib/permissions';
 import type { Shipment, Company, SampleRequest, Locale } from '@/lib/types';
 import type { DerivedShipmentStatus } from '@/lib/mock-services';
 import { getLabel } from '@/lib/labels';
@@ -114,10 +117,14 @@ const CHECKLIST_ITEMS = (t: T): ChecklistItem[] => [
 
 /* ────────────────────────────── Page ────────────────────────────── */
 
-export default function ShipmentDetailPage({ params }: { params: { id: string } }) {
+export default function ShipmentDetailPage() {
   const locale = useLocale() as Locale;
   const t = useTranslations('AdminShipmentDetail');
   const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const { session } = useSession();
+  const role = session?.role;
+  const canWrite = !!role && can(role, 'shipment.update');
 
   const [shipment, setShipment] = React.useState<Shipment | null>(null);
   const [company, setCompany] = React.useState<Company | null>(null);
@@ -160,16 +167,29 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
     void load();
   }, [load]);
 
-  function applyPatch(patch: Partial<Shipment>) {
-    setShipment((prev) => (prev ? { ...prev, ...patch } : prev));
-    void shipmentService.update(params.id, patch);
+  async function applyPatch(patch: Partial<Shipment>): Promise<boolean> {
+    const prev = shipment;
+    setShipment((p) => (p ? { ...p, ...patch } : p));
+    try {
+      await shipmentService.update(params.id, patch);
+      return true;
+    } catch {
+      // roll back the optimistic patch
+      setShipment(prev);
+      toast({
+        variant: 'danger',
+        title: 'Update failed',
+        description: 'The shipment could not be updated. Please try again.',
+      });
+      return false;
+    }
   }
 
   async function markDispatched() {
     if (!shipment) return;
     await new Promise((r) => setTimeout(r, 500));
     const today = new Date().toISOString().slice(0, 10);
-    applyPatch({ shipmentDate: shipment.shipmentDate ?? today });
+    if (!(await applyPatch({ shipmentDate: shipment.shipmentDate ?? today }))) return;
     toast({
       variant: 'success',
       title: t('toastDispatchedTitle'),
@@ -181,7 +201,7 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
     if (!shipment) return;
     await new Promise((r) => setTimeout(r, 500));
     const today = new Date().toISOString().slice(0, 10);
-    applyPatch({ actualDelivery: today, isDelayed: false, customsStatus: 'cleared' });
+    if (!(await applyPatch({ actualDelivery: today, isDelayed: false, customsStatus: 'cleared' }))) return;
     toast({
       variant: 'success',
       title: t('toastDeliveredTitle'),
@@ -238,13 +258,13 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
         subtitle={`${company?.tradingName || company?.legalName || t('unknownCompany')} • ${shipment.address.city}, ${shipment.address.country}`}
         actions={
           <>
-            {status === 'preparing' ? (
+            {canWrite && status === 'preparing' ? (
               <Button variant="outline" onClick={() => void markDispatched()}>
                 <Send />
                 {t('markDispatched')}
               </Button>
             ) : null}
-            {status !== 'delivered' ? (
+            {canWrite && status !== 'delivered' ? (
               <Button variant="success" onClick={() => void markDelivered()}>
                 <CheckCircle2 />
                 {t('markDelivered')}
@@ -254,10 +274,12 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
               <MapPin />
               {t('addTrackingUpdate')}
             </Button>
-            <Button variant="destructive" onClick={() => setIssueOpen(true)}>
-              <Flag />
-              {t('reportIssue')}
-            </Button>
+            {canWrite ? (
+              <Button variant="destructive" onClick={() => setIssueOpen(true)}>
+                <Flag />
+                {t('reportIssue')}
+              </Button>
+            ) : null}
           </>
         }
       />

@@ -24,6 +24,7 @@ import {
 import { sampleService, companyService, analyticsService } from '@/lib/mock-services';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
+import { canEdit } from '@/lib/permissions';
 import type {
   SampleRequest,
   SampleStatus,
@@ -122,7 +123,9 @@ export default function SamplesPage() {
   const locale = useLocale() as Locale;
   const router = useRouter();
   const { nameOf } = useStaffDirectory();
-  const { account } = useSession();
+  const { account, session } = useSession();
+  const role = session?.role;
+  const canWrite = !!role && canEdit(role, 'samples');
 
   const [rows, setRows] = React.useState<SampleRequest[] | null>(null);
   const [companies, setCompanies] = React.useState<Map<string, Company>>(new Map());
@@ -201,8 +204,12 @@ export default function SamplesPage() {
   }, [stats, t]);
 
   /* ── mutations (mock) ── */
-  function applyStatus(id: string, status: SampleStatus, extra?: Partial<SampleRequest>) {
+  async function applyStatus(id: string, status: SampleStatus, extra?: Partial<SampleRequest>): Promise<boolean> {
     const today = new Date().toISOString().slice(0, 10);
+    const snapshot = rows;
+    const target = (rows ?? []).find((s) => s.id === id);
+    if (!target) return false;
+    // optimistic update
     setRows((prev) =>
       prev
         ? prev.map((s) =>
@@ -220,16 +227,25 @@ export default function SamplesPage() {
           )
         : prev,
     );
-    const target = (rows ?? []).find((s) => s.id === id);
-    if (target) {
-      void sampleService.update(id, {
+    try {
+      await sampleService.update(id, {
         status,
         ...extra,
         statusHistory: [...target.statusHistory, { status, at: today, byUserId: account?.id }],
       });
+      // keep KPI counters roughly fresh
+      void sampleService.getStatistics().then(setStats);
+      return true;
+    } catch {
+      // roll back the optimistic change
+      setRows(snapshot);
+      toast({
+        variant: 'danger',
+        title: t('toastStatusUpdatedTitle'),
+        description: t('toastStatusChangedDescription', { reference: target.reference, status: getLabel('sampleStatus', target.status) }),
+      });
+      return false;
     }
-    // keep KPI counters roughly fresh
-    void sampleService.getStatistics().then(setStats);
   }
 
   function handleCreate(s: SampleRequest) {
@@ -238,28 +254,28 @@ export default function SamplesPage() {
     void analyticsService.samplesOverTime().then(setTrend);
   }
 
-  function advance(s: SampleRequest) {
+  async function advance(s: SampleRequest) {
     const next = nextStatus(s.status);
     if (!next) {
       toast({ variant: 'info', title: t('toastNoFurtherStageTitle'), description: t('toastNoFurtherStageDescription', { reference: s.reference, status: getLabel('sampleStatus', s.status) }) });
       return;
     }
-    applyStatus(s.id, next);
+    if (!(await applyStatus(s.id, next))) return;
     toast({ variant: 'success', title: t('toastStatusAdvancedTitle'), description: t('toastStatusChangedDescription', { reference: s.reference, status: getLabel('sampleStatus', next) }) });
   }
 
-  function approve(s: SampleRequest) {
-    applyStatus(s.id, 'approved', { approvedQuantity: s.requestedQuantity, approvalDate: new Date().toISOString().slice(0, 10) });
+  async function approve(s: SampleRequest) {
+    if (!(await applyStatus(s.id, 'approved', { approvedQuantity: s.requestedQuantity, approvalDate: new Date().toISOString().slice(0, 10) }))) return;
     toast({ variant: 'success', title: t('toastSampleApprovedTitle'), description: t('toastSampleApprovedDescription', { reference: s.reference, quantity: formatQuantity(s.requestedQuantity, s.unit, locale) }) });
   }
 
-  function reject(s: SampleRequest) {
-    applyStatus(s.id, 'rejected');
+  async function reject(s: SampleRequest) {
+    if (!(await applyStatus(s.id, 'rejected'))) return;
     toast({ variant: 'warning', title: t('toastSampleRejectedTitle'), description: t('toastSampleRejectedDescription', { reference: s.reference }) });
   }
 
-  function mark(s: SampleRequest, status: SampleStatus) {
-    applyStatus(s.id, status);
+  async function mark(s: SampleRequest, status: SampleStatus) {
+    if (!(await applyStatus(s.id, status))) return;
     toast({ variant: 'success', title: t('toastStatusUpdatedTitle'), description: t('toastStatusChangedDescription', { reference: s.reference, status: getLabel('sampleStatus', status) }) });
   }
 
@@ -440,33 +456,37 @@ export default function SamplesPage() {
             <ExternalLink />
             Open
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {canApprove ? (
+          {canWrite ? (
             <>
-              <DropdownMenuItem onSelect={() => approve(s)}>
-                <CheckCircle2 />
-                Approve
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => reject(s)}>
-                <XCircle />
-                Reject
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
+              {canApprove ? (
+                <>
+                  <DropdownMenuItem onSelect={() => approve(s)}>
+                    <CheckCircle2 />
+                    Approve
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => reject(s)}>
+                    <XCircle />
+                    Reject
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              ) : null}
+              <DropdownMenuLabel>Mark as</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => mark(s, 'preparing')}>
+                <PackageOpen />
+                Preparing
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => mark(s, 'ready_to_ship')}>
+                <PackageCheck />
+                Ready to ship
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => mark(s, 'shipped')}>
+                <Truck />
+                Shipped
+              </DropdownMenuItem>
             </>
           ) : null}
-          <DropdownMenuLabel>Mark as</DropdownMenuLabel>
-          <DropdownMenuItem onSelect={() => mark(s, 'preparing')}>
-            <PackageOpen />
-            Preparing
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => mark(s, 'ready_to_ship')}>
-            <PackageCheck />
-            Ready to ship
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => mark(s, 'shipped')}>
-            <Truck />
-            Shipped
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -535,10 +555,12 @@ export default function SamplesPage() {
               <Download />
               Export
             </Button>
-            <Button variant="gold" onClick={() => setCreateOpen(true)}>
-              <Plus />
-              New sample request
-            </Button>
+            {canWrite && (
+              <Button variant="gold" onClick={() => setCreateOpen(true)}>
+                <Plus />
+                New sample request
+              </Button>
+            )}
           </>
         }
       />
@@ -760,16 +782,25 @@ function CreateSampleDialog({
       createdAt: today,
     };
 
-    await sampleService.create(sample);
-    onCreated(sample);
-    toast({
-      variant: 'success',
-      title: 'Sample request created',
-      description: `${sample.reference} for ${company?.tradingName || company?.legalName || 'company'} submitted.`,
-    });
-    setSubmitting(false);
-    reset();
-    onOpenChange(false);
+    try {
+      await sampleService.create(sample);
+      onCreated(sample);
+      toast({
+        variant: 'success',
+        title: 'Sample request created',
+        description: `${sample.reference} for ${company?.tradingName || company?.legalName || 'company'} submitted.`,
+      });
+      reset();
+      onOpenChange(false);
+    } catch {
+      toast({
+        variant: 'danger',
+        title: 'Could not create sample request',
+        description: 'Something went wrong submitting the request. Please try again.',
+      });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (

@@ -83,12 +83,17 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
   },
   crm_admin: {
     workspace: 'internal',
-    sections: sections(INTERNAL_SECTIONS, 'full', { settings: 'edit', users: 'edit', audit: 'view' }),
+    // Business-data steward. Full CRUD across every operational section, but NOT
+    // the admin-only surfaces: adding/removing admins (users), editing Settings,
+    // and the Audit log are super_admin only. Per Italprotein, the non-Amine
+    // admins are this role. (Registrations stays full — approving inbound leads
+    // provisions external portal owners, not admins, so it is business work.)
+    sections: sections(INTERNAL_SECTIONS, 'full', { users: 'hidden', settings: 'hidden', audit: 'hidden' }),
     actions: [
       'company.create', 'company.edit', 'contact.edit', 'pipeline.stage_change',
       'sample.approve', 'sample.status_update', 'shipment.update', 'feedback.reply',
       'nda.prepare', 'nda.send', 'nda.mark_signed', 'finance.edit',
-      'registration.approve', 'user.manage', 'data.export', 'settings.edit', 'audit.view',
+      'registration.approve', 'data.export',
     ],
   },
   business_dev: {

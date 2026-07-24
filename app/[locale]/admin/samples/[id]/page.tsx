@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import {
   ArrowLeft,
@@ -23,6 +24,7 @@ import {
 import { sampleService, companyService, shipmentService, feedbackService, deriveShipmentStatus } from '@/lib/mock-services';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
+import { canEdit } from '@/lib/permissions';
 import type {
   SampleRequest,
   SampleStatus,
@@ -74,12 +76,15 @@ const ADVANCE_STAGES: SampleStatus[] = [
 
 /* ────────────────────────────── Page ────────────────────────────── */
 
-export default function SampleDetailPage({ params }: { params: { id: string } }) {
+export default function SampleDetailPage() {
   const locale = useLocale() as Locale;
   const t = useTranslations('AdminSampleDetail');
   const router = useRouter();
+  const params = useParams<{ id: string }>();
   const { nameOf } = useStaffDirectory();
-  const { account } = useSession();
+  const { account, session } = useSession();
+  const role = session?.role;
+  const canWrite = !!role && canEdit(role, 'samples');
 
   const [sample, setSample] = React.useState<SampleRequest | null>(null);
   const [notFound, setNotFound] = React.useState(false);
@@ -117,8 +122,9 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
   }, [load]);
 
   /* ── mutations (mock) ── */
-  function applyStatus(status: SampleStatus, extra?: Partial<SampleRequest>) {
-    if (!sample) return;
+  async function applyStatus(status: SampleStatus, extra?: Partial<SampleRequest>): Promise<boolean> {
+    if (!sample) return false;
+    const prev = sample;
     const today = new Date().toISOString().slice(0, 10);
     const next: SampleRequest = {
       ...sample,
@@ -127,16 +133,31 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
       statusHistory: [...sample.statusHistory, { status, at: today, byUserId: account?.id }],
     };
     setSample(next);
-    void sampleService.update(sample.id, {
-      status,
-      ...extra,
-      statusHistory: next.statusHistory,
-    });
+    try {
+      await sampleService.update(sample.id, {
+        status,
+        ...extra,
+        statusHistory: next.statusHistory,
+      });
+      return true;
+    } catch {
+      // roll back the optimistic header/timeline update
+      setSample(prev);
+      toast({
+        variant: 'danger',
+        title: t('statusUpdatedTitle'),
+        description: t('statusUpdatedDescription', {
+          reference: prev.reference,
+          status: getLabel('sampleStatus', prev.status),
+        }),
+      });
+      return false;
+    }
   }
 
-  function approve() {
+  async function approve() {
     if (!sample) return;
-    applyStatus('approved', { approvedQuantity: sample.requestedQuantity, approvalDate: new Date().toISOString().slice(0, 10) });
+    if (!(await applyStatus('approved', { approvedQuantity: sample.requestedQuantity, approvalDate: new Date().toISOString().slice(0, 10) }))) return;
     toast({
       variant: 'success',
       title: t('sampleApprovedTitle'),
@@ -147,9 +168,9 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
     });
   }
 
-  function confirmReject() {
+  async function confirmReject() {
     if (!sample) return;
-    applyStatus('rejected');
+    if (!(await applyStatus('rejected'))) return;
     toast({
       variant: 'warning',
       title: t('sampleRejectedTitle'),
@@ -157,9 +178,9 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
     });
   }
 
-  function advance(status: SampleStatus) {
+  async function advance(status: SampleStatus) {
     if (!sample) return;
-    applyStatus(status);
+    if (!(await applyStatus(status))) return;
     toast({
       variant: 'success',
       title: t('statusUpdatedTitle'),
@@ -173,7 +194,7 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
   async function createShipment() {
     if (!sample) return;
     await new Promise((r) => setTimeout(r, 500));
-    applyStatus('ready_to_ship');
+    if (!(await applyStatus('ready_to_ship'))) return;
     toast({
       variant: 'success',
       title: t('shipmentCreatedTitle'),
@@ -237,6 +258,7 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
         title={sample.reference}
         subtitle={sample.requestedProduct}
         actions={
+          canWrite ? (
           <>
             {canApprove ? (
               <>
@@ -272,6 +294,7 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
               </DropdownMenuContent>
             </DropdownMenu>
           </>
+          ) : null
         }
       />
 
@@ -489,10 +512,12 @@ export default function SampleDetailPage({ params }: { params: { id: string } })
               ) : (
                 <div className="space-y-3">
                   <p className="text-muted-foreground">{t('noShipmentLinked')}</p>
-                  <Button variant="outline" size="sm" onClick={createShipment} className="w-full">
-                    <PackagePlus className="h-4 w-4" />
-                    {t('createShipment')}
-                  </Button>
+                  {canWrite && (
+                    <Button variant="outline" size="sm" onClick={createShipment} className="w-full">
+                      <PackagePlus className="h-4 w-4" />
+                      {t('createShipment')}
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>

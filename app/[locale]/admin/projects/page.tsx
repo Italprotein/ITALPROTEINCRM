@@ -21,6 +21,8 @@ import {
 
 import { projectService, companyService, sampleService } from '@/lib/mock-services';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
+import { useSession } from '@/components/providers/session-provider';
+import { canEdit } from '@/lib/permissions';
 import type {
   ApplicationProject,
   Company,
@@ -103,6 +105,9 @@ export default function ProjectsPage() {
   const t = useTranslations('AdminProjects');
   const router = useRouter();
   const { nameOf } = useStaffDirectory();
+  const { session } = useSession();
+  const role = session?.role;
+  const canWrite = !!role && canEdit(role, 'projects');
 
   const [rows, setRows] = React.useState<ApplicationProject[] | null>(null);
   const [companies, setCompanies] = React.useState<Map<string, Company>>(new Map());
@@ -188,7 +193,7 @@ export default function ProjectsPage() {
   );
 
   /* ── mutations (mock) ── */
-  function advance(p: ApplicationProject) {
+  async function advance(p: ApplicationProject) {
     const next = nextStage(p.developmentStage);
     if (!next) {
       toast({
@@ -198,17 +203,31 @@ export default function ProjectsPage() {
       });
       return;
     }
+    // capture snapshots for rollback
+    const rowsSnapshot = rows;
+    const detailSnapshot = detail;
     setRows((prev) =>
       prev ? prev.map((r) => (r.id === p.id ? { ...r, developmentStage: next, updatedAt: TODAY } : r)) : prev,
     );
     if (detail?.id === p.id) setDetail({ ...detail, developmentStage: next, updatedAt: TODAY });
-    void projectService.update(p.id, { developmentStage: next, updatedAt: TODAY });
-    void projectService.getStatistics().then(setStats);
-    toast({
-      variant: 'success',
-      title: t('toastStageAdvancedTitle'),
-      description: t('toastStageAdvancedDescription', { name: p.name, stage: getLabel('developmentStage', next) }),
-    });
+    try {
+      await projectService.update(p.id, { developmentStage: next, updatedAt: TODAY });
+      void projectService.getStatistics().then(setStats);
+      toast({
+        variant: 'success',
+        title: t('toastStageAdvancedTitle'),
+        description: t('toastStageAdvancedDescription', { name: p.name, stage: getLabel('developmentStage', next) }),
+      });
+    } catch {
+      // roll back the optimistic stage advance
+      setRows(rowsSnapshot);
+      setDetail(detailSnapshot);
+      toast({
+        variant: 'danger',
+        title: t('toastStageAdvancedTitle'),
+        description: t('toastStageAdvancedDescription', { name: p.name, stage: getLabel('developmentStage', p.developmentStage) }),
+      });
+    }
   }
 
   /* ── table columns ── */
@@ -372,11 +391,15 @@ export default function ProjectsPage() {
             <Eye />
             {t('open')}
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => advance(p)} disabled={!next}>
-            <ChevronRight />
-            {next ? t('advanceTo', { stage: getLabel('developmentStage', next) }) : t('noFurtherStage')}
-          </DropdownMenuItem>
+          {canWrite ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => advance(p)} disabled={!next}>
+                <ChevronRight />
+                {next ? t('advanceTo', { stage: getLabel('developmentStage', next) }) : t('noFurtherStage')}
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -630,10 +653,12 @@ export default function ProjectsPage() {
                 <SheetClose asChild>
                   <Button variant="outline">{t('close')}</Button>
                 </SheetClose>
-                <Button variant="gold" onClick={() => advance(detail)} disabled={!nextStage(detail.developmentStage)}>
-                  <ChevronRight className="h-4 w-4" />
-                  {t('advanceStage')}
-                </Button>
+                {canWrite && (
+                  <Button variant="gold" onClick={() => advance(detail)} disabled={!nextStage(detail.developmentStage)}>
+                    <ChevronRight className="h-4 w-4" />
+                    {t('advanceStage')}
+                  </Button>
+                )}
               </SheetFooter>
             </>
           )}

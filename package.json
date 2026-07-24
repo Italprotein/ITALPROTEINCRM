@@ -15,6 +15,9 @@
     "db:studio": "prisma studio",
     "import:dry": "tsx scripts/import-data.ts --dry",
     "import": "tsx scripts/import-data.ts",
+    "import:crm:validate": "tsx scripts/import-crm.ts --validate",
+    "import:crm:dry": "tsx scripts/import-crm.ts --dry",
+    "import:crm": "tsx scripts/import-crm.ts",
     "verify": "tsx scripts/verify-backend.ts",
     "verify:auth": "tsx scripts/verify-auth-runtime.ts"
   },

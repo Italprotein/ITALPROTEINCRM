@@ -23,6 +23,7 @@ import {
 } from '@/lib/mock-services';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
+import { can, canEdit } from '@/lib/permissions';
 import type { Company, Opportunity, PipelineStage, Currency } from '@/lib/types';
 import { PIPELINE_STAGES } from '@/lib/types';
 import { getLabel } from '@/lib/labels';
@@ -106,6 +107,10 @@ type ViewMode = 'board' | 'table';
 export default function PipelinePage() {
   const t = useTranslations('AdminPipeline');
   const router = useRouter();
+  const { session } = useSession();
+  const role = session?.role;
+  const canMove = !!role && can(role, 'pipeline.stage_change');
+  const canCreate = !!role && canEdit(role, 'pipeline');
   const [opps, setOpps] = React.useState<Opportunity[] | null>(null);
   const [companies, setCompanies] = React.useState<Map<string, Company>>(new Map());
   const [view, setView] = React.useState<ViewMode>('board');
@@ -178,16 +183,32 @@ export default function PipelinePage() {
             : o,
         ),
       );
-      await new Promise((r) => setTimeout(r, 450));
-      await opportunityService.update(opp.id, {
-        stage: next,
-        updatedAt: new Date().toISOString(),
-      });
-      toast({
-        variant: 'success',
-        title: t('toastStageUpdatedTitle'),
-        description: `${opp.title} → ${getLabel('pipelineStage', next)}`,
-      });
+      try {
+        await new Promise((r) => setTimeout(r, 450));
+        await opportunityService.update(opp.id, {
+          stage: next,
+          updatedAt: new Date().toISOString(),
+        });
+        toast({
+          variant: 'success',
+          title: t('toastStageUpdatedTitle'),
+          description: `${opp.title} → ${getLabel('pipelineStage', next)}`,
+        });
+      } catch {
+        // roll back the optimistic move (KPIs derive from `opps`, so they follow)
+        setOpps((prev) =>
+          (prev ?? []).map((o) =>
+            o.id === opp.id
+              ? { ...o, stage: opp.stage, updatedAt: opp.updatedAt }
+              : o,
+          ),
+        );
+        toast({
+          variant: 'danger',
+          title: 'Could not update stage',
+          description: `${opp.title} could not be moved to ${getLabel('pipelineStage', next)}.`,
+        });
+      }
     },
     [t],
   );
@@ -232,10 +253,12 @@ export default function PipelinePage() {
                 Table
               </Button>
             </div>
-            <Button variant="gold" size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Add opportunity
-            </Button>
+            {canCreate && (
+              <Button variant="gold" size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Add opportunity
+              </Button>
+            )}
           </div>
         }
       />
@@ -289,6 +312,7 @@ export default function PipelinePage() {
           byStage={byStage}
           companies={companies}
           onMove={moveStage}
+          canMove={canMove}
           onOpen={(id) => router.push('/admin/pipeline/' + id)}
         />
       ) : (
@@ -296,6 +320,7 @@ export default function PipelinePage() {
           data={list}
           companies={companies}
           onMove={moveStage}
+          canMove={canMove}
         />
       )}
 
@@ -316,11 +341,13 @@ function PipelineBoard({
   byStage,
   companies,
   onMove,
+  canMove,
   onOpen,
 }: {
   byStage: Map<PipelineStage, Opportunity[]>;
   companies: Map<string, Company>;
   onMove: (opp: Opportunity, next: PipelineStage) => void;
+  canMove: boolean;
   onOpen: (id: string) => void;
 }) {
   return (
@@ -356,6 +383,7 @@ function PipelineBoard({
                       company={companies.get(o.companyId)}
                       stage={stage}
                       onMove={onMove}
+                      canMove={canMove}
                       onOpen={onOpen}
                     />
                   ))
@@ -374,12 +402,14 @@ function OpportunityCard({
   company,
   stage,
   onMove,
+  canMove,
   onOpen,
 }: {
   opp: Opportunity;
   company: Company | undefined;
   stage: PipelineStage;
   onMove: (opp: Opportunity, next: PipelineStage) => void;
+  canMove: boolean;
   onOpen: (id: string) => void;
 }) {
   const { nameOf, colorOf } = useStaffDirectory();
@@ -405,6 +435,7 @@ function OpportunityCard({
         <span className="truncate text-xs font-medium text-muted-foreground">
           {company?.tradingName ?? company?.legalName ?? 'Unknown company'}
         </span>
+        {canMove && (
         <div onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -441,6 +472,7 @@ function OpportunityCard({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        )}
       </div>
 
       <p className="mt-0.5 line-clamp-2 text-sm font-semibold leading-snug text-foreground">
@@ -501,10 +533,12 @@ function PipelineTable({
   data,
   companies,
   onMove,
+  canMove,
 }: {
   data: Opportunity[];
   companies: Map<string, Company>;
   onMove: (opp: Opportunity, next: PipelineStage) => void;
+  canMove: boolean;
 }) {
   const { nameOf, colorOf } = useStaffDirectory();
   const columns: Column<Opportunity>[] = [
@@ -634,7 +668,7 @@ function PipelineTable({
       exportFilename="pipeline"
       emptyTitle="No opportunities"
       emptyDescription="Add an opportunity to start building your pipeline."
-      rowActions={(o) => <StageMoveMenu opp={o} onMove={onMove} />}
+      rowActions={canMove ? (o) => <StageMoveMenu opp={o} onMove={onMove} /> : undefined}
     />
   );
 }
@@ -733,10 +767,19 @@ function CreateOpportunityDialog({
       createdAt: now,
       updatedAt: now,
     };
-    await new Promise((r) => setTimeout(r, 500));
-    const created = await opportunityService.create(opp);
-    setSubmitting(false);
-    onCreated(created);
+    try {
+      await new Promise((r) => setTimeout(r, 500));
+      const created = await opportunityService.create(opp);
+      onCreated(created);
+    } catch {
+      toast({
+        variant: 'danger',
+        title: 'Could not add opportunity',
+        description: 'Something went wrong creating the opportunity. Please try again.',
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (

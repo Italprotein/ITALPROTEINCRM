@@ -23,6 +23,7 @@ import {
 import { companyService } from '@/lib/mock-services';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
+import { can } from '@/lib/permissions';
 import type { Company, CompanyType, RelationshipStage, Priority, Locale } from '@/lib/types';
 import { COMPANY_TYPES } from '@/lib/types';
 import { getLabel } from '@/lib/labels';
@@ -86,6 +87,9 @@ export default function CompaniesPage() {
   const router = useRouter();
   const t = useTranslations('AdminCompanies');
   const { nameOf } = useStaffDirectory();
+  const { session } = useSession();
+  const role = session?.role;
+  const canCreateCompany = !!role && can(role, 'company.create');
 
   const [rows, setRows] = React.useState<Company[] | null>(null);
   const [stats, setStats] = React.useState<Awaited<ReturnType<typeof companyService.getStatistics>> | null>(null);
@@ -570,10 +574,12 @@ export default function CompaniesPage() {
               <Download />
               {t('export')}
             </Button>
-            <Button variant="gold" onClick={() => setCreateOpen(true)}>
-              <Plus />
-              {t('addCompany')}
-            </Button>
+            {canCreateCompany && (
+              <Button variant="gold" onClick={() => setCreateOpen(true)}>
+                <Plus />
+                {t('addCompany')}
+              </Button>
+            )}
           </>
         }
       />
@@ -717,16 +723,21 @@ function CreateCompanyDialog({
       createdAt: nowIso,
     };
 
-    await companyService.create(company);
-    onCreated(company);
-    toast({
-      variant: 'success',
-      title: t('toastCompanyCreatedTitle'),
-      description: t('toastCompanyCreatedDescription', { name: company.tradingName || company.legalName }),
-    });
-    setSubmitting(false);
-    reset();
-    onOpenChange(false);
+    try {
+      await companyService.create(company);
+      onCreated(company);
+      toast({
+        variant: 'success',
+        title: t('toastCompanyCreatedTitle'),
+        description: t('toastCompanyCreatedDescription', { name: company.tradingName || company.legalName }),
+      });
+      reset();
+      onOpenChange(false);
+    } catch {
+      toast({ variant: 'danger', title: 'Action failed', description: 'Please try again.' });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (

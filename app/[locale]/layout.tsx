@@ -55,7 +55,11 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={`${inter.variable} ${playfair.variable}`} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* Anti-flash theme init. suppressHydrationWarning: the content is a
+            static, deterministic string, so any server/client diff here comes
+            from a third party (a browser extension injecting into <head>), not
+            from us — React should not try to reconcile it. */}
+        <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="min-h-screen bg-background font-sans text-foreground">
         <NextIntlClientProvider messages={messages}>

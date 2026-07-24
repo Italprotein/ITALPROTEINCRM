@@ -13,6 +13,7 @@ import { formatDate, formatRelative } from '@/lib/formatting';
 import { cn, initials } from '@/lib/utils';
 import { Link } from '@/lib/i18n/navigation';
 import { useSession } from '@/components/providers/session-provider';
+import { canEdit } from '@/lib/permissions';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
@@ -55,7 +56,9 @@ function splitAddresses(value: string): string[] {
 
 export default function CommunicationsPage() {
   const t = useTranslations('AdminCommunications');
-  const { account } = useSession();
+  const { account, session } = useSession();
+  const role = session?.role;
+  const canEditComms = !!role && canEdit(role, 'communications');
   const { get: getStaff, nameOf } = useStaffDirectory();
   const [rows, setRows] = React.useState<SupportRequest[] | null>(null);
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
@@ -133,10 +136,12 @@ export default function CommunicationsPage() {
         title={t('title')}
         subtitle={t('subtitle')}
         actions={
-          <Button variant="gold" onClick={() => setComposeOpen(true)}>
-            <PenSquare className="h-4 w-4" />
-            {t('compose')}
-          </Button>
+          canEditComms ? (
+            <Button variant="gold" onClick={() => setComposeOpen(true)}>
+              <PenSquare className="h-4 w-4" />
+              {t('compose')}
+            </Button>
+          ) : null
         }
       />
 
@@ -395,21 +400,26 @@ function ComposeDialog({
   async function send() {
     if (!canSend) return;
     setSending(true);
-    const res = await emailService.send({
-      to: splitAddresses(to),
-      cc: splitAddresses(cc),
-      subject: subject.trim(),
-      body: body.trim(),
-      companyId: companyId || undefined,
-    });
-    setSending(false);
-    if (res.ok) {
-      toast({ variant: 'success', title: t('emailSentTitle'), description: t('emailSentDescription') });
-      setTo(''); setCc(''); setSubject(''); setBody(''); setCompanyId('');
-      onOpenChange(false);
-      onSent();
-    } else {
-      toast({ variant: 'danger', title: t('emailFailedTitle'), description: t(SEND_ERROR_KEYS[res.error ?? 'send_failed'] ?? 'errorSendFailed') });
+    try {
+      const res = await emailService.send({
+        to: splitAddresses(to),
+        cc: splitAddresses(cc),
+        subject: subject.trim(),
+        body: body.trim(),
+        companyId: companyId || undefined,
+      });
+      if (res.ok) {
+        toast({ variant: 'success', title: t('emailSentTitle'), description: t('emailSentDescription') });
+        setTo(''); setCc(''); setSubject(''); setBody(''); setCompanyId('');
+        onOpenChange(false);
+        onSent();
+      } else {
+        toast({ variant: 'danger', title: t('emailFailedTitle'), description: t(SEND_ERROR_KEYS[res.error ?? 'send_failed'] ?? 'errorSendFailed') });
+      }
+    } catch {
+      toast({ variant: 'danger', title: t('emailFailedTitle'), description: t('errorSendFailed') });
+    } finally {
+      setSending(false);
     }
   }
 

@@ -20,6 +20,7 @@ import {
   ExternalLink,
   Pencil,
 } from 'lucide-react';
+import { useParams } from 'next/navigation';
 import { Link, useRouter } from '@/lib/i18n/navigation';
 import {
   agencyService,
@@ -53,9 +54,10 @@ function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-export default function AgencyDetailPage({ params }: { params: { id: string } }) {
+export default function AgencyDetailPage() {
   const t = useTranslations('AdminAgencyDetail');
   const router = useRouter();
+  const params = useParams<{ id: string }>();
   const { nameOf } = useStaffDirectory();
   const [agency, setAgency] = useState<Agency | null | undefined>(undefined);
   const [introduced, setIntroduced] = useState<Company[]>([]);

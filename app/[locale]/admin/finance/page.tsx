@@ -31,6 +31,8 @@ import { getLabel } from '@/lib/labels';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/formatting';
 import { uid } from '@/lib/utils';
 import { Link } from '@/lib/i18n/navigation';
+import { useSession } from '@/components/providers/session-provider';
+import { can } from '@/lib/permissions';
 
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
@@ -132,6 +134,9 @@ function lineNet(li: FinanceDocument['lineItems'][number]): number {
 export default function FinancePage() {
   const t = useTranslations('AdminFinance');
   const locale = useLocale() as Locale;
+  const { session } = useSession();
+  const role = session?.role;
+  const canFinanceEdit = !!role && can(role, 'finance.edit');
 
   const [rows, setRows] = React.useState<FinanceDocument[] | null>(null);
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
@@ -216,21 +221,35 @@ export default function FinancePage() {
   }, [rows]);
 
   /* ── mutations (mock) ── */
-  function applyPatch(id: string, patch: Partial<FinanceDocument>) {
+  async function applyPatch(id: string, patch: Partial<FinanceDocument>): Promise<boolean> {
+    const snapshotRows = rows;
+    const snapshotViewing = viewing;
     setRows((prev) => (prev ? prev.map((d) => (d.id === id ? { ...d, ...patch } : d)) : prev));
-    void financeService.update(id, patch);
     setViewing((v) => (v && v.id === id ? { ...v, ...patch } : v));
+    try {
+      await financeService.update(id, patch);
+      return true;
+    } catch {
+      setRows(snapshotRows);
+      setViewing(snapshotViewing);
+      return false;
+    }
   }
 
   async function markPaid(d: FinanceDocument) {
     if (d.paymentStatus === 'paid') return;
     await new Promise((r) => setTimeout(r, 500));
-    applyPatch(d.id, {
+    const ok = await applyPatch(d.id, {
       paymentStatus: 'paid',
       paidAmount: d.total,
       outstandingAmount: 0,
       overdueAmount: 0,
     });
+    if (!ok) {
+      toast({ variant: 'danger', title: 'Action failed', description: 'The payment status could not be updated. Please try again.' });
+      return;
+    }
+    // Bump the Revenue KPI only after the write succeeds so it stays in sync.
     setStats((prev) =>
       prev
         ? {
@@ -420,7 +439,7 @@ export default function FinancePage() {
             {t('actionDownloadPdf')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          {d.paymentStatus !== 'paid' ? (
+          {canFinanceEdit && d.paymentStatus !== 'paid' ? (
             <DropdownMenuItem onSelect={() => void markPaid(d)}>
               <CheckCircle2 />
               {t('actionMarkPaid')}
@@ -468,10 +487,12 @@ export default function FinancePage() {
         title={t('pageTitle')}
         subtitle={t('pageSubtitle')}
         actions={
-          <Button variant="gold" onClick={() => setCreateOpen(true)}>
-            <Plus />
-            {t('newQuote')}
-          </Button>
+          canFinanceEdit ? (
+            <Button variant="gold" onClick={() => setCreateOpen(true)}>
+              <Plus />
+              {t('newQuote')}
+            </Button>
+          ) : null
         }
       />
 
@@ -590,6 +611,7 @@ export default function FinancePage() {
         doc={viewing}
         locale={locale}
         companyName={viewing ? companyName(viewing.companyId) : ''}
+        canMarkPaid={canFinanceEdit}
         onOpenChange={(o) => !o && setViewing(null)}
         onMarkPaid={markPaid}
         onDownload={downloadPdf}
@@ -605,6 +627,7 @@ function DocumentSheet({
   doc,
   locale,
   companyName,
+  canMarkPaid,
   onOpenChange,
   onMarkPaid,
   onDownload,
@@ -613,6 +636,7 @@ function DocumentSheet({
   doc: FinanceDocument | null;
   locale: Locale;
   companyName: string;
+  canMarkPaid: boolean;
   onOpenChange: (open: boolean) => void;
   onMarkPaid: (d: FinanceDocument) => void | Promise<void>;
   onDownload: (d: FinanceDocument) => void | Promise<void>;
@@ -737,7 +761,7 @@ function DocumentSheet({
                   {t('actionSendReminder')}
                 </Button>
               ) : null}
-              {doc.paymentStatus !== 'paid' ? (
+              {canMarkPaid && doc.paymentStatus !== 'paid' ? (
                 <Button variant="success" className="flex-1" onClick={() => void onMarkPaid(doc)}>
                   <CheckCircle2 />
                   {t('actionMarkPaid')}
@@ -832,12 +856,17 @@ function CreateQuoteDialog({
       createdAt: nowIso,
     };
 
-    await financeService.create(doc);
-    onCreated(doc);
-    toast({ variant: 'success', title: t('toastQuoteCreatedTitle'), description: t('toastQuoteCreatedDescription', { reference: doc.reference }) });
-    setSubmitting(false);
-    reset();
-    onOpenChange(false);
+    try {
+      await financeService.create(doc);
+      onCreated(doc);
+      toast({ variant: 'success', title: t('toastQuoteCreatedTitle'), description: t('toastQuoteCreatedDescription', { reference: doc.reference }) });
+      reset();
+      onOpenChange(false);
+    } catch {
+      toast({ variant: 'danger', title: 'Action failed', description: 'The quote could not be created. Please try again.' });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
