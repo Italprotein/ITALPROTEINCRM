@@ -18,6 +18,9 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { setLabelLocale } from '@/lib/labels';
 
+// Hidden until the assistant runtime is wired (see app-shell.tsx).
+const ASSISTANT_ENABLED = process.env.NEXT_PUBLIC_ASSISTANT_ENABLED === 'true';
+
 export function PortalShell({ children }: { children: React.ReactNode }) {
   setLabelLocale(useLocale()); // keep data-value labels (statuses, stages, types) in sync with the UI locale
   const t = useTranslations('PortalNav');
@@ -108,7 +111,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       </footer>
 
       {/* Amina Partner — the API scopes every answer to this user's company. */}
-      <Amina />
+      {ASSISTANT_ENABLED && <Amina />}
     </div>
   );
 }

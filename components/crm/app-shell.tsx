@@ -15,6 +15,11 @@ import { setLabelLocale } from '@/lib/labels';
 
 const COLLAPSE_KEY = 'ui:sidebar-collapsed';
 
+// The Amina assistant only appears once its model runtime is wired and enabled
+// (NEXT_PUBLIC_ASSISTANT_ENABLED=true). Until then it stays hidden so no stubbed
+// chat is exposed. Baked at build time like every NEXT_PUBLIC_* value.
+const ASSISTANT_ENABLED = process.env.NEXT_PUBLIC_ASSISTANT_ENABLED === 'true';
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   setLabelLocale(useLocale()); // keep data-value labels (statuses, stages, types) in sync with the UI locale
   const { session, account, ready } = useSession();
@@ -67,7 +72,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Amina Team — the API derives the internal audience from the session. */}
-      <Amina />
+      {ASSISTANT_ENABLED && <Amina />}
     </div>
   );
 }
