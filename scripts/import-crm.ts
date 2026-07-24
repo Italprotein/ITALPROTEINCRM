@@ -174,11 +174,21 @@ const CC: Record<string, string> = {
   argentina: "AR", mexico: "MX", messico: "MX", colombia: "CO", brazil: "BR", brasile: "BR",
   "south africa": "ZA", "sud africa": "ZA", australia: "AU", "new zealand": "NZ", "nuova zelanda": "NZ",
   luxembourg: "LU", lussemburgo: "LU", malaysia: "MY", china: "CN", "alto adige": "IT",
+  monaco: "MC", morocco: "MA", marocco: "MA", turkey: "TR", turchia: "TR",
 };
 function codeOf(country: string): { country: string; code: string } {
   // "UK / Giappone" or "USA / India" → take the first named country.
-  const first = country.split(/[\/,]/)[0].trim();
-  return { country: first || country.trim(), code: CC[stripAccents(first)] ?? "" };
+  const first = (country.split(/[\/,]/)[0].trim() || country.trim());
+  const key = stripAccents(first);
+  let code = CC[key] ?? "";
+  // Fall back to a substring match so "ITALIA Scorzè" (country + city) still
+  // resolves to IT. Region labels (MENA, EU, Europe) have no single code and
+  // are intentionally left blank — the label is kept as the country name.
+  if (!code) {
+    const hit = Object.keys(CC).find((name) => key.includes(name));
+    if (hit) code = CC[hit];
+  }
+  return { country: first, code };
 }
 
 function initialsOf(name: string): string {
