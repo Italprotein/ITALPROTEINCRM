@@ -15,7 +15,6 @@ import { Link } from '@/lib/i18n/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { ChartCard, DonutChart, CHART_COLORS } from '@/components/charts/chart-kit';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Stagger, StaggerItem } from '@/components/shared/motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -51,12 +50,6 @@ export default function ProductsPage() {
     companyService.list().then((l) => setCompanyMap(new Map(l.map((c) => [c.id, c]))));
   }, []);
 
-  const catDonut = React.useMemo(() => {
-    const m = new Map<ApplicationCategory, number>();
-    for (const p of rows ?? []) m.set(p.category, (m.get(p.category) ?? 0) + 1);
-    return [...m.entries()].map(([k, v], i) => ({ name: getLabel('applicationCategory', k), value: v, color: CHART_COLORS[i % CHART_COLORS.length] }));
-  }, [rows]);
-
   const filtered = React.useMemo(() => {
     let d = rows ?? [];
     const s = q.trim().toLowerCase();
@@ -86,13 +79,8 @@ export default function ProductsPage() {
         <StatCard label={t('tested')} value={(stats ? stats.total - stats.launched - stats.inDevelopment : 0)} icon={Sparkles} tone="info" delay={0.15} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <ChartCard title={t('byApplicationTitle')} description={t('byApplicationDescription')} className="lg:col-span-1" loading={rows === null} isEmpty={catDonut.length === 0}>
-          <DonutChart data={catDonut} centerLabel={t('donutCenterLabel')} />
-        </ChartCard>
-
-        <Card className="lg:col-span-2">
-          <CardContent className="p-4">
+      <Card>
+        <CardContent className="p-4">
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <div className="relative flex-1 min-w-[180px]">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -148,7 +136,6 @@ export default function ProductsPage() {
             )}
           </CardContent>
         </Card>
-      </div>
 
       <AddProductDialog open={createOpen} onOpenChange={setCreateOpen} companies={[...companyMap.values()]} onCreated={handleCreate} />
     </div>

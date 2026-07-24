@@ -21,7 +21,7 @@ import {
   X,
 } from 'lucide-react';
 
-import { sampleService, companyService, analyticsService } from '@/lib/mock-services';
+import { sampleService, companyService } from '@/lib/mock-services';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
 import { canEdit } from '@/lib/permissions';
@@ -43,7 +43,6 @@ import { useRouter } from '@/lib/i18n/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
-import { ChartCard, TrendChart, DonutChart, CHART_COLORS } from '@/components/charts/chart-kit';
 import { DataTable, type Column } from '@/components/ui/data-table';
 
 import { Button } from '@/components/ui/button';
@@ -130,7 +129,6 @@ export default function SamplesPage() {
   const [rows, setRows] = React.useState<SampleRequest[] | null>(null);
   const [companies, setCompanies] = React.useState<Map<string, Company>>(new Map());
   const [stats, setStats] = React.useState<Stats | null>(null);
-  const [trend, setTrend] = React.useState<{ month: string; label: string; count: number }[]>([]);
 
   const [view, setView] = React.useState<'table' | 'board'>('table');
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -143,7 +141,6 @@ export default function SamplesPage() {
   React.useEffect(() => {
     sampleService.list().then(setRows);
     sampleService.getStatistics().then(setStats);
-    analyticsService.samplesOverTime().then(setTrend);
     companyService.list().then((cs) => setCompanies(new Map(cs.map((c) => [c.id, c]))));
   }, []);
 
@@ -183,25 +180,6 @@ export default function SamplesPage() {
     const present = new Set((rows ?? []).map((s) => s.applicationCategory));
     return APPLICATION_CATEGORIES.filter((a) => present.has(a));
   }, [rows]);
-
-  /* ── chart data ── */
-  const trendData = React.useMemo(
-    () => trend.map((t) => ({ label: t.label, count: t.count })),
-    [trend],
-  );
-
-  const donutData = React.useMemo(() => {
-    const bs = stats?.byStatus ?? ({} as Record<SampleStatus, number>);
-    const sum = (...st: SampleStatus[]) => st.reduce((acc, s) => acc + (bs[s] ?? 0), 0);
-    const buckets = [
-      { name: t('bucketRequested'), value: sum('draft', 'submitted', 'under_review', 'more_info_required'), color: CHART_COLORS[3] },
-      { name: t('bucketApproved'), value: sum('approved', 'preparing', 'ready_to_ship'), color: CHART_COLORS[1] },
-      { name: t('bucketShipped'), value: sum('shipped', 'in_transit', 'customs_hold', 'delivery_attempted'), color: CHART_COLORS[2] },
-      { name: t('bucketDelivered'), value: sum('delivered', 'receipt_confirmed'), color: CHART_COLORS[7] },
-      { name: t('bucketFeedback'), value: sum('testing', 'feedback_requested', 'feedback_received', 'closed'), color: CHART_COLORS[6] },
-    ];
-    return buckets.filter((b) => b.value > 0);
-  }, [stats, t]);
 
   /* ── mutations (mock) ── */
   async function applyStatus(id: string, status: SampleStatus, extra?: Partial<SampleRequest>): Promise<boolean> {
@@ -251,7 +229,6 @@ export default function SamplesPage() {
   function handleCreate(s: SampleRequest) {
     setRows((prev) => (prev ? [s, ...prev] : [s]));
     void sampleService.getStatistics().then(setStats);
-    void analyticsService.samplesOverTime().then(setTrend);
   }
 
   async function advance(s: SampleRequest) {
@@ -572,31 +549,6 @@ export default function SamplesPage() {
         <StatCard label="Preparing" value={stats?.preparing ?? 0} icon={PackageOpen} tone="info" delay={0.1} />
         <StatCard label="Shipped" value={stats?.shipped ?? 0} icon={Truck} tone="info" delay={0.15} />
         <StatCard label="Awaiting feedback" value={stats?.awaitingFeedback ?? 0} icon={MessageSquareQuote} tone="success" delay={0.2} />
-      </div>
-
-      {/* Charts */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard
-          title="Sample requests over time"
-          description="New requests per month"
-          loading={rows === null}
-          isEmpty={trendData.length === 0}
-        >
-          <TrendChart
-            data={trendData}
-            xKey="label"
-            series={[{ key: 'count', name: 'Requests', color: CHART_COLORS[2], type: 'area' }]}
-          />
-        </ChartCard>
-
-        <ChartCard
-          title="Pipeline by stage group"
-          description="Where samples sit in the lifecycle"
-          loading={rows === null}
-          isEmpty={donutData.length === 0}
-        >
-          <DonutChart data={donutData} centerLabel="samples" />
-        </ChartCard>
       </div>
 
       {/* Table / Board */}

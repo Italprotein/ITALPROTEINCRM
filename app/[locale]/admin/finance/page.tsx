@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { format, subMonths } from 'date-fns';
 import {
   Banknote,
   Wallet,
@@ -37,7 +36,6 @@ import { can } from '@/lib/permissions';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { ChartCard, TrendChart, DonutChart, CHART_COLORS } from '@/components/charts/chart-kit';
 import { DataTable, type Column } from '@/components/ui/data-table';
 
 import { Button } from '@/components/ui/button';
@@ -109,17 +107,8 @@ const PAYMENT_STATUSES: PaymentStatus[] = [
 
 const CURRENCIES: Currency[] = ['EUR', 'USD', 'GBP', 'CHF'];
 
-/** Indicative fixed rates → EUR, so a single-currency revenue trend is coherent. */
+/** Indicative fixed rates → EUR, used for currency-normalised sorting and KPIs. */
 const TO_EUR: Record<Currency, number> = { EUR: 1, USD: 0.92, GBP: 1.17, CHF: 1.04 };
-
-/** Trailing 10 months ending at the current month. */
-const TREND_MONTH_DATES = Array.from({ length: 10 }, (_, i) => subMonths(new Date(), 9 - i));
-
-const TREND_MONTHS = TREND_MONTH_DATES.map((d) => format(d, 'yyyy-MM'));
-
-const MONTH_LABELS: Record<string, string> = Object.fromEntries(
-  TREND_MONTH_DATES.map((d) => [format(d, 'yyyy-MM'), format(d, 'MMM yy')]),
-);
 
 /* ────────────────────────────── Helpers ────────────────────────────── */
 
@@ -164,35 +153,6 @@ export default function FinancePage() {
     },
     [companyMap],
   );
-
-  /* ── chart data ── */
-  const revenueTrend = React.useMemo(() => {
-    const byMonth = new Map<string, number>();
-    for (const m of TREND_MONTHS) byMonth.set(m, 0);
-    for (const d of rows ?? []) {
-      if (d.kind !== 'invoice') continue;
-      const month = d.issueDate.slice(0, 7);
-      if (!byMonth.has(month)) continue;
-      const eur = d.total * (TO_EUR[d.currency] ?? 1);
-      byMonth.set(month, (byMonth.get(month) ?? 0) + eur);
-    }
-    return TREND_MONTHS.map((m) => ({
-      month: m,
-      label: MONTH_LABELS[m] ?? m,
-      value: Math.round(byMonth.get(m) ?? 0),
-    }));
-  }, [rows]);
-
-  const statusDonut = React.useMemo(() => {
-    if (!stats) return [];
-    return (Object.entries(stats.byStatus) as [PaymentStatus, number][])
-      .filter(([, v]) => v > 0)
-      .map(([k, v], i) => ({
-        name: getLabel('paymentStatus', k),
-        value: v,
-        color: CHART_COLORS[i % CHART_COLORS.length],
-      }));
-  }, [stats]);
 
   /* ── filtered data ── */
   const filtered = React.useMemo(() => {
@@ -540,31 +500,6 @@ export default function FinancePage() {
           hint={t('kpiOrdersInvoicesHint', { orders: stats?.orders ?? 0, invoices: stats?.invoices ?? 0 })}
           delay={0.2}
         />
-      </div>
-
-      {/* Charts */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard
-          title={t('chartRevenueTitle')}
-          description={t('chartRevenueDescription')}
-          loading={rows === null}
-          isEmpty={revenueTrend.every((d) => d.value === 0)}
-        >
-          <TrendChart
-            data={revenueTrend}
-            xKey="label"
-            series={[{ key: 'value', name: t('chartRevenueSeries'), type: 'area', color: CHART_COLORS[1] }]}
-          />
-        </ChartCard>
-
-        <ChartCard
-          title={t('chartStatusTitle')}
-          description={t('chartStatusDescription')}
-          loading={rows === null}
-          isEmpty={statusDonut.length === 0}
-        >
-          <DonutChart data={statusDonut} centerLabel={t('chartStatusCenterLabel')} />
-        </ChartCard>
       </div>
 
       {/* Tabs + table */}

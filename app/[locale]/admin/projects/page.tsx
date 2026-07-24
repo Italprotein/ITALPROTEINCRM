@@ -27,7 +27,6 @@ import type {
   ApplicationProject,
   Company,
   SampleRequest,
-  ApplicationCategory,
   DevelopmentStage,
   Locale,
 } from '@/lib/types';
@@ -40,7 +39,6 @@ import { useRouter } from '@/lib/i18n/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { ChartCard, CategoryBar, DonutChart, CHART_COLORS } from '@/components/charts/chart-kit';
 import { DataTable, type Column } from '@/components/ui/data-table';
 
 import { Button } from '@/components/ui/button';
@@ -165,26 +163,6 @@ export default function ProjectsPage() {
   const categoryOptions = React.useMemo(() => {
     const present = new Set((rows ?? []).map((p) => p.category));
     return APPLICATION_CATEGORIES.filter((c) => present.has(c));
-  }, [rows]);
-
-  /* ── chart data ── */
-  const stageChart = React.useMemo(() => {
-    const byStage = stats?.byStage ?? ({} as Record<DevelopmentStage, number>);
-    return [...STAGE_ORDER, 'on_hold' as DevelopmentStage]
-      .map((stage) => ({ stage: getLabel('developmentStage', stage), count: byStage[stage] ?? 0 }))
-      .filter((d) => d.count > 0);
-  }, [stats]);
-
-  const categoryChart = React.useMemo(() => {
-    const map = new Map<ApplicationCategory, number>();
-    for (const p of rows ?? []) map.set(p.category, (map.get(p.category) ?? 0) + 1);
-    return [...map.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([cat, value], i) => ({
-        name: getLabel('applicationCategory', cat),
-        value,
-        color: CHART_COLORS[i % CHART_COLORS.length],
-      }));
   }, [rows]);
 
   const onHold = React.useMemo(
@@ -464,27 +442,6 @@ export default function ProjectsPage() {
         />
         <StatCard label={t('kpiLaunched')} value={stats?.launched ?? 0} icon={Rocket} tone="success" delay={0.1} />
         <StatCard label={t('kpiOnHold')} value={onHold} icon={PauseCircle} tone="warning" delay={0.15} />
-      </div>
-
-      {/* Charts */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard
-          title={t('chartStageTitle')}
-          description={t('chartStageDescription')}
-          loading={rows === null}
-          isEmpty={stageChart.length === 0}
-        >
-          <CategoryBar data={stageChart} xKey="stage" barKey="count" name={t('chartStageName')} />
-        </ChartCard>
-
-        <ChartCard
-          title={t('chartCategoryTitle')}
-          description={t('chartCategoryDescription')}
-          loading={rows === null}
-          isEmpty={categoryChart.length === 0}
-        >
-          <DonutChart data={categoryChart} centerLabel={t('donutCenterLabel')} />
-        </ChartCard>
       </div>
 
       {/* Table */}

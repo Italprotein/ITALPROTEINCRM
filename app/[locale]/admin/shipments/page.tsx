@@ -23,7 +23,6 @@ import {
   shipmentService,
   companyService,
   sampleService,
-  analyticsService,
 } from '@/lib/mock-services';
 import type {
   Shipment,
@@ -43,7 +42,6 @@ import { useRouter } from '@/lib/i18n/navigation';
 
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
-import { ChartCard, DonutChart, CategoryBar, CHART_COLORS } from '@/components/charts/chart-kit';
 import { DataTable, type Column } from '@/components/ui/data-table';
 
 import { Button } from '@/components/ui/button';
@@ -124,7 +122,6 @@ export default function ShipmentsPage() {
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
   const [sampleMap, setSampleMap] = React.useState<Map<string, SampleRequest>>(new Map());
   const [stats, setStats] = React.useState<Awaited<ReturnType<typeof shipmentService.getStatistics>> | null>(null);
-  const [statusBreakdown, setStatusBreakdown] = React.useState<{ name: string; value: number }[]>([]);
 
   // filters
   const [fStatus, setFStatus] = React.useState<string>(ALL);
@@ -138,7 +135,6 @@ export default function ShipmentsPage() {
   React.useEffect(() => {
     shipmentService.list().then(setRows);
     shipmentService.getStatistics().then(setStats);
-    analyticsService.shipmentStatusBreakdown().then(setStatusBreakdown);
     companyService.list().then((list) => setCompanyMap(new Map(list.map((c) => [c.id, c]))));
     sampleService.list().then((list) => setSampleMap(new Map(list.map((s) => [s.id, s]))));
   }, []);
@@ -163,28 +159,6 @@ export default function ShipmentsPage() {
     setFStatus(ALL);
     setFCourier(ALL);
   };
-
-  /* ── chart data ── */
-  const donutData = React.useMemo(
-    () =>
-      statusBreakdown.map((d, i) => ({
-        name: d.name,
-        value: d.value,
-        color: CHART_COLORS[i % CHART_COLORS.length],
-      })),
-    [statusBreakdown],
-  );
-
-  const courierChart = React.useMemo(() => {
-    const map = new Map<string, number>();
-    for (const s of rows ?? []) {
-      const key = s.courier ?? 'Unassigned';
-      map.set(key, (map.get(key) ?? 0) + 1);
-    }
-    return [...map.entries()]
-      .map(([label, count]) => ({ label, count }))
-      .sort((a, b) => b.count - a.count);
-  }, [rows]);
 
   /* ── mutations (mock) ── */
   async function applyPatch(id: string, patch: Partial<Shipment>): Promise<boolean> {
@@ -520,27 +494,6 @@ export default function ShipmentsPage() {
           hint="avg days"
           delay={0.25}
         />
-      </div>
-
-      {/* Charts */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard
-          title="Status breakdown"
-          description="Where every shipment stands today"
-          loading={rows === null}
-          isEmpty={donutData.length === 0}
-        >
-          <DonutChart data={donutData} centerLabel="shipments" />
-        </ChartCard>
-
-        <ChartCard
-          title="Shipments by courier"
-          description="Volume handled per carrier"
-          loading={rows === null}
-          isEmpty={courierChart.length === 0}
-        >
-          <CategoryBar data={courierChart} xKey="label" barKey="count" horizontal color={CHART_COLORS[2]} name="Shipments" />
-        </ChartCard>
       </div>
 
       {/* Table */}

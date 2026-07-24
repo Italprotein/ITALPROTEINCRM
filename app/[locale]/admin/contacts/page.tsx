@@ -30,7 +30,6 @@ import { Link, useRouter } from '@/lib/i18n/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { ChartCard, DonutChart, CHART_COLORS } from '@/components/charts/chart-kit';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -306,21 +305,6 @@ export default function ContactsPage() {
       .map((id) => ({ id, name: companyName(id) }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [contacts, companyName]);
-
-  // donut: contacts by decision role
-  const roleDistribution = React.useMemo(() => {
-    if (!contacts) return [];
-    const counts = new Map<string, number>();
-    for (const c of contacts) {
-      const key = c.decisionRole ?? 'unknown';
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
-    return DECISION_ROLES.filter((r) => counts.has(r)).map((r, i) => ({
-      name: getLabel('decisionRole', r),
-      value: counts.get(r) ?? 0,
-      color: CHART_COLORS[i % CHART_COLORS.length],
-    }));
-  }, [contacts]);
 
   // apply filters
   const filtered = React.useMemo(() => {
@@ -655,17 +639,6 @@ export default function ContactsPage() {
           delay={0.15}
         />
       </div>
-
-      {/* Chart */}
-      <ChartCard
-        title={t('chartTitle')}
-        description={t('chartDescription')}
-        loading={contacts === null}
-        isEmpty={roleDistribution.length === 0}
-        height={260}
-      >
-        <DonutChart data={roleDistribution} centerLabel={t('chartCenterLabel')} height={260} />
-      </ChartCard>
 
       {/* Table */}
       <DataTable<Contact>

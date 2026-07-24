@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Handshake,
@@ -25,7 +25,7 @@ import { humanize } from '@/lib/labels';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { ChartCard, DonutChart, CategoryBar, CHART_COLORS } from '@/components/charts/chart-kit';
+import { CHART_COLORS } from '@/components/charts/chart-kit';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -66,29 +66,6 @@ export default function AgenciesPage() {
   }
 
   const ownerName = (id: string, unassignedLabel: string) => nameOf(id, unassignedLabel);
-
-  const donutData = useMemo(() => {
-    if (!rows) return [];
-    const map = new Map<string, number>();
-    for (const a of rows) map.set(a.meta.agencyType, (map.get(a.meta.agencyType) ?? 0) + 1);
-    return [...map.entries()].map(([name, value], i) => ({
-      name: humanize(name),
-      value,
-      color: CHART_COLORS[i % CHART_COLORS.length],
-    }));
-  }, [rows]);
-
-  const introducedData = useMemo(() => {
-    if (!rows) return [];
-    return [...rows]
-      .map((a) => ({
-        name: a.tradingName ?? a.legalName,
-        companies: a.meta.companiesIntroducedIds.length,
-      }))
-      .filter((d) => d.companies > 0)
-      .sort((a, b) => b.companies - a.companies)
-      .slice(0, 8);
-  }, [rows]);
 
   const columns: Column<Agency>[] = [
     {
@@ -308,29 +285,6 @@ export default function AgenciesPage() {
             ))}
           </div>
         )}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard
-          title={t('partnersByTypeTitle')}
-          description={t('partnersByTypeDescription')}
-          loading={rows === null}
-          isEmpty={donutData.length === 0}
-          height={280}
-        >
-          <DonutChart data={donutData} centerLabel={t('partnersCenterLabel')} />
-        </ChartCard>
-
-        <ChartCard
-          title={t('companiesIntroducedTitle')}
-          description={t('companiesIntroducedDescription')}
-          loading={rows === null}
-          isEmpty={introducedData.length === 0}
-          emptyMessage={t('companiesIntroducedEmpty')}
-          height={280}
-        >
-          <CategoryBar data={introducedData} xKey="name" barKey="companies" horizontal name={t('companiesSeriesName')} />
-        </ChartCard>
       </div>
 
       <DataTable<Agency>

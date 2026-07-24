@@ -18,7 +18,6 @@ import { uid, initials } from '@/lib/utils';
 import { Link } from '@/lib/i18n/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
-import { ChartCard, DonutChart, CHART_COLORS } from '@/components/charts/chart-kit';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -76,13 +75,6 @@ export default function ActivitiesPage() {
     return a ? `${a.firstName} ${a.lastName}` : humanize(id.replace('u_', ''));
   };
 
-  const typeDonut = React.useMemo(() => {
-    if (!stats) return [];
-    return (Object.entries(stats.byType) as [ActivityType, number][])
-      .filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 8)
-      .map(([k, v], i) => ({ name: getLabel('activityType', k), value: v, color: CHART_COLORS[i % CHART_COLORS.length] }));
-  }, [stats]);
-
   const filtered = React.useMemo(() => {
     let d = rows ?? [];
     const s = q.trim().toLowerCase();
@@ -123,13 +115,8 @@ export default function ActivitiesPage() {
         <StatCard label={t('statMeetings')} value={byType.meeting ?? 0} icon={Users} tone="warning" delay={0.15} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <ChartCard title={t('chartTitle')} description={t('chartDescription')} loading={rows === null} isEmpty={typeDonut.length === 0}>
-          <DonutChart data={typeDonut} centerLabel={t('donutCenterLabel')} />
-        </ChartCard>
-
-        <Card className="lg:col-span-2">
-          <CardContent className="p-4">
+      <Card>
+        <CardContent className="p-4">
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <div className="relative flex-1 min-w-[180px]">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -186,7 +173,6 @@ export default function ActivitiesPage() {
             )}
           </CardContent>
         </Card>
-      </div>
 
       <LogActivityDialog open={logOpen} onOpenChange={setLogOpen} companies={[...companyMap.values()]} onLogged={handleLog} />
     </div>

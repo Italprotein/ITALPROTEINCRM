@@ -24,7 +24,6 @@ import {
   feedbackService,
   companyService,
   sampleService,
-  analyticsService,
 } from '@/lib/mock-services';
 import { useStaffDirectory, type StaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
@@ -47,7 +46,6 @@ import { useRouter } from '@/lib/i18n/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
-import { ChartCard, DonutChart, CategoryBar, CHART_COLORS } from '@/components/charts/chart-kit';
 import { DataTable, type Column } from '@/components/ui/data-table';
 
 import { Button } from '@/components/ui/button';
@@ -86,13 +84,6 @@ import { toast } from '@/components/ui/use-toast';
 const ALL = '__all__';
 
 const RESULTS: FeedbackResult[] = ['positive', 'mixed', 'negative', 'inconclusive'];
-
-const RESULT_COLOR: Record<FeedbackResult, string> = {
-  positive: CHART_COLORS[3] ?? '#16a34a',
-  mixed: CHART_COLORS[1] ?? '#f59e0b',
-  negative: CHART_COLORS[5] ?? '#dc2626',
-  inconclusive: CHART_COLORS[6] ?? '#64748b',
-};
 
 type TFunc = ReturnType<typeof useTranslations>;
 
@@ -137,7 +128,6 @@ export default function FeedbackPage() {
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
   const [sampleMap, setSampleMap] = React.useState<Map<string, SampleRequest>>(new Map());
   const [stats, setStats] = React.useState<Awaited<ReturnType<typeof feedbackService.getStatistics>> | null>(null);
-  const [resultBreakdown, setResultBreakdown] = React.useState<{ name: string; value: number }[]>([]);
 
   // filters
   const [fStatus, setFStatus] = React.useState<string>(ALL);
@@ -151,7 +141,6 @@ export default function FeedbackPage() {
   React.useEffect(() => {
     feedbackService.list().then(setRows);
     feedbackService.getStatistics().then(setStats);
-    analyticsService.feedbackResults().then(setResultBreakdown);
     companyService.list().then((list) => setCompanyMap(new Map(list.map((c) => [c.id, c]))));
     sampleService.list().then((list) => setSampleMap(new Map(list.map((s) => [s.id, s]))));
   }, []);
@@ -172,28 +161,6 @@ export default function FeedbackPage() {
     setFResult(ALL);
     setFApplication(ALL);
   };
-
-  /* ── chart data ── */
-  const donutData = React.useMemo(
-    () =>
-      resultBreakdown.map((d) => ({
-        name: getLabel('feedbackResult', d.name),
-        value: d.value,
-        color: RESULT_COLOR[d.name as FeedbackResult] ?? CHART_COLORS[0],
-      })),
-    [resultBreakdown],
-  );
-
-  const applicationChart = React.useMemo(() => {
-    const map = new Map<string, number>();
-    for (const f of rows ?? []) {
-      const key = getLabel('applicationCategory', f.applicationCategory);
-      map.set(key, (map.get(key) ?? 0) + 1);
-    }
-    return [...map.entries()]
-      .map(([label, count]) => ({ label, count }))
-      .sort((a, b) => b.count - a.count);
-  }, [rows]);
 
   /* ── application options present in data ── */
   const applicationOptions = React.useMemo(() => {
@@ -562,34 +529,6 @@ export default function FeedbackPage() {
           hint={t('avgRatingHint')}
           delay={0.2}
         />
-      </div>
-
-      {/* Charts */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard
-          title={t('chartResultTitle')}
-          description={t('chartResultDescription')}
-          loading={rows === null}
-          isEmpty={donutData.length === 0}
-        >
-          <DonutChart data={donutData} centerLabel={t('donutCenterLabel')} />
-        </ChartCard>
-
-        <ChartCard
-          title={t('chartApplicationTitle')}
-          description={t('chartApplicationDescription')}
-          loading={rows === null}
-          isEmpty={applicationChart.length === 0}
-        >
-          <CategoryBar
-            data={applicationChart}
-            xKey="label"
-            barKey="count"
-            horizontal
-            color={CHART_COLORS[2]}
-            name={t('chartApplicationSeriesName')}
-          />
-        </ChartCard>
       </div>
 
       {/* Table */}

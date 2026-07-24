@@ -3,13 +3,17 @@
 # build (install + prisma generate + next build) → runner (lean, migrates on boot).
 
 # ── Build stage ──────────────────────────────────────────────────────────────
-FROM node:20-bookworm-slim AS build
+FROM node:22-bookworm-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Install against the lockfile for reproducible builds.
+# npm install (not `npm ci`) so the build tolerates a package-lock.json that was
+# generated on a different Node major — the tree is still resolved from the lock;
+# only genuinely-missing transitive entries (e.g. Node-version-specific ones) are
+# added. Regenerate the lock on Node 22 and switch back to `npm ci` for strict
+# reproducibility later if desired.
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm install --no-audit --no-fund --loglevel=error
 
 COPY . .
 
@@ -35,9 +39,15 @@ ENV DATABASE_URL=${DATABASE_URL}
 RUN npm run build
 
 # ── Runtime stage ────────────────────────────────────────────────────────────
-FROM node:20-bookworm-slim AS runner
+FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
+
+# Prisma's schema engine (used by `migrate deploy` on boot) links libssl. The
+# slim image lacks it — install so migrations run without the openssl warning.
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 # App + the Prisma CLI/schema/migrations needed to run `migrate deploy` on boot.
 COPY --from=build /app/node_modules ./node_modules

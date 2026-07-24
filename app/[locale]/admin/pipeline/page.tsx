@@ -33,7 +33,6 @@ import { uid, initials, cn } from '@/lib/utils';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { ChartCard, CategoryBar } from '@/components/charts/chart-kit';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -159,19 +158,6 @@ export default function PipelinePage() {
     return map;
   }, [list]);
 
-  /* Chart: value by stage (only stages that have value). */
-  const stageValueData = React.useMemo(
-    () =>
-      BOARD_STAGES.map((stage) => {
-        const items = byStage.get(stage) ?? [];
-        return {
-          stage: getLabel('pipelineStage', stage),
-          value: items.reduce((s, o) => s + (o.expectedValue ?? 0), 0),
-        };
-      }).filter((d) => d.value > 0),
-    [byStage],
-  );
-
   /* Move an opportunity to a new stage (mock async). */
   const moveStage = React.useCallback(
     async (opp: Opportunity, next: PipelineStage) => {
@@ -284,25 +270,6 @@ export default function PipelinePage() {
         <StatCard label="Won" value={stats.wonCount} icon={Trophy} tone="success" />
         <StatCard label="Lost" value={stats.lostCount} icon={XCircle} tone="danger" />
       </div>
-
-      {/* Chart */}
-      <ChartCard
-        title="Pipeline value by stage"
-        description="Total expected value of open opportunities at each stage."
-        loading={loading}
-        isEmpty={!loading && stageValueData.length === 0}
-        emptyMessage="No opportunity value to chart yet."
-        height={260}
-      >
-        <CategoryBar
-          data={stageValueData}
-          xKey="stage"
-          barKey="value"
-          name="Value"
-          horizontal
-          height={260}
-        />
-      </ChartCard>
 
       {/* Main view */}
       {loading ? (

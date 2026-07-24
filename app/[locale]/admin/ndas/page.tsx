@@ -27,7 +27,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 
-import { ndaService, companyService, analyticsService } from '@/lib/mock-services';
+import { ndaService, companyService } from '@/lib/mock-services';
 import type {
   NDA,
   NDAStatus,
@@ -47,7 +47,6 @@ import { can, canEdit } from '@/lib/permissions';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { ChartCard, TrendChart, DonutChart, CHART_COLORS } from '@/components/charts/chart-kit';
 import { DataTable, type Column } from '@/components/ui/data-table';
 
 import { Button } from '@/components/ui/button';
@@ -100,22 +99,6 @@ const NDA_TYPES: NDAType[] = ['mutual', 'one_way_inbound', 'one_way_outbound'];
 /** Statuses offered when creating a new NDA record. */
 const CREATABLE_STATUSES: NDAStatus[] = ['to_prepare', 'draft', 'sent'];
 
-/** Donut colour assignment by status code (dark-mode-safe palette). */
-const STATUS_COLOR: Partial<Record<NDAStatus, string>> = {
-  to_prepare: CHART_COLORS[3],
-  draft: CHART_COLORS[6],
-  sent: CHART_COLORS[2],
-  under_review: CHART_COLORS[8 % CHART_COLORS.length],
-  changes_requested: CHART_COLORS[1],
-  approved: CHART_COLORS[0],
-  awaiting_italprotein_signature: CHART_COLORS[4 % CHART_COLORS.length],
-  awaiting_counterparty_signature: CHART_COLORS[7 % CHART_COLORS.length],
-  partially_signed: CHART_COLORS[1],
-  fully_signed: CHART_COLORS[5 % CHART_COLORS.length],
-  expired: CHART_COLORS[6],
-  terminated: CHART_COLORS[6],
-};
-
 type Stats = Awaited<ReturnType<typeof ndaService.getStatistics>>;
 
 /** Expiry inside 60 days of today (and not already past). */
@@ -141,7 +124,6 @@ export default function NdasPage() {
   const [rows, setRows] = React.useState<NDA[] | null>(null);
   const [companies, setCompanies] = React.useState<Map<string, Company>>(new Map());
   const [stats, setStats] = React.useState<Stats | null>(null);
-  const [trend, setTrend] = React.useState<{ month: string; label: string; signed: number; sent: number }[]>([]);
 
   // toolbar filters
   const [fStatus, setFStatus] = React.useState<string>(ALL);
@@ -157,7 +139,6 @@ export default function NdasPage() {
   React.useEffect(() => {
     ndaService.list().then(setRows);
     ndaService.getStatistics().then(setStats);
-    analyticsService.ndaCompletionTrend().then(setTrend);
     companyService.list().then((cs) => setCompanies(new Map(cs.map((c) => [c.id, c]))));
   }, []);
 
@@ -192,21 +173,6 @@ export default function NdasPage() {
     const present = new Set((rows ?? []).map((n) => n.status));
     return NDA_STATUS_FLOW.filter((s) => present.has(s));
   }, [rows]);
-
-  /* ── chart data ── */
-  const donutData = React.useMemo(() => {
-    const bs = stats?.byStatus ?? ({} as Record<NDAStatus, number>);
-    return NDA_STATUS_FLOW.filter((s) => (bs[s] ?? 0) > 0).map((s) => ({
-      name: getLabel('ndaStatus', s),
-      value: bs[s] ?? 0,
-      color: STATUS_COLOR[s] ?? CHART_COLORS[0],
-    }));
-  }, [stats]);
-
-  const trendData = React.useMemo(
-    () => trend.map((t) => ({ label: t.label, sent: t.sent, signed: t.signed })),
-    [trend],
-  );
 
   /* ── mutations (mock) ── */
   const applyPatch = React.useCallback(
@@ -305,7 +271,6 @@ export default function NdasPage() {
   function handleCreate(n: NDA) {
     setRows((prev) => (prev ? [n, ...prev] : [n]));
     refreshStats();
-    void analyticsService.ndaCompletionTrend().then(setTrend);
   }
 
   const detailItem = React.useMemo(
@@ -579,34 +544,6 @@ export default function NdasPage() {
           hint={t('kpiExpiringSoonHint')}
           delay={0.2}
         />
-      </div>
-
-      {/* Charts */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard
-          title={t('chartStatusMixTitle')}
-          description={t('chartStatusMixDescription')}
-          loading={rows === null}
-          isEmpty={donutData.length === 0}
-        >
-          <DonutChart data={donutData} centerLabel={t('donutCenterLabel')} />
-        </ChartCard>
-
-        <ChartCard
-          title={t('chartSentSignedTitle')}
-          description={t('chartSentSignedDescription')}
-          loading={rows === null}
-          isEmpty={trendData.length === 0}
-        >
-          <TrendChart
-            data={trendData}
-            xKey="label"
-            series={[
-              { key: 'sent', name: t('seriesSent'), color: CHART_COLORS[2], type: 'area' },
-              { key: 'signed', name: t('seriesSigned'), color: CHART_COLORS[1], type: 'area' },
-            ]}
-          />
-        </ChartCard>
       </div>
 
       {/* Table */}

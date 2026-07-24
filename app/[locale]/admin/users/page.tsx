@@ -14,7 +14,6 @@ import { initials } from '@/lib/utils';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { ChartCard, DonutChart, CHART_COLORS } from '@/components/charts/chart-kit';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -46,13 +45,6 @@ export default function UsersPage() {
     userService.getStatistics().then(setStats);
     companyService.list().then((l) => setCompanyMap(new Map(l.map((c) => [c.id, c]))));
   }, []);
-
-  const roleDonut = React.useMemo(() => {
-    if (!stats) return [];
-    return (Object.entries(stats.byRole) as [InternalRole, number][])
-      .filter(([, v]) => v > 0)
-      .map(([k, v], i) => ({ name: getLabel('role', k), value: v, color: CHART_COLORS[i % CHART_COLORS.length] }));
-  }, [stats]);
 
   async function setStatus(u: StaffMember, status: StaffMember['status']) {
     try {
@@ -170,20 +162,12 @@ export default function UsersPage() {
         <StatCard label={t('statBusinessDevelopers')} value={stats?.byRole?.business_dev ?? 0} icon={Briefcase} tone="warning" delay={0.15} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <ChartCard title={t('staffByRole')} description={t('teamComposition')} loading={rows === null} isEmpty={roleDonut.length === 0}>
-          <DonutChart data={roleDonut} centerLabel={t('donutCenterLabel')} />
-        </ChartCard>
-
-        <div className="lg:col-span-2">
-          <DataTable<StaffMember>
-            data={rows ?? []} columns={columns} getRowId={(u) => u.id} loading={rows === null}
-            searchable searchPlaceholder={t('searchPlaceholder')} searchValue={(u) => `${u.firstName} ${u.lastName} ${u.email} ${u.jobTitle}`}
-            pageSize={10} rowActions={rowActions} onRowClick={(u) => setPermRole(u)} mobileCard={mobileCard}
-            enableColumnVisibility emptyTitle={t('emptyTitle')} exportFilename="staff" storageKey="users-table"
-          />
-        </div>
-      </div>
+      <DataTable<StaffMember>
+        data={rows ?? []} columns={columns} getRowId={(u) => u.id} loading={rows === null}
+        searchable searchPlaceholder={t('searchPlaceholder')} searchValue={(u) => `${u.firstName} ${u.lastName} ${u.email} ${u.jobTitle}`}
+        pageSize={10} rowActions={rowActions} onRowClick={(u) => setPermRole(u)} mobileCard={mobileCard}
+        enableColumnVisibility emptyTitle={t('emptyTitle')} exportFilename="staff" storageKey="users-table"
+      />
 
       {/* Permission overview */}
       <Card>
