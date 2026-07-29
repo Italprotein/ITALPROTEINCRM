@@ -177,7 +177,7 @@ export default function LandingPage() {
         transition={{ duration: 0.5, ease }}
       >
         <div className="container flex h-16 items-center justify-between">
-          <Logo tone="light" />
+          <Logo tone="light" href="/" />
           <div className="flex items-center gap-2">
             <LanguageSwitcher tone="light" />
             <AccessMenu tone="light" />
@@ -440,7 +440,7 @@ export default function LandingPage() {
       <footer className="border-t bg-brand-navy py-10 text-slate-400">
         <div className="container flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
-            <Logo tone="light" />
+            <Logo tone="light" href="/" />
             <p className="max-w-xl text-xs leading-relaxed">{t('footerNote')}</p>
           </div>
           <div className="grid gap-2 text-xs sm:grid-cols-3 lg:min-w-[34rem]">

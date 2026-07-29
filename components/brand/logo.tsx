@@ -1,4 +1,6 @@
 import Image from 'next/image';
+
+import { Link } from '@/lib/i18n/navigation';
 import { cn } from '@/lib/utils';
 
 interface LogoProps {
@@ -8,6 +10,14 @@ interface LogoProps {
   tone?: 'light' | 'dark';
   className?: string;
   showProduct?: boolean;
+  /**
+   * Makes the lockup a link. Each surface passes its OWN home: the CRM header
+   * goes to the companies list, the portal header to the portal dashboard, and
+   * public pages to the marketing site. Locale-aware (uses the i18n Link), so
+   * an Italian visitor stays in Italian. Omit on non-navigational placements
+   * such as loading screens.
+   */
+  href?: string;
 }
 
 /**
@@ -15,7 +25,7 @@ interface LogoProps {
  * raster asset, so on dark surfaces we render a crisp typographic wordmark in
  * brand colours and reserve the image for light surfaces.
  */
-export function Logo({ variant = 'full', tone = 'dark', className, showProduct = true }: LogoProps) {
+export function Logo({ variant = 'full', tone = 'dark', className, showProduct = true, href }: LogoProps) {
   // `tone="light"` sits on permanently-dark chrome (navy sidebar, auth panel),
   // so it is already legible in either theme and needs no dark: variant.
   // `tone="dark"` sits on themed surfaces that flip with the app's dark mode —
@@ -23,38 +33,51 @@ export function Logo({ variant = 'full', tone = 'dark', className, showProduct =
   // lightens to white and the accents step up to the brighter blue.
   const onDarkChrome = tone === 'light';
 
-  if (variant === 'mark') {
-    return (
-      <span className={cn('inline-flex items-center justify-center', className)}>
+  const lockup =
+    variant === 'mark' ? (
+      <span className={cn('inline-flex items-center justify-center', !href && className)}>
         <Image src="/brand/italprotein-logo.jpeg" alt="Italprotein" width={36} height={36} className="rounded-full" priority />
       </span>
-    );
-  }
-
-  return (
-    <span className={cn('inline-flex items-baseline gap-1.5 font-display', className)}>
-      <span
-        className={cn(
-          'text-lg font-bold tracking-tight',
-          onDarkChrome ? 'text-white' : 'text-brand-navy dark:text-white',
-        )}
-      >
-        ITAL
-        <span className={cn(onDarkChrome ? 'text-brand-molecular' : 'text-brand-molecular dark:text-brand-gold')}>
-          PROTE
-        </span>
-        IN
-      </span>
-      {showProduct && (
+    ) : (
+      <span className={cn('inline-flex items-baseline gap-1.5 font-display', !href && className)}>
         <span
           className={cn(
-            'font-sans text-2xs font-semibold uppercase tracking-[0.16em]',
-            onDarkChrome ? 'text-brand-gold' : 'text-brand-goldDark dark:text-brand-gold',
+            'text-lg font-bold tracking-tight',
+            onDarkChrome ? 'text-white' : 'text-brand-navy dark:text-white',
           )}
         >
-          · Proamina®
+          ITAL
+          <span className={cn(onDarkChrome ? 'text-brand-molecular' : 'text-brand-molecular dark:text-brand-gold')}>
+            PROTE
+          </span>
+          IN
         </span>
+        {showProduct && (
+          <span
+            className={cn(
+              'font-sans text-2xs font-semibold uppercase tracking-[0.16em]',
+              onDarkChrome ? 'text-brand-gold' : 'text-brand-goldDark dark:text-brand-gold',
+            )}
+          >
+            · Proamina®
+          </span>
+        )}
+      </span>
+    );
+
+  if (!href) return lockup;
+
+  return (
+    <Link
+      href={href}
+      // The wordmark itself names the link, so no aria-label is needed.
+      className={cn(
+        'inline-flex rounded-md transition-opacity hover:opacity-80',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2',
+        className,
       )}
-    </span>
+    >
+      {lockup}
+    </Link>
   );
 }

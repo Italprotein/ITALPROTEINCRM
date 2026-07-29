@@ -31,7 +31,7 @@ export function Sidebar({ role, collapsed, onToggle, onNavigate }: SidebarProps)
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       {/* Header */}
       <div className={cn('flex h-16 shrink-0 items-center border-b border-sidebar-border', collapsed ? 'justify-center px-2' : 'justify-between px-4')}>
-        {collapsed ? <Logo variant="mark" /> : <Logo tone="light" />}
+        {collapsed ? <Logo variant="mark" href="/admin/companies" /> : <Logo tone="light" href="/admin/companies" />}
         <button
           onClick={onToggle}
           className="hidden rounded-md p-1.5 text-sidebar-muted transition-colors hover:bg-white/10 hover:text-white lg:block"

@@ -57,7 +57,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col bg-muted/20">
       <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
         <div className="container flex h-16 items-center gap-4">
-          <Logo tone="dark" />
+          <Logo tone="dark" href="/portal" />
           <Badge variant="secondary" className="hidden sm:inline-flex">{tc('externalWorkspace')}</Badge>
           {company && (
             <span className="hidden truncate text-sm font-medium text-muted-foreground md:inline">

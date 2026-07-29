@@ -170,7 +170,7 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
         </div>
 
         <motion.div className="relative z-10" initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-          <Logo tone="light" />
+          <Logo tone="light" href="/" />
         </motion.div>
 
         <div className="relative z-10 max-w-xs">
@@ -209,7 +209,7 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
       {/* ── Form panel ────────────────────────────────────────────── */}
       <main className="flex flex-col bg-background">
         <div className="flex items-center justify-between border-b px-6 py-4 lg:hidden">
-          <Logo tone="dark" />
+          <Logo tone="dark" href="/" />
           <LanguageSwitcher tone="dark" />
         </div>
 
@@ -225,7 +225,7 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="mb-8 lg:hidden">
-              <Logo tone="dark" />
+              <Logo tone="dark" href="/" />
             </div>
 
             <Badge variant={isTeam ? 'gold' : 'secondary'} className="mb-4">

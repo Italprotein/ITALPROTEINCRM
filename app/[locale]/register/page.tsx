@@ -14,7 +14,7 @@ export default async function RegisterPage({ params }: { params: Promise<{ local
     <div className="flex min-h-screen flex-col bg-muted/20">
       <header className="border-b bg-background">
         <div className="container flex h-16 items-center justify-between">
-          <Logo tone="dark" />
+          <Logo tone="dark" href="/" />
           <div className="flex items-center gap-2">
             <LanguageSwitcher tone="dark" />
             <Link href="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">

@@ -81,7 +81,7 @@ function ForgotPasswordForm() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="flex items-center justify-between border-b px-6 py-4">
-        <Logo tone="dark" />
+        <Logo tone="dark" href="/" />
         <LanguageSwitcher tone="dark" />
       </div>
 

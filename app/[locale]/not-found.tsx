@@ -4,7 +4,7 @@ import { Logo } from '@/components/brand/logo';
 export default function NotFound() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-brand-navy px-6 text-center text-white">
-      <Logo tone="light" />
+      <Logo tone="light" href="/" />
       <div>
         <p className="font-display text-6xl font-bold text-brand-gold">404</p>
         <h1 className="mt-2 text-xl font-semibold">Page not found · Pagina non trovata</h1>
