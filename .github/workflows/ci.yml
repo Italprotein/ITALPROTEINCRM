@@ -28,8 +28,10 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      # `npm ci`, matching the Dockerfile: CI must verify the same dependency
+      # tree the production image installs, and fail if the lock drifts.
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       # The Prisma client is generated into lib/generated/prisma and is
       # gitignored, so typecheck and build both need it to exist first.

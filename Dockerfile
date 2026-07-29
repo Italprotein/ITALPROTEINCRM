@@ -7,13 +7,14 @@ FROM node:22-bookworm-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# npm install (not `npm ci`) so the build tolerates a package-lock.json that was
-# generated on a different Node major — the tree is still resolved from the lock;
-# only genuinely-missing transitive entries (e.g. Node-version-specific ones) are
-# added. Regenerate the lock on Node 22 and switch back to `npm ci` for strict
-# reproducibility later if desired.
+# `npm ci` installs exactly what package-lock.json pins, so the image is built
+# from the dependency tree that was actually tested. `npm install` was used while
+# the lock was still settling, but it is free to resolve a newer version inside a
+# semver range — which is precisely how a framer-motion minor bump reached this
+# build and broke it. If the lock and package.json ever disagree, `npm ci` fails
+# loudly here rather than silently shipping something untested.
 COPY package.json package-lock.json ./
-RUN npm install --no-audit --no-fund --loglevel=error
+RUN npm ci --no-audit --no-fund --loglevel=error
 
 COPY . .
 
