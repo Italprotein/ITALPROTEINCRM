@@ -49,7 +49,7 @@ issue the certificate.
 ```bash
 git clone https://github.com/Italprotein/ITALPROTEINCRM.git
 cd ITALPROTEINCRM
-git checkout backend-phase-1        # until it is merged to main
+git checkout main                   # main, master and backend-phase-1 are identical
 cp .env.production.example .env.production
 ```
 
