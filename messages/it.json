@@ -24,7 +24,8 @@
     "today": "Oggi",
     "noResults": "Nessun risultato",
     "collapse": "Comprimi",
-    "expand": "Espandi"
+    "expand": "Espandi",
+    "security": "Sicurezza"
   },
   "Workspace": {
     "internal": "CRM Interno",
@@ -191,7 +192,10 @@
     "altLink": "Sei un cliente? Apri il portale aziende",
     "badge": "Riservato · solo team Italprotein",
     "futureNote": "L'accesso è riservato agli account autorizzati dello staff Italprotein.",
-    "backToSite": "Torna al sito"
+    "backToSite": "Torna al sito",
+    "twoFactorLabel": "Codice di autenticazione",
+    "twoFactorPlaceholder": "Codice a 6 cifre",
+    "twoFactorHint": "Solo se hai attivato l'autenticazione a due fattori sul tuo account."
   },
   "ForgotPassword": {
     "eyebrow": "Recupero account",

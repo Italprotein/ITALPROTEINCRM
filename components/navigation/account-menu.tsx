@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { ChevronsUpDown, LogOut, Repeat, Home, BadgeCheck, RotateCcw } from 'lucide-react';
+import { ChevronsUpDown, LogOut, Repeat, Home, BadgeCheck, RotateCcw, ShieldCheck } from 'lucide-react';
 import { useRouter } from '@/lib/i18n/navigation';
 import { useSession } from '@/components/providers/session-provider';
 import { authService } from '@/lib/mock-services';
@@ -80,6 +80,13 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
               ))}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+        )}
+        {/* Own-account security (2FA). Internal only — the portal has no
+            enrollment flow yet, and mock mode has no real credentials. */}
+        {isApi && account.workspace === 'internal' && (
+          <DropdownMenuItem onClick={() => router.push('/admin/security')}>
+            <ShieldCheck className="mr-2 h-4 w-4" /> {t('security')}
+          </DropdownMenuItem>
         )}
         <DropdownMenuItem onClick={() => router.push('/')}><Home className="mr-2 h-4 w-4" /> {t('backToHome')}</DropdownMenuItem>
         {!isApi && (

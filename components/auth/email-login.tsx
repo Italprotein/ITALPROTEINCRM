@@ -71,9 +71,11 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
   const { signInAs } = useSession();
   const emailId = useId();
   const passwordId = useId();
+  const totpId = useId();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [totp, setTotp] = useState('');
   const [state, setState] = useState<FormState>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [wrongWorkspace, setWrongWorkspace] = useState(false);
@@ -98,6 +100,7 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
         email: email.trim().toLowerCase(),
         password,
         workspace,
+        totp: totp.trim(),
         redirect: false,
       });
       if (!res || res.error) {
@@ -319,6 +322,37 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
                       className="h-12 w-full bg-transparent px-4 text-sm placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50"
                     />
                   </div>
+                </div>
+              )}
+
+              {/* Second factor. Shown on the staff door only, and optional in the
+                  form: the server decides whether a code is actually required
+                  (mandatory for super_admin, enforced for anyone enrolled), so
+                  the five admins without MFA simply leave it blank. */}
+              {isApi && isTeam && (
+                <div className="space-y-1.5">
+                  <label htmlFor={totpId} className="flex items-center gap-1.5 text-sm font-medium">
+                    <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground" />
+                    {t('twoFactorLabel')}
+                  </label>
+                  <div className={cn('relative overflow-hidden rounded-lg border transition-all duration-200', borderClass)}>
+                    <input
+                      id={totpId}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      value={totp}
+                      maxLength={9}
+                      disabled={state === 'submitting' || state === 'success'}
+                      placeholder={t('twoFactorPlaceholder')}
+                      onChange={(e) => {
+                        setTotp(e.target.value);
+                        if (state === 'error') setState('idle');
+                      }}
+                      className="h-12 w-full bg-transparent px-4 text-sm tracking-widest placeholder:tracking-normal placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t('twoFactorHint')}</p>
                 </div>
               )}
 

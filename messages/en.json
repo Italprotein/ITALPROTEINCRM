@@ -24,7 +24,8 @@
     "today": "Today",
     "noResults": "No results",
     "collapse": "Collapse",
-    "expand": "Expand"
+    "expand": "Expand",
+    "security": "Security"
   },
   "Workspace": {
     "internal": "Internal CRM",
@@ -191,7 +192,10 @@
     "altLink": "Are you a client? Open the company portal",
     "badge": "Restricted · Italprotein team only",
     "futureNote": "Access is restricted to authorised Italprotein staff accounts.",
-    "backToSite": "Back to site"
+    "backToSite": "Back to site",
+    "twoFactorLabel": "Authentication code",
+    "twoFactorPlaceholder": "6-digit code",
+    "twoFactorHint": "Only if two-factor authentication is enabled on your account."
   },
   "ForgotPassword": {
     "eyebrow": "Account recovery",

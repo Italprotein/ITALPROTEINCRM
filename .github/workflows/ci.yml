@@ -1,0 +1,56 @@
+name: CI
+
+# Every push and every PR. The job is intentionally fast (no database, no
+# browser) so it is never the reason someone skips it: the tests assert the
+# permission matrix and the shape of the server-action layer, which is where a
+# regression would be most expensive.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# A new push to the same branch cancels the previous run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the Dockerfile base image; @prisma/streams-local needs >=22.
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      # The Prisma client is generated into lib/generated/prisma and is
+      # gitignored, so typecheck and build both need it to exist first.
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        env:
+          # Build-time only. Real secrets live on the VPS; these just satisfy the
+          # env checks so the production build can be compiled and verified.
+          NEXT_PUBLIC_DATA_MODE: api
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          AUTH_SECRET: ci-build-only-not-a-real-secret
+          APP_URL: http://localhost:3000
+        run: npm run build

@@ -9,6 +9,7 @@ import { readStore, writeStore } from '@/lib/mock-services/storage';
 import { Sidebar } from '@/components/navigation/sidebar';
 import { Topbar } from '@/components/navigation/topbar';
 import { Amina } from '@/components/assistant/amina';
+import { MfaEnrollmentNotice } from '@/components/admin/mfa-enrollment-notice';
 import { Logo } from '@/components/brand/logo';
 import { cn } from '@/lib/utils';
 import { setLabelLocale } from '@/lib/labels';
@@ -68,6 +69,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenuClick={() => setMobileOpen(true)} />
+        <MfaEnrollmentNotice />
         <main className="flex-1">{children}</main>
       </div>
 
