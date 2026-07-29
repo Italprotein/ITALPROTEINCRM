@@ -68,16 +68,25 @@ export async function updateSupportRequest(
   });
   if (!existing) return undefined;
   const merged: SupportRequest = { ...supportToDTO(existing), ...patch };
-  // The conversation has no stable per-message id in the DTO, so replace the set
-  // when the caller supplies a new conversation; otherwise leave it untouched.
-  const replaceConversation = patch.conversation !== undefined;
+  // Append-only conversation sync. A reply from either side (client at
+  // /portal/requests, staff at /admin/communications) arrives as the caller's
+  // snapshot of the thread plus their new message(s). We must NEVER delete
+  // existing rows: the other party may have posted since this caller loaded the
+  // thread, and a deleteMany+recreate would silently drop that message. Instead
+  // we create only the messages we don't already have, matched on timestamp.
+  const seen = new Set(existing.messages.map((m) => m.createdAt.toISOString()));
+  const toAppend =
+    patch.conversation !== undefined
+      ? conversationCreateData({
+          ...merged,
+          conversation: merged.conversation.filter((m) => !seen.has(m.at)),
+        })
+      : [];
   const row = await prisma.supportRequest.update({
     where: { id },
     data: {
       ...supportWriteData(merged, user.id),
-      ...(replaceConversation
-        ? { messages: { deleteMany: {}, create: conversationCreateData(merged) } }
-        : {}),
+      ...(toAppend.length ? { messages: { create: toAppend } } : {}),
     },
     include: { messages: true },
   });

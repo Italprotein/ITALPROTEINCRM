@@ -92,5 +92,4 @@ export const PORTAL_NAV: NavItem<PortalSection>[] = [
   { section: 'projects', href: '/portal/projects', labelKey: 'projects', icon: FolderKanban },
   { section: 'documents', href: '/portal/documents', labelKey: 'documents', icon: FileText },
   { section: 'requests', href: '/portal/requests', labelKey: 'requests', icon: LifeBuoy },
-  { section: 'notifications', href: '/portal/notifications', labelKey: 'notifications', icon: Bell },
 ];

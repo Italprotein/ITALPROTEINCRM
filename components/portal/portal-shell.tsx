@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import { Bell } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/lib/i18n/navigation';
 import { useSession } from '@/components/providers/session-provider';
 import { isExternal, canView } from '@/lib/permissions';
@@ -68,10 +67,6 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           <div className="ml-auto flex items-center gap-1.5">
             <ThemeToggle tone="dark" />
             <LanguageSwitcher tone="dark" />
-            <Link href="/portal/notifications" className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent" aria-label={tc('notifications')}>
-              <Bell className="h-5 w-5" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-danger ring-2 ring-background" />
-            </Link>
             <AccountMenu />
           </div>
         </div>
