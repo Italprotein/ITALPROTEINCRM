@@ -30,18 +30,11 @@ import {
 import { cn } from '@/lib/utils';
 
 /* ────────────────────────────────────────────────────────────────────────
- * Palette — on-brand chart colours (navy · gold · teal · molecular + tints)
+ * Palette — defined in lib/chart-colors (no chart-library import) and
+ * re-exported here so existing chart consumers keep working unchanged.
  * ──────────────────────────────────────────────────────────────────────── */
-export const CHART_COLORS: string[] = [
-  '#0a1628', // brand navy
-  '#c9a227', // brand gold
-  '#0eb89a', // brand teal
-  '#2563eb', // molecular blue
-  '#1b3a5b', // navy600 tint
-  '#e8c84a', // goldLight tint
-  '#6f8a6b', // sage
-  '#0a9980', // tealDark
-];
+export { CHART_COLORS } from '@/lib/chart-colors';
+import { CHART_COLORS } from '@/lib/chart-colors';
 
 /* ────────────────────────────────────────────────────────────────────────
  * Shared axis / tooltip styling

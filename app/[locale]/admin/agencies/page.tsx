@@ -25,7 +25,7 @@ import { humanize } from '@/lib/labels';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { CHART_COLORS } from '@/components/charts/chart-kit';
+import { CHART_COLORS } from '@/lib/chart-colors';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

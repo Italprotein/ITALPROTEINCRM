@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { auth } from "@/auth";
 import { prisma } from "@/lib/backend/prisma";
 import { can, canView, canEdit, isInternal, type Action, type Section } from "@/lib/permissions";
@@ -13,8 +15,20 @@ export interface SessionUser {
   email?: string | null;
 }
 
-/** Returns the authenticated user (from the verified session) or null. */
-export async function getCurrentUser(): Promise<SessionUser | null> {
+/**
+ * Returns the authenticated user (from the verified session) or null.
+ *
+ * Memoised per request with React's cache(). Almost every action resolves the
+ * session at least twice — once through a require* guard and again through the
+ * module's scopeWhere() — and each resolution costs a JWT verification plus a
+ * User+Role query. Deduplicating collapses that to one, which removes a database
+ * round-trip from roughly eighty actions without changing any semantics: within
+ * a single request the answer cannot legitimately differ.
+ *
+ * Scope is per request, so suspension, role changes and authVersion bumps still
+ * take effect on the very next request — the revocation guarantee is unchanged.
+ */
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<SessionUser | null> {
   const session = await auth();
   const tokenUser = session?.user as SessionUser | undefined;
   if (!tokenUser?.id) return null;
@@ -45,7 +59,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     name: current.name,
     email: current.email,
   };
-}
+})
 
 /** Server-side guard: throws UNAUTHENTICATED if there is no session. */
 export async function requireUser(): Promise<SessionUser> {
