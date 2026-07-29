@@ -16,6 +16,7 @@ import { FeatureRadar } from '@/components/landing/feature-radar';
 import { PartnerMarquee } from '@/components/landing/partner-marquee';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { TracingBeam } from '@/components/ui/tracing-beam';
 import { siteContact } from '@/lib/config/site';
 
 /* ─────────────────────────── Animation helpers ─────────────────────────── */
@@ -335,59 +336,60 @@ export default function LandingPage() {
       </section>
 
       {/* ── Two products ──────────────────────────────────────────── */}
-      <section className="border-b bg-background py-24">
+      {/* ── Products + features, traced by the scroll beam ────────── */}
+      <div className="border-b bg-background">
         <div className="container">
-          <FadeUp>
-            <p className="font-display text-xs font-semibold uppercase tracking-widest text-brand-goldDark">{t('productsTitle')}</p>
-          </FadeUp>
-          <div className="mt-6 grid gap-6 md:grid-cols-2">
-            <ProductCard
-              href="/team-login"
-              icon={<Building2 className="h-5 w-5" />}
-              title={t('internalTitle')}
-              desc={t('internalDesc')}
-              cta={t('ctaInternal')}
-              index={0}
-            />
-            <ProductCard
-              href="/login"
-              icon={<FlaskConical className="h-5 w-5" />}
-              title={t('externalTitle')}
-              desc={t('externalDesc')}
-              cta={t('ctaExternal')}
-              accent
-              index={1}
-            />
-          </div>
-        </div>
-      </section>
+          {/* max-w-none keeps the existing full-width layout; the left padding
+              is the gutter the beam's rail lives in (md+ only). */}
+          <TracingBeam className="max-w-none py-24 md:pl-20">
+            <FadeUp>
+              <p className="font-display text-xs font-semibold uppercase tracking-widest text-brand-goldDark">{t('productsTitle')}</p>
+            </FadeUp>
+            <div className="mt-6 grid gap-6 md:grid-cols-2">
+              <ProductCard
+                href="/team-login"
+                icon={<Building2 className="h-5 w-5" />}
+                title={t('internalTitle')}
+                desc={t('internalDesc')}
+                cta={t('ctaInternal')}
+                index={0}
+              />
+              <ProductCard
+                href="/login"
+                icon={<FlaskConical className="h-5 w-5" />}
+                title={t('externalTitle')}
+                desc={t('externalDesc')}
+                cta={t('ctaExternal')}
+                accent
+                index={1}
+              />
+            </div>
 
-      {/* ── Features grid (portal-focused) ────────────────────────── */}
-      <section className="bg-muted/30 py-24">
-        <div className="container">
-          <FadeUp>
-            <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">{t('featuresTitle')}</h2>
-          </FadeUp>
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((f, i) => {
-              const Icon = FEATURE_ICONS[i] ?? FlaskConical;
-              return (
-                <FadeUp key={f.title} delay={i * 0.07}>
-                  <motion.div
-                    className="group h-full rounded-xl border bg-card p-6 shadow-sm"
-                    whileHover={{ y: -3, boxShadow: '0 16px 40px -8px rgba(10,22,40,0.12)' }}
-                    transition={{ type: 'spring', stiffness: 350, damping: 24 }}
-                  >
-                    <FeatureIcon Icon={Icon} index={i} />
-                    <h3 className="mt-4 font-semibold">{f.title}</h3>
-                    <p className="mt-1.5 text-sm text-muted-foreground">{f.desc}</p>
-                  </motion.div>
-                </FadeUp>
-              );
-            })}
-          </div>
+            {/* Features grid (portal-focused) */}
+            <FadeUp>
+              <h2 className="mt-20 font-display text-2xl font-bold tracking-tight sm:text-3xl">{t('featuresTitle')}</h2>
+            </FadeUp>
+            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {features.map((f, i) => {
+                const Icon = FEATURE_ICONS[i] ?? FlaskConical;
+                return (
+                  <FadeUp key={f.title} delay={i * 0.07}>
+                    <motion.div
+                      className="group h-full rounded-xl border bg-card p-6 shadow-sm"
+                      whileHover={{ y: -3, boxShadow: '0 16px 40px -8px rgba(10,22,40,0.12)' }}
+                      transition={{ type: 'spring', stiffness: 350, damping: 24 }}
+                    >
+                      <FeatureIcon Icon={Icon} index={i} />
+                      <h3 className="mt-4 font-semibold">{f.title}</h3>
+                      <p className="mt-1.5 text-sm text-muted-foreground">{f.desc}</p>
+                    </motion.div>
+                  </FadeUp>
+                );
+              })}
+            </div>
+          </TracingBeam>
         </div>
-      </section>
+      </div>
 
       {/* ── Partners marquee ──────────────────────────────────────── */}
       <section className="border-b bg-background py-20">
