@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/backend/prisma";
 import { getCurrentUser } from "@/lib/backend/session";
+import { clientIpFromHeaders } from "@/lib/backend/rate-limit";
+import {
+  isObjectStorageConfigured,
+  buildStorageKey,
+  putObject,
+  deleteObject,
+} from "@/lib/backend/storage";
 import { can, canEdit } from "@/lib/permissions";
 import { documentToDTO } from "@/lib/services/document.mapper";
 import type { DocumentCategory } from "@/lib/types";
@@ -9,11 +16,13 @@ import type { DocumentCategory } from "@/lib/types";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// Real file upload: persists the bytes into an Attachment row (streamed back by
-// /api/attachments/[id]) plus a Document metadata row. This is the write half of
-// the object-storage seam — previously uploads dropped their bytes and kept only
-// metadata. Bytes live in Postgres, consistent with Gmail-filed NDA attachments;
-// swap Attachment.bytes for an S3 storageKey later without touching callers.
+// Real file upload. Bytes go to S3-compatible object storage when the
+// OBJECT_STORAGE_* variables are configured (the production path), and fall back
+// to Postgres (Attachment.bytes) otherwise — which is how Gmail-filed NDA
+// attachments already work, so both resolve through the same download route.
+//
+// The bucket is private: no public or pre-signed URL is ever minted. Downloads
+// go through /api/attachments/[id], which re-checks company + confidentiality.
 
 const MAX_BYTES = 20 * 1024 * 1024; // 20 MB — a hard ceiling on a single upload.
 
@@ -91,36 +100,79 @@ export async function POST(request: Request) {
   const bytes = Buffer.from(await file.arrayBuffer());
   const now = new Date();
 
-  const document = await prisma.document.create({
-    data: {
-      title: displayName,
-      category,
-      // Client uploads are visible to their company + our staff, never public.
-      confidentialityClass: "company_specific",
-      companyId,
-      fileType,
-      mimeType,
-      sizeBytes: bytes.length,
-      description,
-      uploadedByUserId: user.id,
-      uploadedAt: now,
-      createdById: user.id,
-      attachments: {
-        create: {
-          name: displayName,
-          fileType,
-          mimeType,
-          sizeBytes: bytes.length,
-          sizeKb: Math.round(bytes.length / 1024),
-          bytes,
-          uploadedByUserId: user.id,
-          uploadedAt: now,
-          createdById: user.id,
+  // Push the bytes to the bucket first. If the metadata write then fails we
+  // delete the object below, so we never leave a row pointing at nothing (or an
+  // orphan object billing storage forever).
+  const toObjectStorage = isObjectStorageConfigured();
+  let storageKey: string | null = null;
+  if (toObjectStorage) {
+    storageKey = buildStorageKey(companyId, file.name);
+    try {
+      await putObject(storageKey, bytes, mimeType);
+    } catch {
+      return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+    }
+  }
+
+  let document;
+  try {
+    document = await prisma.document.create({
+      data: {
+        title: displayName,
+        category,
+        // Client uploads are visible to their company + our staff, never public.
+        confidentialityClass: "company_specific",
+        companyId,
+        fileType,
+        mimeType,
+        sizeBytes: bytes.length,
+        description,
+        storageKey,
+        uploadedByUserId: user.id,
+        uploadedAt: now,
+        createdById: user.id,
+        attachments: {
+          create: {
+            name: displayName,
+            fileType,
+            mimeType,
+            sizeBytes: bytes.length,
+            sizeKb: Math.round(bytes.length / 1024),
+            storageKey,
+            // Only inline the bytes when there is no bucket to hold them.
+            bytes: toObjectStorage ? null : bytes,
+            uploadedByUserId: user.id,
+            uploadedAt: now,
+            createdById: user.id,
+          },
         },
       },
-    },
-    include: { attachments: { select: { id: true }, orderBy: { createdAt: "desc" }, take: 1 } },
-  });
+      include: { attachments: { select: { id: true }, orderBy: { createdAt: "desc" }, take: 1 } },
+    });
+  } catch (error) {
+    if (storageKey) await deleteObject(storageKey);
+    throw error;
+  }
+
+  // Uploading a file is a sensitive write: record who put what where, so file
+  // activity is reconstructable alongside the download events.
+  await prisma.auditEvent
+    .create({
+      data: {
+        actorUserId: user.id,
+        actorRole: user.role,
+        action: "document.upload",
+        entityType: "document",
+        entityId: document.id,
+        summary: `Uploaded "${displayName}" (${Math.round(bytes.length / 1024)} KB) to ${
+          toObjectStorage ? "object storage" : "database storage"
+        }`,
+        companyId,
+        ip: clientIpFromHeaders(request.headers),
+        userAgent: request.headers.get("user-agent") ?? undefined,
+      },
+    })
+    .catch(() => undefined);
 
   return NextResponse.json({ document: documentToDTO(document) }, { status: 201 });
 }

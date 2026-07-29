@@ -22,6 +22,7 @@ type OptionalEnvKey =
   | 'AI_VECTOR_STORE_URL'
   | 'OBJECT_STORAGE_BUCKET'
   | 'OBJECT_STORAGE_REGION'
+  | 'OBJECT_STORAGE_ENDPOINT'
   | 'OBJECT_STORAGE_ACCESS_KEY_ID'
   | 'OBJECT_STORAGE_SECRET_ACCESS_KEY'
   | 'ESIGN_PROVIDER'
@@ -81,6 +82,8 @@ export function getBackendEnv() {
     storage: {
       bucket: readEnv('OBJECT_STORAGE_BUCKET'),
       region: readEnv('OBJECT_STORAGE_REGION'),
+      // Set for any non-AWS S3 API (R2, B2, MinIO); omit for AWS S3 itself.
+      endpoint: readEnv('OBJECT_STORAGE_ENDPOINT'),
       accessKeyId: readEnv('OBJECT_STORAGE_ACCESS_KEY_ID'),
       secretAccessKey: readEnv('OBJECT_STORAGE_SECRET_ACCESS_KEY'),
     },

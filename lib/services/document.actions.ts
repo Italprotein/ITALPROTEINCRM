@@ -3,6 +3,7 @@
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
 import { getCurrentUser, requireUser, requireInternal } from "@/lib/backend/session";
+import { deleteObject } from "@/lib/backend/storage";
 import type { DocumentRecord, DocumentCategory, DocumentAccessLevel } from "@/lib/types";
 import { documentToDTO, documentWriteData } from "./document.mapper";
 
@@ -90,10 +91,43 @@ export async function updateDocument(
 
 export async function removeDocument(id: string): Promise<void> {
   // Deletes by raw id with no company scope — internal only.
-  await requireInternal();
+  const user = await requireInternal();
+  const existing = await prisma.document.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      title: true,
+      companyId: true,
+      storageKey: true,
+      attachments: { select: { id: true, storageKey: true } },
+    },
+  });
+  if (!existing) return;
+
+  // Drop the attachment rows explicitly. The relation is optional, so Prisma
+  // would otherwise null out documentId and leave the files reachable by id.
+  await prisma.attachment.deleteMany({ where: { documentId: id } }).catch(() => undefined);
   await prisma.document.delete({ where: { id } }).catch(() => undefined);
-  // TODO: object storage not yet integrated — orphaned stored bytes (if any) are
-  // not deleted here. Add storage cleanup once signed-storage is wired.
+
+  // Then remove the stored objects so deleted files do not linger in the bucket.
+  const keys = [existing.storageKey, ...existing.attachments.map((a) => a.storageKey)].filter(
+    (k): k is string => Boolean(k),
+  );
+  await Promise.all(keys.map((k) => deleteObject(k)));
+
+  await prisma.auditEvent
+    .create({
+      data: {
+        actorUserId: user.id,
+        actorRole: user.role,
+        action: "document.delete",
+        entityType: "document",
+        entityId: id,
+        summary: `Deleted "${existing.title}"${keys.length ? ` and ${keys.length} stored file(s)` : ""}`,
+        companyId: existing.companyId,
+      },
+    })
+    .catch(() => undefined);
 }
 
 export async function documentsByCompany(companyId: string): Promise<DocumentRecord[]> {

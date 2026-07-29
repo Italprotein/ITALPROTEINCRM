@@ -52,6 +52,13 @@ services:
       GOOGLE_REDIRECT_URI: "${GOOGLE_REDIRECT_URI:-}"
       GMAIL_SENDER_EMAIL: "${GMAIL_SENDER_EMAIL:-ad@italprotein.com}"
       GMAIL_REPLY_TO: "${GMAIL_REPLY_TO:-ad@italprotein.com}"
+      # Object storage for uploaded documents (S3/R2/B2/MinIO). Blank => file
+      # bytes stay in Postgres. Required before external portal users upload.
+      OBJECT_STORAGE_BUCKET: "${OBJECT_STORAGE_BUCKET:-}"
+      OBJECT_STORAGE_REGION: "${OBJECT_STORAGE_REGION:-auto}"
+      OBJECT_STORAGE_ENDPOINT: "${OBJECT_STORAGE_ENDPOINT:-}"
+      OBJECT_STORAGE_ACCESS_KEY_ID: "${OBJECT_STORAGE_ACCESS_KEY_ID:-}"
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: "${OBJECT_STORAGE_SECRET_ACCESS_KEY:-}"
       AI_PROVIDER: "${AI_PROVIDER:-anthropic}"
       AI_MODEL: "${AI_MODEL:-claude-opus-4-8}"
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/backend/prisma";
 import { canEdit, canView } from "@/lib/permissions";
 import { getCurrentUser } from "@/lib/backend/session";
+import { getObject } from "@/lib/backend/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,11 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     where: { id },
     include: { document: { select: { id: true, companyId: true, confidentialityClass: true } } },
   });
-  if (!attachment?.bytes) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  // Bytes live either in the object-storage bucket (storageKey) or inline in
+  // Postgres (bytes) — a row with neither has nothing to serve.
+  if (!attachment || (!attachment.bytes && !attachment.storageKey)) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
 
   if (user.kind === "internal") {
     // Being internal is not by itself entitlement. Honour the permission matrix
@@ -42,6 +47,22 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     if (!allowed) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
+  // Resolve the bytes only after authorization has passed, so an unauthorized
+  // caller never triggers a bucket read.
+  let body: Uint8Array;
+  if (attachment.storageKey) {
+    let stored;
+    try {
+      stored = await getObject(attachment.storageKey);
+    } catch {
+      return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+    }
+    if (!stored) return NextResponse.json({ error: "not_found" }, { status: 404 });
+    body = stored.body;
+  } else {
+    body = attachment.bytes!;
+  }
+
   if (attachment.documentId) {
     await Promise.all([
       prisma.document
@@ -62,10 +83,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   }
 
   const filename = encodeURIComponent(attachment.name).replace(/'/g, "%27");
-  return new NextResponse(Buffer.from(attachment.bytes), {
+  return new NextResponse(Buffer.from(body), {
     headers: {
       "Content-Type": attachment.mimeType ?? "application/octet-stream",
-      "Content-Length": String(attachment.bytes.length),
+      "Content-Length": String(body.byteLength),
       "Content-Disposition": `attachment; filename*=UTF-8''${filename}`,
       "Cache-Control": "private, no-store",
     },

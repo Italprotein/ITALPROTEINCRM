@@ -154,14 +154,39 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
 Migrations re-apply automatically (only un-applied ones run). Re-run the import
 only when the CSV changes — it is idempotent (upsert by company name).
 
-## Known follow-ups (not blockers, but do them before real client accounts)
+## Object storage for uploaded documents  **[YOU] — before external portal users**
+
+Uploads work with **no configuration**: file bytes are stored in Postgres and are
+captured by the nightly `pg_dump`. That is fine for internal use and small
+volumes. Before you invite external company accounts — or if you expect large or
+numerous files — point the app at an S3-compatible bucket instead:
+
+```bash
+# in .env.production  (R2 shown; B2, AWS S3 and MinIO work the same way)
+OBJECT_STORAGE_BUCKET=italprotein-crm-docs
+OBJECT_STORAGE_REGION=auto
+OBJECT_STORAGE_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+OBJECT_STORAGE_ACCESS_KEY_ID=...
+OBJECT_STORAGE_SECRET_ACCESS_KEY=...
+```
+
+Then `up -d --build` again. New uploads go to the bucket; documents already in
+the database keep working, so the switch is safe at any time.
+
+> ⚠️ **Create the bucket as PRIVATE with no public access.** The app never mints
+> a public or pre-signed URL — every file is streamed through
+> `/api/attachments/[id]`, which re-checks the caller's company and the
+> document's confidentiality class. A public bucket would bypass all of that.
+
+Remember the bucket is now part of your disaster-recovery surface: the nightly
+`pg_dump` no longer contains the file bytes. Enable versioning/lifecycle rules on
+the bucket, or add it to your backup job.
+
+## Known follow-ups (not blockers)
 
 - **External portal login + registration provisioning** are built but exercise
-  them end-to-end before inviting clients.
-- **Authenticated IDOR** on a few writes (`updateCompany`/`updateContact`/
-  `updateSupportRequest` look up by raw id without company scoping) — close
-  before any external user can log in.
-- **Object storage** for uploaded documents (uploads currently drop their bytes;
-  only inbound Gmail NDA attachments are persisted).
+  them end-to-end (with two different company accounts) before inviting clients.
+- **Amina, the AI assistant**, is hidden until its model runtime is wired; set
+  `NEXT_PUBLIC_ASSISTANT_ENABLED=true` and `ANTHROPIC_API_KEY` when it ships.
 - Harden the container (it already runs as non-root; consider a read-only rootfs
   and dropped capabilities).
