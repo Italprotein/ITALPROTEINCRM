@@ -196,7 +196,7 @@ export default function PortalDocumentsPage() {
   }, [filtered]);
 
   function handleUploaded() {
-    // The upload dialog persists via documentService.create — refresh the list.
+    // The upload dialog POSTs the file to /api/documents/upload — refresh the list.
     reload();
   }
 
@@ -402,8 +402,19 @@ export default function PortalDocumentsPage() {
   );
 }
 
-function downloadToast(doc: DocumentRecord) {
-  toast({ title: 'Downloading…', description: `${doc.name} will download shortly.` });
+function downloadDoc(doc: DocumentRecord) {
+  // Real files stream from /api/attachments/{id} (which re-checks authorization).
+  // Legacy/seed records without stored bytes fall back to an explanatory toast.
+  if (doc.downloadAttachmentId) {
+    const a = document.createElement('a');
+    a.href = `/api/attachments/${doc.downloadAttachmentId}`;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return;
+  }
+  toast({ title: 'No file attached', description: `“${doc.name}” is a shared reference with no downloadable file yet.` });
 }
 
 function DocumentCard({
@@ -450,7 +461,7 @@ function DocumentCard({
             <PenLine className="h-4 w-4" /> Review &amp; sign
           </Button>
         ) : (
-          <Button size="sm" onClick={() => downloadToast(doc)}>
+          <Button size="sm" onClick={() => downloadDoc(doc)}>
             <Download className="h-4 w-4" /> Download
           </Button>
         )}
@@ -496,7 +507,7 @@ function DocumentRow({
             <PenLine className="h-4 w-4" /> Review &amp; sign
           </Button>
         ) : (
-          <Button size="sm" variant="outline" onClick={() => downloadToast(doc)}>
+          <Button size="sm" variant="outline" onClick={() => downloadDoc(doc)}>
             <Download className="h-4 w-4" /> Download
           </Button>
         )}
@@ -558,7 +569,7 @@ function PreviewSheet({ doc, onOpenChange }: { doc: DocumentRecord | null; onOpe
               <SheetClose asChild>
                 <Button variant="outline">Close</Button>
               </SheetClose>
-              <Button onClick={() => downloadToast(doc)}>
+              <Button onClick={() => downloadDoc(doc)}>
                 <Download className="h-4 w-4" /> Download
               </Button>
             </SheetFooter>
@@ -618,8 +629,20 @@ function SignDialog({ doc, onOpenChange }: { doc: DocumentRecord | null; onOpenC
   );
 }
 
+const UPLOAD_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.csv,.txt';
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // keep in sync with the upload route.
+
+const UPLOAD_ERRORS: Record<string, string> = {
+  file_required: 'Please choose a file to upload.',
+  file_too_large: 'That file is larger than the 20 MB limit.',
+  unsupported_type: "That file type isn't allowed.",
+  forbidden: "You don't have permission to upload documents.",
+  unauthenticated: 'Your session expired — please sign in again.',
+};
+
 function UploadDialog({ companyId, onUploaded }: { companyId: string; onUploaded: () => void }) {
   const [open, setOpen] = React.useState(false);
+  const [file, setFile] = React.useState<File | null>(null);
   const [name, setName] = React.useState('');
   const [category, setCategory] = React.useState<DocumentCategory>('other');
   const [description, setDescription] = React.useState('');
@@ -628,34 +651,50 @@ function UploadDialog({ companyId, onUploaded }: { companyId: string; onUploaded
   const UPLOADABLE: DocumentCategory[] = ['other', 'technical_data_sheet', 'regulatory', 'certificate', 'presentation'];
 
   function reset() {
+    setFile(null);
     setName('');
     setCategory('other');
     setDescription('');
   }
 
+  function pickFile(f: File | null) {
+    setFile(f);
+    // Default the display name to the file name until the user overrides it.
+    if (f && !name.trim()) setName(f.name);
+  }
+
   async function handleSubmit() {
-    const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!file) return;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toast({ variant: 'danger', title: 'File too large', description: UPLOAD_ERRORS.file_too_large });
+      return;
+    }
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 500));
-    const ext = trimmed.includes('.') ? trimmed.split('.').pop()!.toLowerCase() : 'pdf';
-    await documentService.create({
-      id: `doc_upload_${Date.now()}`,
-      name: trimmed.includes('.') ? trimmed : `${trimmed}.pdf`,
-      category,
-      accessLevel: 'company_specific',
-      companyId,
-      fileType: ext,
-      sizeKb: Math.floor(80 + Math.random() * 400),
-      uploadedAt: new Date().toISOString().slice(0, 10),
-      description: description.trim() || undefined,
-      downloadCount: 0,
-    });
-    setSubmitting(false);
-    setOpen(false);
-    reset();
-    onUploaded();
-    toast({ title: 'Document uploaded', description: `“${trimmed}” has been shared with your Italprotein team.` });
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('companyId', companyId);
+      fd.append('category', category);
+      if (name.trim()) fd.append('name', name.trim());
+      if (description.trim()) fd.append('description', description.trim());
+
+      const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: 'upload_failed' }));
+        toast({ variant: 'danger', title: 'Upload failed', description: UPLOAD_ERRORS[error] ?? 'Please try again.' });
+        setSubmitting(false);
+        return;
+      }
+      const label = name.trim() || file.name;
+      setSubmitting(false);
+      setOpen(false);
+      reset();
+      onUploaded();
+      toast({ title: 'Document uploaded', description: `“${label}” has been shared with your Italprotein team.` });
+    } catch {
+      setSubmitting(false);
+      toast({ variant: 'danger', title: 'Upload failed', description: 'Please check your connection and try again.' });
+    }
   }
 
   return (
@@ -674,12 +713,26 @@ function UploadDialog({ companyId, onUploaded }: { companyId: string; onUploaded
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="doc-name">File name</Label>
+            <Label htmlFor="doc-file">File</Label>
+            <Input
+              id="doc-file"
+              type="file"
+              accept={UPLOAD_ACCEPT}
+              onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
+            />
+            {file && (
+              <p className="text-xs text-muted-foreground">
+                {file.name} · {formatNumber(Math.round(file.size / 1024), LOCALE)} KB
+              </p>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="doc-name">Display name (optional)</Label>
             <Input
               id="doc-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Our spec requirements.pdf"
+              placeholder="Defaults to the file name"
             />
           </div>
           <div className="space-y-1.5">
@@ -707,15 +760,13 @@ function UploadDialog({ companyId, onUploaded }: { companyId: string; onUploaded
               rows={3}
             />
           </div>
-          <p className="rounded-md border border-dashed bg-muted/40 p-2 text-xs text-muted-foreground">
-            Preview mode: no real file is uploaded. The document record is added to your library.
-          </p>
+          <p className="text-xs text-muted-foreground">Accepted: PDF, Office documents, images, CSV. Max 20 MB.</p>
         </div>
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline">Cancel</Button>
           </DialogClose>
-          <Button variant="gold" onClick={handleSubmit} disabled={submitting || !name.trim()}>
+          <Button variant="gold" onClick={handleSubmit} disabled={submitting || !file}>
             {submitting ? 'Uploading…' : 'Upload'}
           </Button>
         </DialogFooter>

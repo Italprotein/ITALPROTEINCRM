@@ -21,6 +21,12 @@ async function scopeWhere(): Promise<Prisma.DocumentWhereInput> {
 const PORTAL_OPEN: DocumentAccessLevel[] = ["public", "portal_general", "pre_nda"];
 const POST_NDA: DocumentAccessLevel[] = ["post_nda", "company_specific"];
 
+// Pull the newest stored attachment id (if any) so the DTO can offer a download
+// link. Light: selects a single id, never the bytes.
+const withDownload = {
+  attachments: { select: { id: true }, orderBy: { createdAt: "desc" }, take: 1 },
+} satisfies Prisma.DocumentInclude;
+
 // NOTE: `documents` is a PORTAL section only — `accessLevel(<internal role>,
 // 'documents')` is 'hidden' for every internal role, so requireSection(Edit)
 // ('documents') would lock staff out. Internal document management therefore
@@ -31,6 +37,7 @@ export async function listDocuments(): Promise<DocumentRecord[]> {
   await requireInternal();
   const rows = await prisma.document.findMany({
     where: await scopeWhere(),
+    include: withDownload,
     orderBy: { createdAt: "desc" },
   });
   return rows.map(documentToDTO);
@@ -42,6 +49,7 @@ export async function getDocument(id: string): Promise<DocumentRecord | undefine
   await requireInternal();
   const rows = await prisma.document.findMany({
     where: { AND: [await scopeWhere(), { id }] },
+    include: withDownload,
     take: 1,
   });
   return rows[0] ? documentToDTO(rows[0]) : undefined;
@@ -94,6 +102,7 @@ export async function documentsByCompany(companyId: string): Promise<DocumentRec
   await requireInternal();
   const rows = await prisma.document.findMany({
     where: { AND: [await scopeWhere(), { companyId }] },
+    include: withDownload,
     orderBy: { createdAt: "desc" },
   });
   return rows.map(documentToDTO);
@@ -104,6 +113,7 @@ export async function documentsByCategory(category: DocumentCategory): Promise<D
   await requireInternal();
   const rows = await prisma.document.findMany({
     where: { AND: [await scopeWhere(), { category }] },
+    include: withDownload,
     orderBy: { createdAt: "desc" },
   });
   return rows.map(documentToDTO);
@@ -126,6 +136,7 @@ export async function documentsForPortal(
         { confidentialityClass: { not: "internal" } },
       ],
     },
+    include: withDownload,
     orderBy: { createdAt: "desc" },
   });
   return rows

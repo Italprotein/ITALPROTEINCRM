@@ -49,8 +49,14 @@ export async function createContact(input: Contact): Promise<Contact> {
   if (!can(actor.role, "contact.edit") && !can(actor.role, "portal.edit_company")) {
     throw new Error("FORBIDDEN");
   }
+  // A portal owner (no `contact.edit`) may only add teammates to THEIR OWN
+  // company — never inject a contact into another company by supplying its id.
+  // Internal staff (with `contact.edit`) may target any company.
+  const companyId = can(actor.role, "contact.edit")
+    ? input.companyId
+    : actor.companyId ?? input.companyId;
   const row = await prisma.contact.create({
-    data: { ...contactWriteData(input, actor.id), id: input.id, createdById: actor.id },
+    data: { ...contactWriteData({ ...input, companyId }, actor.id), id: input.id, createdById: actor.id },
     include,
   });
   return contactToDTO(row);
@@ -61,7 +67,9 @@ export async function updateContact(
   patch: Partial<Contact>,
 ): Promise<Contact | undefined> {
   const actor = await requireAction("contact.edit");
-  const existing = await prisma.contact.findUnique({ where: { id }, include });
+  // Defense-in-depth: scope the lookup so that if an external role is ever granted
+  // contact.edit, it still cannot reach another company's contact by raw id.
+  const existing = await prisma.contact.findFirst({ where: { AND: [await scopeWhere(), { id }] }, include });
   if (!existing) return undefined;
   const merged: Contact = { ...contactToDTO(existing), ...patch };
   const row = await prisma.contact.update({

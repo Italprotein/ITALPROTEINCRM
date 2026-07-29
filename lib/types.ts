@@ -653,6 +653,10 @@ export interface DocumentRecord {
   uploadedByUserId?: ID;
   description?: string;
   downloadCount?: number;
+  /** Id of the stored file behind this document, if any. When set, the file can
+   *  be fetched from /api/attachments/{id} (which re-checks authorization). Absent
+   *  on legacy/seed records that have no uploaded bytes. */
+  downloadAttachmentId?: ID;
 }
 
 export interface AttachmentRef {

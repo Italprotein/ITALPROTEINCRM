@@ -71,7 +71,12 @@ export async function updateCompany(id: string, patch: Partial<Company>): Promis
   if (!can(actor.role, "company.edit") && !can(actor.role, "portal.edit_company")) {
     throw new Error("FORBIDDEN");
   }
-  const existing = await prisma.company.findUnique({ where: { id } });
+  // Scope the target to what this actor may touch: scopeWhere() limits an
+  // external portal owner to their OWN company, while internal staff reach any.
+  // Without this, a portal owner could pass another company's id (IDOR) and edit
+  // records outside their scope. Missing/foreign id -> undefined (not "forbidden",
+  // so we don't confirm the row exists).
+  const existing = await prisma.company.findFirst({ where: { AND: [await scopeWhere(), { id }] } });
   if (!existing) return undefined;
   const merged: Company = { ...companyToDTO(existing), ...patch };
   const row = await prisma.company.update({ where: { id }, data: companyWriteData(merged, actor.id) });

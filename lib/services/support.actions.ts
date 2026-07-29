@@ -62,8 +62,12 @@ export async function updateSupportRequest(
   // /portal/requests and staff reply from /admin/communications. Keep it at the
   // authenticated bar — an internal-only guard would break client replies.
   const user = await requireUser();
-  const existing = await prisma.supportRequest.findUnique({
-    where: { id },
+  // Scope the target: scopeWhere() limits an external client to their OWN
+  // company's threads; internal staff reach any. Without this, a portal user who
+  // guessed a thread id could append messages to another company's conversation
+  // (IDOR). Missing/foreign id -> undefined.
+  const existing = await prisma.supportRequest.findFirst({
+    where: { AND: [await scopeWhere(), { id }] },
     include: { messages: true },
   });
   if (!existing) return undefined;

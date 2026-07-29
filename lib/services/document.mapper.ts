@@ -8,8 +8,12 @@ import type { DocumentRecord } from "@/lib/types";
 
 const undef = <T,>(v: T | null): T | undefined => (v == null ? undefined : v);
 
+// A read query may `include` the newest stored attachment (take: 1, desc) so the
+// DTO can advertise a downloadable file. Absent on writes/lists that don't.
+type DocumentRow = PrismaDocument & { attachments?: { id: string }[] };
+
 /** Prisma row -> DocumentRecord DTO (the shape the UI consumes). */
-export function documentToDTO(d: PrismaDocument): DocumentRecord {
+export function documentToDTO(d: DocumentRow): DocumentRecord {
   return {
     id: d.id,
     name: d.title,
@@ -23,6 +27,7 @@ export function documentToDTO(d: PrismaDocument): DocumentRecord {
     uploadedByUserId: undef(d.uploadedByUserId),
     description: undef(d.description),
     downloadCount: d.downloadCount,
+    downloadAttachmentId: d.attachments?.[0]?.id,
   };
 }
 
