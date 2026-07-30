@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { ChevronsUpDown, LogOut, Repeat, Home, BadgeCheck, RotateCcw, ShieldCheck } from 'lucide-react';
+import { ChevronsUpDown, LogOut, Repeat, BadgeCheck, RotateCcw, ShieldCheck } from 'lucide-react';
 import { useRouter } from '@/lib/i18n/navigation';
 import { useSession } from '@/components/providers/session-provider';
 import { authService } from '@/lib/mock-services';
@@ -88,7 +88,9 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
             <ShieldCheck className="mr-2 h-4 w-4" /> {t('security')}
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={() => router.push('/')}><Home className="mr-2 h-4 w-4" /> {t('backToHome')}</DropdownMenuItem>
+        {/* "Back to home" removed: it navigated to the public marketing site,
+            which is rarely what a signed-in user wants. The ITALPROTEIN lockup
+            in the sidebar/header now goes to each area's own home instead. */}
         {!isApi && (
           <DropdownMenuItem onClick={() => resetLocalData()}><RotateCcw className="mr-2 h-4 w-4" /> {t('resetLocalData')}</DropdownMenuItem>
         )}
