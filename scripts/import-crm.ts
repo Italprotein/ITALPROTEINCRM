@@ -48,6 +48,29 @@ function agentEmailFor(agentName: string): string | null {
   return AGENT_EMAIL_BY_NAME[agentName.trim().toLowerCase()] ?? null;
 }
 
+/** Marks companies whose agent has no CRM account, so they can be found and
+ *  reassigned in bulk from the Aziende page. */
+const REASSIGN_TAG = "da-riassegnare";
+
+/**
+ * The signed distribution partners, as published on italprotein.com.
+ *
+ * Kept explicit rather than derived from the "Canale" column: the sheet has no
+ * distributor channel, and "Partnership Strategica" mixes brokers, distributors
+ * and manufacturers. Listing them here means a re-import cannot quietly demote
+ * a partner or promote a prospect onto the Distributors page.
+ */
+const DISTRIBUTOR_NAMES = new Set(
+  [
+    "Pathway International",
+    "Raw Global",
+    "Disproquima",
+    "GFDI",
+    "Leva Apex",
+    "Prinova Europe",
+  ].map((n) => n.toLowerCase()),
+);
+
 /* ── mojibake repair ───────────────────────────────────────────────────────
    The export is UTF-8; when it is mis-decoded as Latin-1 you get "SÃ¬" for "Sì",
    "Â®" for "®", "Ã©" for "é". Detect those sequences and re-decode. Idempotent:
@@ -134,7 +157,11 @@ function mapPriority(p: string): string {
 function mapChannel(canale: string): { type: string; segment: string | null } {
   const s = stripAccents(canale);
   if (s.includes("horeca")) return { type: "horeca", segment: "bar_horeca" };
-  if (s.includes("partnership")) return { type: "distributor", segment: "distributor" };
+  // "Partnership Strategica" is a relationship, not a company type — it covers
+  // brokers (Aliproca) and manufacturers exploring a partnership (Suntory)
+  // alike. Mapping it to `distributor` put both on the Distributors page.
+  // Actual distributors are named in DISTRIBUTOR_NAMES below.
+  if (s.includes("partnership")) return { type: "other", segment: null };
   if (s.includes("dtc") || s.includes("retail")) return { type: "retailer", segment: "ecommerce_b2c" };
   if (s.includes("induststocktial") || s.includes("industrial") || s.includes("industriale") || s.includes("b2b"))
     return { type: "fb_manufacturer", segment: "international_export" };
@@ -269,7 +296,11 @@ function parseCompanies(): ParsedCompany[] {
     const dedupKey = name.toLowerCase();
     if (seen.has(dedupKey)) return; // duplicate company row → first wins
     seen.add(dedupKey);
-    const { type, segment } = mapChannel(r["Canale"] ?? "");
+    const channelMapped = mapChannel(r["Canale"] ?? "");
+    const isDistributor = DISTRIBUTOR_NAMES.has(name.toLowerCase());
+    const { type, segment } = isDistributor
+      ? { type: "distributor", segment: "distributor" }
+      : channelMapped;
     const { country, code } = codeOf(r["Paese"] ?? "");
     const note = r["Note"] ?? "";
     const { channel, referrer } = mapLeadSource(note);
@@ -377,8 +408,18 @@ async function main() {
 
     if (dry) { console.log("(dry run — no data written)"); return; }
 
-    const existing = await prisma.company.findMany({ select: { id: true, legalName: true } });
+    const existing = await prisma.company.findMany({
+      select: { id: true, legalName: true, ownerUserId: true },
+    });
     const idByName = new Map(existing.map((c) => [c.legalName.toLowerCase(), c.id]));
+    // Current owners, so a company whose agent has no account keeps whoever
+    // holds it today instead of being reassigned by the import.
+    const existingOwnerByName = new Map(
+      existing.map((c) => [c.legalName.toLowerCase(), c.ownerUserId]),
+    );
+    /** The CRM account for a row's Agente, or null when there is no match. */
+    const resolvedOwnerId = (c: ParsedCompany): string | null =>
+      c.agentName ? byEmail.get(agentEmailFor(c.agentName) ?? "") ?? null : null;
     const now = new Date();
     let cCreated = 0, cUpdated = 0, ctTotal = 0;
 
@@ -416,18 +457,34 @@ async function main() {
         nextAction: c.nextAction
           ? ({ label: c.nextAction, dueDate: c.nextActionDate } as never)
           : null,
-        // The agent who brought the lead owns the record. Unknown/blank agents
-        // (Ahmed Abid, who has left) stay unassigned rather than being credited
-        // to someone else — see AGENT_EMAIL_BY_NAME.
-        ownerUserId: c.agentName ? (byEmail.get(agentEmailFor(c.agentName) ?? "") ?? null) : null,
+        // The agent who brought the lead owns the record.
+        //
+        // Company.ownerUserId is required, so an agent with no CRM account
+        // (Ahmed Abid, who has left) cannot be represented as "unassigned".
+        // Rather than silently crediting the lead to someone who did not bring
+        // it, those rows keep whoever owns them today and are tagged
+        // REASSIGN_TAG — a filterable work list in the Aziende page.
         updatedById: owner,
       };
+      // Prisma rejects the scalar `ownerUserId` on update — it resolves to the
+      // checked input, which exposes the relation instead. Connecting the
+      // relation is valid for both create and update.
+      const ownerId =
+        resolvedOwnerId(c) ?? existingOwnerByName.get(c.legalName.toLowerCase()) ?? owner;
+      if (!resolvedOwnerId(c) && !data.tags.includes(REASSIGN_TAG)) {
+        data.tags = [...data.tags, REASSIGN_TAG];
+      }
       let companyId = idByName.get(c.legalName.toLowerCase());
       if (companyId) {
-        await prisma.company.update({ where: { id: companyId }, data });
+        await prisma.company.update({
+          where: { id: companyId },
+          data: { ...data, owner: { connect: { id: ownerId } } },
+        });
         cUpdated++;
       } else {
-        const created = await prisma.company.create({ data: { ...data, createdById: owner } });
+        const created = await prisma.company.create({
+          data: { ...data, owner: { connect: { id: ownerId } }, createdById: owner },
+        });
         companyId = created.id;
         idByName.set(c.legalName.toLowerCase(), companyId);
         cCreated++;
