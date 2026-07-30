@@ -10,7 +10,19 @@ const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement> & { containerClassName?: string }
 >(({ className, containerClassName, ...props }, ref) => (
-  <div className={cn('relative w-full overflow-x-auto scrollbar-thin', containerClassName)}>
+  // The scroll area is bounded to the viewport rather than growing with the row
+  // count. With 400+ rows an unbounded container puts the horizontal scrollbar
+  // below every row, so reading a right-hand column meant scrolling to the
+  // bottom of the page first. Capping the height keeps that scrollbar on screen,
+  // and the sticky header below keeps column names visible while you scroll.
+  // Pass containerClassName="max-h-none" to opt a short table back out.
+  <div
+    className={cn(
+      'relative w-full overflow-auto scrollbar-thin',
+      'max-h-[calc(100vh-16rem)]',
+      containerClassName,
+    )}
+  >
     <table
       ref={ref}
       className={cn('w-full caption-bottom border-collapse text-sm', className)}
@@ -24,7 +36,16 @@ const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
-  <thead ref={ref} className={cn('[&_tr]:border-b [&_tr]:border-border', className)} {...props} />
+  // Sticky within the scroll container above. Needs an opaque background or the
+  // rows would show through as they pass underneath.
+  <thead
+    ref={ref}
+    className={cn(
+      'sticky top-0 z-10 bg-background [&_tr]:border-b [&_tr]:border-border',
+      className,
+    )}
+    {...props}
+  />
 ));
 TableHeader.displayName = 'TableHeader';
 
