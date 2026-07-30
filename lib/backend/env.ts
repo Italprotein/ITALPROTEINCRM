@@ -39,6 +39,22 @@ function readEnv(key: RequiredEnvKey | OptionalEnvKey): string | undefined {
   return value && value.trim().length > 0 ? value : undefined;
 }
 
+/**
+ * Absolute URL for a path on this deployment.
+ *
+ * Route handlers must NOT build redirects with `new URL(path, request.url)`:
+ * behind a reverse proxy Next resolves request.url against the container's own
+ * bind address, so the Location header comes back as https://0.0.0.0:3000/… and
+ * the browser cannot follow it. APP_URL is the deployment's public origin and is
+ * the only reliable base. Falls back to a relative path when APP_URL is unset
+ * (local dev), which the browser resolves correctly against the current origin.
+ */
+export function absoluteUrl(path: string): string {
+  const base = readEnv('APP_URL');
+  if (!base) return path;
+  return new URL(path, base.replace(/\/+$/, '')).toString();
+}
+
 export function getBackendEnv() {
   const missing = requiredKeys.filter((key) => !readEnv(key));
 

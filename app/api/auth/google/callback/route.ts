@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/backend/prisma";
 import { verifyState } from "@/lib/backend/crypto";
+import { absoluteUrl } from "@/lib/backend/env";
 import { exchangeOAuthCode, getGmailProfile, storeMailboxTokens } from "@/lib/backend/gmail";
 import { getCurrentUser } from "@/lib/backend/session";
 import { can } from "@/lib/permissions";
@@ -12,9 +13,12 @@ export const dynamic = "force-dynamic";
 // wins over the [...nextauth] catch-all. Requires the same signed-in admin
 // that started the flow (state is HMAC-signed with a 10-minute TTL).
 export async function GET(request: Request) {
+  // Read query params from request.url (correct behind a proxy), but build the
+  // redirect from APP_URL — request.url resolves to the container's internal
+  // bind address, which the browser cannot follow. See absoluteUrl().
   const url = new URL(request.url);
   const settingsUrl = (result: string) =>
-    NextResponse.redirect(new URL(`/en/admin/settings?gmail=${result}`, request.url));
+    NextResponse.redirect(absoluteUrl(`/en/admin/settings?gmail=${result}`));
 
   if (url.searchParams.get("error")) return settingsUrl("denied");
 
