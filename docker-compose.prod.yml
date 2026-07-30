@@ -45,6 +45,13 @@ services:
       APP_ENV: "production"
       AUTH_SECRET: "${AUTH_SECRET:?set AUTH_SECRET in .env.production}"
       AUTH_COOKIE_DOMAIN: "${AUTH_COOKIE_DOMAIN:-}"
+      # Auth.js builds absolute redirect URLs (post-sign-in, error pages). Behind
+      # this proxy, host inference yields the container's bind address and it
+      # emitted Location: https://0.0.0.0:3000/… — which is what users saw as
+      # "this site can't be reached" right after signing in. trustHost alone did
+      # not fix it; AUTH_URL states the public origin and removes the guesswork.
+      AUTH_URL: "${APP_URL:?set APP_URL in .env.production}"
+      AUTH_TRUST_HOST: "true"
       GOOGLE_TOKEN_ENC_KEY: "${GOOGLE_TOKEN_ENC_KEY:-}"
       CRON_SECRET: "${CRON_SECRET:-}"
       GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
