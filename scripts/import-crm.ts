@@ -24,6 +24,30 @@ const FILE = process.env.CRM_CSV ?? "data/import/crm.csv";
 // firstContact.referrer, not as the owner.
 const DEFAULT_OWNER_EMAIL = "giuseppeminelli@wefin.it";
 
+/**
+ * "Agente" (the agent who brought the lead) → CRM account.
+ *
+ * Earlier exports had no Agente column, so every company was assigned to the
+ * default owner. This maps the real names to accounts instead.
+ *
+ * Names not listed here — currently Ahmed Abid, who has left — resolve to null,
+ * which leaves those companies unassigned rather than silently crediting them
+ * to someone who did not bring the lead. Add a mapping to re-attribute them.
+ */
+const AGENT_EMAIL_BY_NAME: Record<string, string> = {
+  "simone coletta": "simocolett@gmail.com",
+  "giuseppe minelli": "giuseppeminelli@wefin.it",
+  "mohamed amine abidi": "labidimedamine53@gmail.com",
+  "amine abidi": "labidimedamine53@gmail.com",
+  "tomasso pitarello": "tpittarello@gmail.com",
+  "matteo pitarello": "matteo.pittarello@gmail.com",
+  "ludwig becker": "ludwigvanbecker.3@gmail.com",
+};
+
+function agentEmailFor(agentName: string): string | null {
+  return AGENT_EMAIL_BY_NAME[agentName.trim().toLowerCase()] ?? null;
+}
+
 /* ── mojibake repair ───────────────────────────────────────────────────────
    The export is UTF-8; when it is mis-decoded as Latin-1 you get "SÃ¬" for "Sì",
    "Â®" for "®", "Ã©" for "é". Detect those sequences and re-decode. Idempotent:
@@ -207,6 +231,8 @@ interface ParsedCompany {
   leadSourceChannel: string; referrer: string | null;
   phone: string | null; nextAction: string | null; nextActionDate: string | null;
   lastContactAt: string | null; notes: string | null;
+  /** Raw "Agente" value; resolved to a user id at write time. */
+  agentName: string | null;
   contacts: ParsedContact[]; row: number;
 }
 
@@ -260,6 +286,7 @@ function parseCompanies(): ParsedCompany[] {
       nextAction: orNull(r["Prossima Azione"]),
       nextActionDate: parseDate(r["Data Prossima Azione"] ?? ""),
       lastContactAt: parseDate(r["Ultimo Contatto"] ?? ""),
+      agentName: orNull(r["Agente"]),
       notes: orNull(note),
       contacts: buildContacts(r["Nominativo"] ?? "", r["Ruolo"] ?? "", r["Email"] ?? ""),
       row: i + 2,
@@ -325,7 +352,28 @@ async function main() {
     const byEmail = new Map(users.map((u) => [(u.email ?? "").toLowerCase(), u.id]));
     const owner = byEmail.get(DEFAULT_OWNER_EMAIL) ?? users[0]?.id;
     if (!owner) throw new Error("No users in DB — run `npx prisma db seed` first.");
-    console.log(`\nOwner resolved: ${DEFAULT_OWNER_EMAIL} → ${owner}`);
+    console.log("");
+    console.log(`Fallback owner (used only for updatedBy): ${DEFAULT_OWNER_EMAIL} -> ${owner}`);
+
+    // Report how every company's Agente resolved, so an import is auditable and
+    // a typo in a name shows up as UNASSIGNED rather than silently defaulting.
+    {
+      const tally = new Map<string, number>();
+      for (const c of companies) {
+        const email = c.agentName ? agentEmailFor(c.agentName) : null;
+        const label = !c.agentName
+          ? "(no agent in CSV -> unassigned)"
+          : email && byEmail.get(email)
+            ? `${c.agentName} -> ${email}`
+            : `${c.agentName} -> UNASSIGNED (no CRM account)`;
+        tally.set(label, (tally.get(label) ?? 0) + 1);
+      }
+      console.log("");
+      console.log("Agent -> owner resolution:");
+      for (const [label, n] of [...tally].sort((a, b) => b[1] - a[1])) {
+        console.log(`  ${String(n).padStart(4)}  ${label}`);
+      }
+    }
 
     if (dry) { console.log("(dry run — no data written)"); return; }
 
@@ -368,7 +416,10 @@ async function main() {
         nextAction: c.nextAction
           ? ({ label: c.nextAction, dueDate: c.nextActionDate } as never)
           : null,
-        ownerUserId: owner,
+        // The agent who brought the lead owns the record. Unknown/blank agents
+        // (Ahmed Abid, who has left) stay unassigned rather than being credited
+        // to someone else — see AGENT_EMAIL_BY_NAME.
+        ownerUserId: c.agentName ? (byEmail.get(agentEmailFor(c.agentName) ?? "") ?? null) : null,
         updatedById: owner,
       };
       let companyId = idByName.get(c.legalName.toLowerCase());
