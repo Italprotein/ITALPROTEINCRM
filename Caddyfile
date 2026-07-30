@@ -3,5 +3,15 @@
 # APP_DOMAIN comes from .env.production (e.g. crm.italprotein.com).
 {$APP_DOMAIN} {
 	encode zstd gzip
-	reverse_proxy app:3000
+	reverse_proxy app:3000 {
+		# Next.js builds absolute URLs for redirects from the incoming request
+		# (e.g. NextResponse.redirect(new URL(path, request.url))). Without the
+		# original host and scheme forwarded, it resolves them against the
+		# container's own bind address and emits Location: https://0.0.0.0:3000/…,
+		# which a browser cannot follow — this broke the Google OAuth round-trip.
+		header_up Host {host}
+		header_up X-Forwarded-Host {host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Real-IP {remote_host}
+	}
 }
