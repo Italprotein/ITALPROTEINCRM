@@ -42,6 +42,11 @@ const INTENTIONALLY_PUBLIC: Record<string, string> = {
     'Authenticated by the emailed invitation token — the account has no password yet.',
   'registration.actions.ts:createRegistration':
     'The public /register form. Creates a pending registration only; approval is guarded.',
+  'auth.actions.ts:getPasswordChangeRequired':
+    'Reports whether the CALLER must change their password. Cannot use requireUser(), ' +
+    'which throws PASSWORD_CHANGE_REQUIRED in exactly the state this reports. Takes no ' +
+    'input, reads only the caller\'s own session, and returns false when there is none — ' +
+    'so an anonymous caller learns nothing about any account.',
 };
 
 /**

@@ -10,6 +10,7 @@ import { Sidebar } from '@/components/navigation/sidebar';
 import { Topbar } from '@/components/navigation/topbar';
 import { Amina } from '@/components/assistant/amina';
 import { MfaEnrollmentNotice } from '@/components/admin/mfa-enrollment-notice';
+import { PasswordChangeGate } from '@/components/admin/password-change-gate';
 import { Logo } from '@/components/brand/logo';
 import { cn } from '@/lib/utils';
 import { setLabelLocale } from '@/lib/labels';
@@ -46,6 +47,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
+    // Replaces the entire CRM with a change-password screen while the account
+    // still holds the password it was set up with. Server-side guards enforce
+    // the same rule, so this is the explanation, not the boundary.
+    <PasswordChangeGate>
     <div className="flex min-h-screen bg-muted/20">
       {/* Desktop sidebar */}
       <aside
@@ -76,6 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Amina Team — the API derives the internal audience from the session. */}
       {ASSISTANT_ENABLED && <Amina />}
     </div>
+    </PasswordChangeGate>
   );
 }
 

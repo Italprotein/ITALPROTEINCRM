@@ -66,6 +66,10 @@ async function main() {
       const name = `${a.firstName} ${a.lastName}`.trim();
       const passwordHash = await bcrypt.hash(a.password, 12);
       const roleId = email === SUPER_ADMIN_EMAIL ? superRole.id : crmRole.id;
+      // These passwords come from data/admins.json — chosen by an operator and
+      // handed over out of band, so they are bootstrap credentials, not the
+      // owner's password. Flag the account so the CRM stays locked until the
+      // owner sets their own.
       await prisma.user.upsert({
         where: { email },
         update: {
@@ -76,8 +80,18 @@ async function main() {
           passwordHash,
           emailVerified: now,
           authVersion: { increment: 1 },
+          mustChangePassword: true,
         },
-        create: { email, name, roleId, kind: "internal", status: "active", passwordHash, emailVerified: now },
+        create: {
+          email,
+          name,
+          roleId,
+          kind: "internal",
+          status: "active",
+          passwordHash,
+          emailVerified: now,
+          mustChangePassword: true,
+        },
       });
     }
     console.log(`✓ Seeded ${ROLES.length} roles.`);

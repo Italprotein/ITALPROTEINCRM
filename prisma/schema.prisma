@@ -687,6 +687,11 @@ model User {
   passwordHash    String?
   authVersion     Int        @default(0) @map("auth_version")
   mfaEnrolled     Boolean    @default(false)
+  // Set when an account is created with a password someone else chose (seeded
+  // bootstrap admins, operator resets). Every guarded action refuses until the
+  // owner picks their own, so a credential shared over chat or email is a
+  // one-time bootstrap rather than a standing password.
+  mustChangePassword Boolean @default(false) @map("must_change_password")
   language        Locale     @default(en)
   lastLoginAt     DateTime?
   invitedByUserId String?

@@ -11,6 +11,8 @@ export interface SessionUser {
   kind: "internal" | "external";
   companyId: string | null;
   authVersion: number;
+  /** True while the account still holds a password someone else chose. */
+  mustChangePassword: boolean;
   name?: string | null;
   email?: string | null;
 }
@@ -56,15 +58,26 @@ export const getCurrentUser = cache(async function getCurrentUser(): Promise<Ses
     kind: current.kind,
     companyId: current.companyId,
     authVersion: current.authVersion,
+    mustChangePassword: current.mustChangePassword,
     name: current.name,
     email: current.email,
   };
 })
 
-/** Server-side guard: throws UNAUTHENTICATED if there is no session. */
+/**
+ * Server-side guard: throws UNAUTHENTICATED if there is no session, and
+ * PASSWORD_CHANGE_REQUIRED while the account still holds a password it did not
+ * choose.
+ *
+ * Every other guard funnels through here, so the second check covers all ~200
+ * server actions at once — the gate is enforced on the server, not merely hidden
+ * in the UI. changePassword() deliberately calls getCurrentUser() directly
+ * rather than this, so the one action needed to clear the flag stays reachable.
+ */
 export async function requireUser(): Promise<SessionUser> {
   const user = await getCurrentUser();
   if (!user) throw new Error("UNAUTHENTICATED");
+  if (user.mustChangePassword) throw new Error("PASSWORD_CHANGE_REQUIRED");
   return user;
 }
 

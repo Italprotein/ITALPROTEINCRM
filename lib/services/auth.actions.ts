@@ -95,10 +95,23 @@ export async function changePassword(
     data: {
       passwordHash: await bcrypt.hash(newPassword, 12),
       authVersion: { increment: 1 },
+      // The account now holds a password only its owner knows, so lift the gate.
+      mustChangePassword: false,
     },
   });
   await audit("auth.password_changed", "Password changed by the signed-in account", user.id);
   return { ok: true };
+}
+
+/**
+ * Whether the signed-in account must set its own password before it can use the
+ * CRM. Reads the session directly rather than going through requireUser(), which
+ * throws PASSWORD_CHANGE_REQUIRED — this is the check that reports that state,
+ * so it cannot depend on it.
+ */
+export async function getPasswordChangeRequired(): Promise<boolean> {
+  const user = await getCurrentUser();
+  return Boolean(user?.mustChangePassword);
 }
 
 // ── Password reset (pre-auth, emailed six-digit code) ──────────────────────
@@ -282,7 +295,7 @@ export async function confirmPasswordReset(
     });
     await tx.user.update({
       where: { id: current.userId },
-      data: { passwordHash, authVersion: { increment: 1 } },
+      data: { passwordHash, authVersion: { increment: 1 }, mustChangePassword: false },
     });
     return true;
   });
