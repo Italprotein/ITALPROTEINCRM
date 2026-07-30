@@ -2024,5 +2024,9 @@
     "previewBadge": "Anteprima — non ancora collegata al modello",
     "errorRateLimited": "Troppi messaggi. Attendi un momento e riprova.",
     "errorGeneric": "Si è verificato un errore. Riprova."
+  },
+  "PasswordGate": {
+    "title": "Scegli la tua password per continuare",
+    "body": "Questo account usa ancora la password con cui è stato creato. Poiché quella password ti è stata comunicata e non scelta da te, il CRM resta bloccato finché non la sostituisci. Al termine verrai disconnesso: accedi di nuovo con la nuova password."
   }
 }

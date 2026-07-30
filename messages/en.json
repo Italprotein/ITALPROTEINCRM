@@ -2024,5 +2024,9 @@
     "previewBadge": "Preview — not connected to the model yet",
     "errorRateLimited": "Too many messages. Please wait a moment and try again.",
     "errorGeneric": "Something went wrong. Please try again."
+  },
+  "PasswordGate": {
+    "title": "Choose your own password to continue",
+    "body": "This account still uses the password it was set up with. Because that password was shared with you rather than chosen by you, the CRM stays locked until you replace it. You will be signed out afterwards — sign back in with the new one."
   }
 }

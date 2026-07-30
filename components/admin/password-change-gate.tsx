@@ -2,9 +2,11 @@
 
 import * as React from 'react';
 import { ShieldAlert } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { getPasswordChangeRequired } from '@/lib/services/auth.actions';
 import { ChangePasswordCard } from '@/components/admin/change-password-card';
+import { LanguageSwitcher } from '@/components/i18n/language-switcher';
 import { Logo } from '@/components/brand/logo';
 
 /*
@@ -21,6 +23,7 @@ import { Logo } from '@/components/brand/logo';
  * control that resolves it — not as the security boundary itself.
  */
 export function PasswordChangeGate({ children }: { children: React.ReactNode }) {
+  const t = useTranslations('PasswordGate');
   const [required, setRequired] = React.useState<boolean | null>(null);
 
   React.useEffect(() => {
@@ -40,22 +43,27 @@ export function PasswordChangeGate({ children }: { children: React.ReactNode }) 
   if (required !== true) return <>{children}</>;
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-muted/30 p-4">
-      <Logo tone="dark" />
-
-      <div className="flex max-w-2xl items-start gap-3 rounded-lg border border-warning/40 bg-warning-subtle p-4">
-        <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning-foreground" />
-        <div className="text-sm">
-          <p className="font-semibold text-warning-foreground">Choose your own password to continue</p>
-          <p className="mt-1 text-muted-foreground">
-            This account still uses the password it was set up with. Because that password was
-            shared with you rather than chosen by you, the CRM stays locked until you replace it.
-            You will be signed out afterwards — sign back in with the new one.
-          </p>
-        </div>
+    <div className="flex min-h-screen flex-col bg-muted/30 p-4">
+      {/* The gate replaces the whole shell, so the usual header is gone with it.
+          Without a switcher here an Italian colleague would be stuck reading
+          English at the one screen they cannot navigate away from. */}
+      <div className="flex justify-end">
+        <LanguageSwitcher tone="dark" />
       </div>
 
-      <ChangePasswordCard />
+      <div className="flex flex-1 flex-col items-center justify-center gap-6">
+        <Logo tone="dark" />
+
+        <div className="flex max-w-2xl items-start gap-3 rounded-lg border border-warning/40 bg-warning-subtle p-4">
+          <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning-foreground" />
+          <div className="text-sm">
+            <p className="font-semibold text-warning-foreground">{t('title')}</p>
+            <p className="mt-1 text-muted-foreground">{t('body')}</p>
+          </div>
+        </div>
+
+        <ChangePasswordCard />
+      </div>
     </div>
   );
 }
