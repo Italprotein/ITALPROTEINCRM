@@ -13,6 +13,7 @@ import {
   type MfaStatus,
 } from '@/lib/services/mfa.actions';
 import { PageHeader } from '@/components/shared/page-header';
+import { ChangePasswordCard } from '@/components/admin/change-password-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -123,8 +124,12 @@ export function MfaSetup() {
     <div className="space-y-6">
       <PageHeader
         title="Security"
-        subtitle="Protect your Italprotein account with a second factor."
+        subtitle="Manage your password and two-factor authentication."
       />
+
+      {/* Available to every internal role — unlike Settings, which is
+          super_admin only, this page manages your OWN account. */}
+      <ChangePasswordCard />
 
       {/* One-time backup codes. Shown immediately after they are issued and
           never again — the server only stores their hashes. */}
