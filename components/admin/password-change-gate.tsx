@@ -38,9 +38,19 @@ export function PasswordChangeGate({ children }: { children: React.ReactNode }) 
     };
   }, []);
 
-  // Render the app while the check is in flight to avoid a flash for the
-  // overwhelming majority of sign-ins, where no change is pending.
-  if (required !== true) return <>{children}</>;
+  // Wait for the answer before mounting the app. Rendering children during the
+  // check looks harmless but is not: the page underneath immediately calls its
+  // data actions, every one of which throws PASSWORD_CHANGE_REQUIRED, and those
+  // rejections crash the view before this gate can replace it. Gated users saw
+  // a broken page instead of the form that unblocks them.
+  if (required === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/30">
+        <Logo tone="dark" />
+      </div>
+    );
+  }
+  if (!required) return <>{children}</>;
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/30 p-4">
