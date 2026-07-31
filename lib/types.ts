@@ -77,7 +77,14 @@ export type CompanyType =
   | 'agency'
   | 'laboratory'
   | 'consultant'
-  | 'other';
+  | 'other'
+  // Italprotein taxonomy — see COMPANY_TYPE_OPTIONS in lib/labels for the set
+  // actually offered when classifying a company.
+  | 'beverage_agency'
+  | 'innovation_agency'
+  | 'food_manufacturer'
+  | 'beverage_manufacturer'
+  | 'sports_nutrition';
 
 export type RelationshipStage =
   | 'lead'
@@ -1100,9 +1107,11 @@ export const FEEDBACK_STATUS_FLOW: FeedbackStatus[] = [
 ];
 
 export const COMPANY_TYPES: CompanyType[] = [
-  'distributor', 'fb_manufacturer', 'horeca', 'bakery_manufacturer', 'dairy_manufacturer',
-  'confectionery_manufacturer', 'ingredient_company', 'retailer', 'agency', 'laboratory',
-  'consultant', 'other',
+  'distributor', 'agency', 'beverage_agency', 'consultant', 'innovation_agency',
+  'fb_manufacturer', 'food_manufacturer', 'beverage_manufacturer', 'bakery_manufacturer',
+  'sports_nutrition', 'retailer', 'horeca', 'other',
+  // Legacy values — still valid on existing records.
+  'dairy_manufacturer', 'confectionery_manufacturer', 'ingredient_company', 'laboratory',
 ];
 
 export const APPLICATION_CATEGORIES: ApplicationCategory[] = [

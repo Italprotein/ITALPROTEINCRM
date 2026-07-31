@@ -92,19 +92,46 @@ type ToneMap = Record<string, BadgeTone>;
 /* ────────────────────────────── Label maps ────────────────────────────── */
 
 const companyTypeLabels: LabelMap = {
-  distributor: 'Distributor',
-  fb_manufacturer: 'F&B manufacturer',
+  distributor: 'Food Ingredient Distributors',
+  agency: 'Commercial Agents',
+  beverage_agency: 'Beverage Agencies',
+  consultant: 'Food Consultants',
+  innovation_agency: 'Innovation Agencies',
+  fb_manufacturer: 'Food & Beverage Companies',
+  food_manufacturer: 'Food Manufacturers',
+  beverage_manufacturer: 'Beverage Manufacturers',
+  bakery_manufacturer: 'Bakery Companies',
+  sports_nutrition: 'Sports Nutrition Companies',
+  retailer: 'Retailer',
   horeca: 'HoReCa',
-  bakery_manufacturer: 'Bakery manufacturer',
+  other: 'Other',
+  // Retained so historical values still render; not offered in the picker.
   dairy_manufacturer: 'Dairy manufacturer',
   confectionery_manufacturer: 'Confectionery manufacturer',
   ingredient_company: 'Ingredient company',
-  retailer: 'Retailer',
-  agency: 'Agency',
   laboratory: 'Laboratory',
-  consultant: 'Consultant',
-  other: 'Other',
 };
+
+/**
+ * The types offered when classifying a company, in the order the commercial
+ * team thinks about them. Deliberately narrower than the enum: older values
+ * stay valid for existing records but are not offered for new ones.
+ */
+export const COMPANY_TYPE_OPTIONS = [
+  'distributor',
+  'agency',
+  'beverage_agency',
+  'consultant',
+  'innovation_agency',
+  'fb_manufacturer',
+  'food_manufacturer',
+  'beverage_manufacturer',
+  'bakery_manufacturer',
+  'sports_nutrition',
+  'retailer',
+  'horeca',
+  'other',
+] as const;
 
 const relationshipStageLabels: LabelMap = {
   lead: 'Lead',
@@ -512,15 +539,21 @@ const workspaceLabels: LabelMap = {
 /* ────────────────────────────── Tone maps ────────────────────────────── */
 
 const companyTypeTones: ToneMap = {
+  // Producers read as "info", partners/intermediaries as "secondary".
   distributor: 'info',
   fb_manufacturer: 'info',
-  horeca: 'info',
+  food_manufacturer: 'info',
+  beverage_manufacturer: 'info',
   bakery_manufacturer: 'info',
+  sports_nutrition: 'info',
   dairy_manufacturer: 'info',
   confectionery_manufacturer: 'info',
   ingredient_company: 'info',
+  horeca: 'info',
   retailer: 'info',
   agency: 'secondary',
+  beverage_agency: 'secondary',
+  innovation_agency: 'secondary',
   laboratory: 'secondary',
   consultant: 'secondary',
   other: 'muted',
@@ -970,10 +1003,21 @@ const TONES: Partial<Record<LabelKind, ToneMap>> = {
 
 const LABELS_IT: Record<LabelKind, LabelMap> = {
   companyType: {
-    distributor: 'Distributore', fb_manufacturer: 'Produttore F&B', horeca: 'HoReCa',
-    bakery_manufacturer: 'Produttore da forno', dairy_manufacturer: 'Produttore lattiero-caseario',
-    confectionery_manufacturer: 'Produttore dolciario', ingredient_company: 'Azienda di ingredienti',
-    retailer: 'Rivenditore', agency: 'Agenzia', laboratory: 'Laboratorio', consultant: 'Consulente', other: 'Altro',
+    distributor: 'Distributori di ingredienti alimentari',
+    agency: 'Agenti commerciali',
+    beverage_agency: 'Agenzie beverage',
+    consultant: 'Consulenti alimentari',
+    innovation_agency: 'Agenzie di innovazione',
+    fb_manufacturer: 'Aziende Food & Beverage',
+    food_manufacturer: 'Produttori alimentari',
+    beverage_manufacturer: 'Produttori beverage',
+    bakery_manufacturer: 'Aziende da forno',
+    sports_nutrition: 'Aziende di nutrizione sportiva',
+    retailer: 'Rivenditore', horeca: 'HoReCa', other: 'Altro',
+    // Legacy values, kept so old records still render.
+    dairy_manufacturer: 'Produttore lattiero-caseario',
+    confectionery_manufacturer: 'Produttore dolciario',
+    ingredient_company: 'Azienda di ingredienti', laboratory: 'Laboratorio',
   },
   relationshipStage: {
     lead: 'Lead', contacted: 'Contattato', interested: 'Interessato', qualified: 'Qualificato',

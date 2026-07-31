@@ -25,9 +25,9 @@ import { companyService } from '@/lib/mock-services';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
 import { can } from '@/lib/permissions';
-import type { Company, CompanyType, RelationshipStage, Priority, Locale } from '@/lib/types';
+import type { Company, CompanyType, RelationshipStage, Priority, NDAStatus, Locale } from '@/lib/types';
 import { COMPANY_TYPES } from '@/lib/types';
-import { getLabel } from '@/lib/labels';
+import { getLabel, COMPANY_TYPE_OPTIONS } from '@/lib/labels';
 import { formatCurrency, formatRelative, flagEmoji } from '@/lib/formatting';
 import { initials, uid } from '@/lib/utils';
 import { useRouter } from '@/lib/i18n/navigation';
@@ -37,6 +37,7 @@ import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
 import { CHART_COLORS } from '@/lib/chart-colors';
 import { DataTable, type Column } from '@/components/ui/data-table';
+import { InlineSelect } from '@/components/crm/inline-select';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -80,6 +81,14 @@ const RELATIONSHIP_STAGES: RelationshipStage[] = [
 
 const PRIORITIES: Priority[] = ['low', 'medium', 'high', 'urgent'];
 
+/** NDA states offered inline. The full enum includes terminal/administrative
+ *  values that are set from the NDA record itself, not from this list. */
+const NDA_STATUSES: NDAStatus[] = [
+  'not_required', 'to_prepare', 'draft', 'sent', 'under_review',
+  'changes_requested', 'approved', 'awaiting_counterparty_signature',
+  'partially_signed', 'fully_signed', 'expired',
+];
+
 const ALL = '__all__';
 
 /* ────────────────────────────── Page ────────────────────────────── */
@@ -88,7 +97,7 @@ export default function CompaniesPage() {
   const locale = useLocale() as Locale;
   const router = useRouter();
   const t = useTranslations('AdminCompanies');
-  const { nameOf } = useStaffDirectory();
+  const { nameOf, staff } = useStaffDirectory();
   const { session } = useSession();
   const role = session?.role;
   const canCreateCompany = !!role && can(role, 'company.create');
@@ -167,6 +176,29 @@ export default function CompaniesPage() {
     for (const id of ids) void companyService.update(id, patch);
   }
 
+  /**
+   * Single-row edit from an inline cell. Unlike applyPatch this awaits the
+   * write and rethrows, so InlineSelect can roll the cell back and the user is
+   * told rather than left looking at a change that never persisted.
+   */
+  async function editCompany(id: string, patch: Partial<Company>) {
+    const before = rows?.find((c) => c.id === id);
+    setRows((prev) => (prev ? prev.map((c) => (c.id === id ? { ...c, ...patch } : c)) : prev));
+    try {
+      await companyService.update(id, patch);
+    } catch (error) {
+      if (before) {
+        setRows((prev) => (prev ? prev.map((c) => (c.id === id ? before : c)) : prev));
+      }
+      toast({
+        variant: 'danger',
+        title: t('updateFailedTitle'),
+        description: t('updateFailedDescription'),
+      });
+      throw error;
+    }
+  }
+
   async function handleDelete(c: Company) {
     const name = c.tradingName || c.legalName;
     const ok = await confirm({
@@ -216,7 +248,16 @@ export default function CompaniesPage() {
       key: 'type',
       header: t('colType'),
       sortValue: (c) => getLabel('companyType', c.type),
-      cell: (c) => <StatusBadge kind="companyType" value={c.type} />,
+      cell: (c) => (
+        <InlineSelect<CompanyType>
+          value={c.type}
+          options={COMPANY_TYPE_OPTIONS.map((v) => ({ value: v, label: getLabel('companyType', v) }))}
+          onChange={(next) => editCompany(c.id, { type: next })}
+          disabled={!canEditCompany}
+          ariaLabel={t('colType')}
+          render={(v) => <StatusBadge kind="companyType" value={v} />}
+        />
+      ),
       hideable: true,
     },
     {
@@ -248,31 +289,58 @@ export default function CompaniesPage() {
       key: 'owner',
       header: t('colOwner'),
       sortValue: (c) => nameOf(c.accountOwnerId, 'Unassigned'),
-      cell: (c) => {
-        const name = nameOf(c.accountOwnerId, 'Unassigned');
-        return (
-          <span className="flex items-center gap-2 whitespace-nowrap">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-navy/10 text-2xs font-semibold text-brand-navy">
-              {initials(name)}
-            </span>
-            <span className="text-sm">{name}</span>
-          </span>
-        );
-      },
+      cell: (c) => (
+        <InlineSelect<string>
+          value={c.accountOwnerId}
+          options={staff.map((m) => ({ value: m.id, label: `${m.firstName} ${m.lastName}`.trim() }))}
+          onChange={(next) => editCompany(c.id, { accountOwnerId: next })}
+          disabled={!canEditCompany}
+          ariaLabel={t('colOwner')}
+          render={(id) => {
+            const name = nameOf(id, 'Unassigned');
+            return (
+              <span className="flex items-center gap-2 whitespace-nowrap">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-navy/10 text-2xs font-semibold text-brand-navy">
+                  {initials(name)}
+                </span>
+                <span className="text-sm">{name}</span>
+              </span>
+            );
+          }}
+        />
+      ),
       hideable: true,
     },
     {
       key: 'stage',
       header: t('colStage'),
       sortValue: (c) => getLabel('relationshipStage', c.relationshipStage),
-      cell: (c) => <StatusBadge kind="relationshipStage" value={c.relationshipStage} />,
+      cell: (c) => (
+        <InlineSelect<RelationshipStage>
+          value={c.relationshipStage}
+          options={RELATIONSHIP_STAGES.map((v) => ({ value: v, label: getLabel('relationshipStage', v) }))}
+          onChange={(next) => editCompany(c.id, { relationshipStage: next })}
+          disabled={!canEditCompany}
+          ariaLabel={t('colStage')}
+          render={(v) => <StatusBadge kind="relationshipStage" value={v} />}
+        />
+      ),
       hideable: true,
     },
     {
       key: 'nda',
       header: t('colNda'),
       sortValue: (c) => getLabel('ndaStatus', c.ndaStatus),
-      cell: (c) => <StatusBadge kind="ndaStatus" value={c.ndaStatus} />,
+      cell: (c) => (
+        <InlineSelect<NDAStatus>
+          value={c.ndaStatus}
+          options={NDA_STATUSES.map((v) => ({ value: v, label: getLabel('ndaStatus', v) }))}
+          onChange={(next) => editCompany(c.id, { ndaStatus: next })}
+          disabled={!canEditCompany}
+          ariaLabel={t('colNda')}
+          render={(v) => <StatusBadge kind="ndaStatus" value={v} />}
+        />
+      ),
       hideable: true,
     },
     {
@@ -292,7 +360,16 @@ export default function CompaniesPage() {
       key: 'priority',
       header: t('colPriority'),
       sortValue: (c) => PRIORITIES.indexOf(c.priority),
-      cell: (c) => <PriorityBadge value={c.priority} />,
+      cell: (c) => (
+        <InlineSelect<Priority>
+          value={c.priority}
+          options={PRIORITIES.map((v) => ({ value: v, label: getLabel('priority', v) }))}
+          onChange={(next) => editCompany(c.id, { priority: next })}
+          disabled={!canEditCompany}
+          ariaLabel={t('colPriority')}
+          render={(v) => <PriorityBadge value={v} />}
+        />
+      ),
       hideable: true,
     },
     {

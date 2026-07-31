@@ -575,7 +575,9 @@
     "toastTaskCreatedDescription": "“{title}” for {name}.",
     "fieldTitle": "Title",
     "placeholderTaskTitle": "Follow up on samples",
-    "fieldDueDate": "Due date"
+    "fieldDueDate": "Due date",
+    "updateFailedTitle": "Could not save",
+    "updateFailedDescription": "The change was reverted. Please try again."
   },
   "AdminCompanyDetail": {
     "unassigned": "Unassigned",

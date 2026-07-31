@@ -181,6 +181,14 @@ enum CompanyType {
   laboratory
   consultant
   other
+  // Added for the Italprotein taxonomy: the original set had no way to
+  // distinguish a beverage manufacturer from a food one, or to record the
+  // agency/consultancy kinds the team actually deals with.
+  beverage_agency
+  innovation_agency
+  food_manufacturer
+  beverage_manufacturer
+  sports_nutrition
 }
 
 enum CommercialSegment {

@@ -575,7 +575,9 @@
     "toastTaskCreatedDescription": "“{title}” per {name}.",
     "fieldTitle": "Titolo",
     "placeholderTaskTitle": "Segui i campioni",
-    "fieldDueDate": "Data di scadenza"
+    "fieldDueDate": "Data di scadenza",
+    "updateFailedTitle": "Salvataggio non riuscito",
+    "updateFailedDescription": "La modifica è stata annullata. Riprova."
   },
   "AdminCompanyDetail": {
     "unassigned": "Non assegnato",
