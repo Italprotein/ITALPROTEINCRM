@@ -516,7 +516,7 @@ export default function ShipmentsPage() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
-        <StatCard label="Total" value={stats?.total ?? 0} icon={Truck} tone="gold" />
+        <StatCard label="Companies shipped to" value={stats?.companiesShipped ?? 0} icon={Truck} tone="gold" />
         <StatCard label="In transit" value={stats?.inTransit ?? 0} icon={PlaneTakeoff} tone="info" delay={0.05} />
         <StatCard label="At customs" value={stats?.customs ?? 0} icon={ShieldAlert} tone="warning" delay={0.1} />
         <StatCard label="Delivered" value={stats?.delivered ?? 0} icon={PackageCheck} tone="success" delay={0.15} />

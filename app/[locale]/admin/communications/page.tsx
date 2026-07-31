@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import {
-  MessageSquareText, Inbox, Clock, CheckCircle2, Send, Mail, Paperclip,
+  MessageSquareText, Inbox, Send, Mail, Paperclip,
   RefreshCw, PenSquare, FileText, UserRound, Settings2,
 } from 'lucide-react';
 import { supportService, companyService, activityService, emailService } from '@/lib/mock-services';
@@ -16,7 +16,6 @@ import { useSession } from '@/components/providers/session-provider';
 import { canEdit } from '@/lib/permissions';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { PageHeader } from '@/components/shared/page-header';
-import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Card, CardContent } from '@/components/ui/card';
@@ -144,13 +143,6 @@ export default function CommunicationsPage() {
           ) : null
         }
       />
-
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label={t('openRequests')} value={stats.open} icon={Inbox} tone="info" />
-        <StatCard label={t('waitingOnClient')} value={stats.waiting} icon={Clock} tone="warning" delay={0.05} />
-        <StatCard label={t('resolved')} value={stats.resolved} icon={CheckCircle2} tone="success" delay={0.1} />
-        <StatCard label={t('totalThreads')} value={stats.total} icon={MessageSquareText} tone="gold" delay={0.15} />
-      </div>
 
       <Tabs defaultValue="inbox">
         <TabsList>

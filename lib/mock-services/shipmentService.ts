@@ -1,5 +1,6 @@
 import type { Shipment } from '@/lib/types';
 import { SHIPMENTS } from '@/fixtures';
+import { countUniqueShippedCompanies } from '@/lib/data/shipped-company-evidence';
 import { createRepository } from './repository';
 
 const repo = createRepository<Shipment>('shipments', SHIPMENTS);
@@ -51,6 +52,7 @@ export const shipmentService = {
     const onTime = delivered.filter((s) => !s.estimatedDelivery || !s.actualDelivery || new Date(s.actualDelivery) <= new Date(s.estimatedDelivery)).length;
     return {
       total: all.length,
+      companiesShipped: countUniqueShippedCompanies(),
       preparing: all.filter((s) => deriveShipmentStatus(s) === 'preparing').length,
       inTransit: all.filter((s) => deriveShipmentStatus(s) === 'in_transit').length,
       customs: all.filter((s) => deriveShipmentStatus(s) === 'customs').length,

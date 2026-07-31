@@ -29,7 +29,6 @@ import { useParams } from 'next/navigation';
 import { Link, useRouter } from '@/lib/i18n/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
-import { StatusBadge } from '@/components/shared/status-badge';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -419,9 +418,6 @@ export default function ContactsPage() {
           <ContactAvatar c={c} />
           <div className="min-w-0">
             <div className="truncate font-medium text-foreground">{fullName(c)}</div>
-            <div className="mt-0.5">
-              <StatusBadge kind="decisionRole" value={c.decisionRole ?? 'unknown'} />
-            </div>
           </div>
         </div>
       ),
@@ -537,12 +533,9 @@ export default function ContactsPage() {
       <div className="flex items-start gap-3">
         <ContactAvatar c={c} />
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="truncate font-semibold text-foreground">{fullName(c)}</div>
-              <div className="truncate text-xs text-muted-foreground">{c.jobTitle ?? '—'}</div>
-            </div>
-            <StatusBadge kind="decisionRole" value={c.decisionRole ?? 'unknown'} />
+          <div className="min-w-0">
+            <div className="truncate font-semibold text-foreground">{fullName(c)}</div>
+            <div className="truncate text-xs text-muted-foreground">{c.jobTitle ?? '—'}</div>
           </div>
           <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
             <Building2 className="h-3.5 w-3.5 shrink-0" />
@@ -684,7 +677,6 @@ export default function ContactsPage() {
               </SheetHeader>
 
               <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge kind="decisionRole" value={active.decisionRole ?? 'unknown'} />
                 <FlagChips c={active} />
               </div>
 

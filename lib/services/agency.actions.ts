@@ -6,14 +6,14 @@ import { getCurrentUser, requireUser } from "@/lib/backend/session";
 import type { Agency } from "@/lib/mock-services/agencyService";
 import { agencyToDTO } from "./agency.mapper";
 
-// Agencies are Company records of type agency|distributor carrying the "partner"
-// tag (the partner-network records, distinct from pipeline companies). The schema
-// has no separate agency table, so we query companies filtered to that shape.
+// Agencies are Company records explicitly typed as agency or distributor. The
+// imported CRM data already classifies the six partner companies by type; older
+// imports did not also add a redundant "partner" tag, so requiring both fields
+// incorrectly hid every real partner from this page.
 // Standard company scoping applies: external users see only their own company;
 // internal users see all. The server is the authority.
 const PARTNER_TYPES: Prisma.CompanyWhereInput = {
   type: { in: ["agency", "distributor"] },
-  tags: { has: "partner" },
 };
 
 async function scopeWhere(): Promise<Prisma.CompanyWhereInput> {

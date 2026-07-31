@@ -19,5 +19,6 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   }
   const attachment = document.attachments[0];
   if (!attachment) return NextResponse.json({ error: "FILE_NOT_AVAILABLE" }, { status: 404 });
-  return NextResponse.redirect(new URL(`/api/attachments/${attachment.id}`, request.url));
+  const publicOrigin = process.env.APP_URL ?? process.env.AUTH_URL ?? request.url;
+  return NextResponse.redirect(new URL(`/api/attachments/${attachment.id}`, publicOrigin));
 }

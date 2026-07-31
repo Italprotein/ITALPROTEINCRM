@@ -6,6 +6,7 @@ import { getCurrentUser, requireUser, requireAction } from "@/lib/backend/sessio
 import type { Shipment } from "@/lib/types";
 import { deriveShipmentStatus } from "@/lib/mock-services/shipmentService";
 import { shipmentToDTO, shipmentWriteData } from "./shipment.mapper";
+import { countUniqueShippedCompanies } from "@/lib/data/shipped-company-evidence";
 
 // External users see only their own company's shipments; internal users see all.
 // The server is the authority — client-supplied ids are ignored.
@@ -96,8 +97,11 @@ export async function shipmentsBySample(sampleRequestId: string): Promise<Shipme
 }
 
 export async function shipmentStatistics() {
-  await requireUser();
-  const rows = await prisma.shipment.findMany({ where: await scopeWhere() });
+  const user = await requireUser();
+  const rows = await prisma.shipment.findMany({
+    where: await scopeWhere(),
+    include: { company: { select: { legalName: true } } },
+  });
   const all = rows.map(shipmentToDTO);
   const delivered = all.filter((s) => !!s.actualDelivery);
   const deliveryDays = delivered
@@ -114,6 +118,10 @@ export async function shipmentStatistics() {
   ).length;
   return {
     total: all.length,
+    companiesShipped:
+      user.kind === "internal"
+        ? countUniqueShippedCompanies(rows.map((row) => row.company.legalName))
+        : new Set(rows.map((row) => row.companyId)).size,
     preparing: all.filter((s) => deriveShipmentStatus(s) === "preparing").length,
     inTransit: all.filter((s) => deriveShipmentStatus(s) === "in_transit").length,
     customs: all.filter((s) => deriveShipmentStatus(s) === "customs").length,

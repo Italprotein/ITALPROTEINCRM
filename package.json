@@ -18,6 +18,7 @@
     "import:crm:validate": "tsx scripts/import-crm.ts --validate",
     "import:crm:dry": "tsx scripts/import-crm.ts --dry",
     "import:crm": "tsx scripts/import-crm.ts",
+    "import:samples:list": "tsx scripts/import-sample-requests.ts",
     "verify": "tsx scripts/verify-backend.ts",
     "verify:auth": "tsx scripts/verify-auth-runtime.ts",
     "test": "vitest run",
