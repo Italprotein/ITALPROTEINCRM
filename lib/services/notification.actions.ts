@@ -21,7 +21,9 @@ async function scopeWhere(): Promise<Prisma.NotificationWhereInput> {
       OR: [{ audienceCompanyId: null }, { audienceCompanyId: companyId }],
     };
   }
-  return {};
+  return {
+    OR: [{ recipientUserId: null }, { recipientUserId: user.id }],
+  };
 }
 
 // Mirrors the mock's inAudience() as a Prisma filter. For external audiences,
@@ -140,11 +142,12 @@ export async function notificationUnreadCount(q: AudienceQuery): Promise<number>
 export async function markNotificationRead(id: string): Promise<AppNotification | undefined> {
   // Read-state toggle used by view-only roles in BOTH workspaces (a portal
   // company_member has notifications: 'view'), so an edit guard would break it.
-  // TODO(authz-followup): this looks up by bare id and does not re-check the
-  // caller's scope, so one authenticated user can flip another audience's read
-  // flag. Low impact, but it should reuse scopeWhere() in a later pass.
+  // The scoped lookup prevents one authenticated user from flipping another
+  // recipient's unread state by guessing an id.
   await requireUser();
-  const existing = await prisma.notification.findUnique({ where: { id } });
+  const existing = await prisma.notification.findFirst({
+    where: { AND: [await scopeWhere(), { id }] },
+  });
   if (!existing) return undefined;
   const row = await prisma.notification.update({
     where: { id },

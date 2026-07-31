@@ -869,6 +869,8 @@ export type NotificationType =
   | 'support_request'
   | 'invoice_overdue'
   | 'password_reset'
+  | 'account_invitation'
+  | 'meeting_scheduled'
   | 'manual_email';
 
 export interface AppNotification {

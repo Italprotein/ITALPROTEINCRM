@@ -6,7 +6,7 @@ import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   format, isSameMonth, isSameDay, addMonths, subMonths, parseISO, startOfDay,
 } from 'date-fns';
-import { CalendarDays, Users, ListChecks, ChevronLeft, ChevronRight, Video, Phone, MapPin } from 'lucide-react';
+import { CalendarDays, Users, ListChecks, ChevronLeft, ChevronRight, Video, Phone, MapPin, Plus } from 'lucide-react';
 import { meetingService, taskService, companyService } from '@/lib/mock-services';
 import type { Meeting, Task, Company } from '@/lib/types';
 import { getLabel } from '@/lib/labels';
@@ -22,12 +22,16 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { GoogleCalendarPanel } from '@/components/integrations/google-calendar-panel';
 import { getLinkedCalendarEvents, type LinkedCalendarEvent } from '@/lib/services/google.actions';
+import { ScheduleCallDialog } from '@/components/crm/schedule-call-dialog';
+import { useSession } from '@/components/providers/session-provider';
+import { canEdit } from '@/lib/permissions';
 
 const ANCHOR = startOfDay(new Date());
 const WEEKDAY_KEYS = ['weekdayMon', 'weekdayTue', 'weekdayWed', 'weekdayThu', 'weekdayFri', 'weekdaySat', 'weekdaySun'] as const;
 
 export default function CalendarPage() {
   const t = useTranslations('AdminCalendar');
+  const { session } = useSession();
   const [meetings, setMeetings] = React.useState<Meeting[] | null>(null);
   const [tasks, setTasks] = React.useState<Task[] | null>(null);
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
@@ -39,6 +43,7 @@ export default function CalendarPage() {
     error?: string;
   } | null>(null);
   const [googleLoadedAt, setGoogleLoadedAt] = React.useState<number | null>(null);
+  const [scheduleOpen, setScheduleOpen] = React.useState(false);
 
   React.useEffect(() => {
     meetingService.list().then(setMeetings);
@@ -96,7 +101,16 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <PageHeader title={t('pageTitle')} subtitle={t('pageSubtitle')} />
+      <PageHeader
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
+        actions={session && canEdit(session.role, 'calendar') ? (
+          <Button variant="gold" size="sm" className="gap-1.5" onClick={() => setScheduleOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Schedule call
+          </Button>
+        ) : undefined}
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label={t('statMeetingsScheduled')} value={stats.scheduled} icon={Users} tone="gold" />
@@ -219,6 +233,14 @@ export default function CalendarPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      <ScheduleCallDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        companies={[...companyMap.values()]}
+        initialDate={selected}
+        onCreated={(meeting) => setMeetings((current) => current ? [meeting, ...current] : [meeting])}
+      />
     </div>
   );
 }

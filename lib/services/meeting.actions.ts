@@ -65,6 +65,75 @@ export async function createMeeting(input: Meeting): Promise<Meeting> {
   return meetingToDTO(row!);
 }
 
+export async function createMeetingWithNotifications(
+  input: Meeting,
+  recipientUserIds: string[],
+): Promise<Meeting> {
+  const user = await requireSectionEdit("calendar");
+  const startsAt = new Date(input.start);
+  const endsAt = input.end ? new Date(input.end) : null;
+  if (
+    !input.title.trim() ||
+    !Number.isFinite(startsAt.getTime()) ||
+    (endsAt && (!Number.isFinite(endsAt.getTime()) || endsAt <= startsAt))
+  ) {
+    throw new Error("invalid_meeting");
+  }
+  const uniqueRecipientIds = [...new Set(recipientUserIds)].slice(0, 50);
+  const recipients = uniqueRecipientIds.length
+    ? await prisma.user.findMany({
+        where: {
+          id: { in: uniqueRecipientIds },
+          kind: "internal",
+          status: "active",
+        },
+        select: { id: true },
+      })
+    : [];
+
+  await prisma.$transaction(async (tx) => {
+    await tx.meeting.create({
+      data: {
+        ...meetingWriteData(input, user.id),
+        id: input.id,
+        ownerUserId: user.id,
+        createdById: user.id,
+      },
+    });
+    if (input.contactIds?.length) {
+      await tx.meetingContact.createMany({
+        data: input.contactIds.map((contactId) => ({ meetingId: input.id, contactId })),
+        skipDuplicates: true,
+      });
+    }
+    if (recipients.length) {
+      await tx.notification.createMany({
+        data: recipients.map(({ id }) => ({
+          type: "meeting_scheduled",
+          workspace: "internal",
+          title: input.title,
+          body: `Scheduled for ${new Date(input.start).toLocaleString("en-GB", {
+            dateStyle: "medium",
+            timeStyle: "short",
+            timeZone: "Europe/Rome",
+          })}${input.location ? ` · ${input.location}` : ""}`,
+          priority: "medium",
+          recipientUserId: id,
+          audienceRoles: [],
+          companyId: input.companyId ?? null,
+          relatedType: "meeting",
+          relatedId: input.id,
+          href: "/admin/calendar",
+          read: false,
+        })),
+      });
+    }
+  });
+
+  const row = await prisma.meeting.findUnique({ where: { id: input.id }, include });
+  return meetingToDTO(row!);
+}
+
 export async function updateMeeting(
   id: string,
   patch: Partial<Meeting>,

@@ -153,6 +153,7 @@ enum NotificationType {
   invoice_overdue
   password_reset
   account_invitation
+  meeting_scheduled
   manual_email
 }
 

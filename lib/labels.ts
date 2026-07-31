@@ -484,6 +484,7 @@ const notificationTypeLabels: LabelMap = {
   task_overdue: 'Task overdue',
   support_request: 'Support request',
   invoice_overdue: 'Invoice overdue',
+  meeting_scheduled: 'Meeting scheduled',
 };
 
 const registrationStatusLabels: LabelMap = {
@@ -1132,6 +1133,7 @@ const LABELS_IT: Record<LabelKind, LabelMap> = {
     feedback_requested: 'Feedback richiesto', feedback_submitted: 'Feedback inviato', technical_reply: 'Risposta tecnica',
     nda_sent: 'NDA inviato', nda_changes_requested: 'Modifiche NDA richieste', nda_signed: 'NDA firmato', nda_expiring: 'NDA in scadenza',
     task_due: 'Task in scadenza', task_overdue: 'Task scaduto', support_request: 'Richiesta di supporto', invoice_overdue: 'Fattura scaduta',
+    meeting_scheduled: 'Riunione programmata',
   },
   registrationStatus: {
     submitted: 'Inviata', email_verification: 'Verifica email', pending_approval: 'In attesa di approvazione',
