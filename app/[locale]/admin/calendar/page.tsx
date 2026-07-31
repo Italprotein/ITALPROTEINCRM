@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { GoogleCalendarPanel } from '@/components/integrations/google-calendar-panel';
+import { getLinkedCalendarEvents, type LinkedCalendarEvent } from '@/lib/services/google.actions';
 
 const ANCHOR = startOfDay(new Date());
 const WEEKDAY_KEYS = ['weekdayMon', 'weekdayTue', 'weekdayWed', 'weekdayThu', 'weekdayFri', 'weekdaySat', 'weekdaySun'] as const;
@@ -32,11 +33,26 @@ export default function CalendarPage() {
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
   const [month, setMonth] = React.useState<Date>(startOfMonth(ANCHOR));
   const [selected, setSelected] = React.useState<Date | null>(null);
+  const [googleCalendar, setGoogleCalendar] = React.useState<{
+    events: LinkedCalendarEvent[];
+    connected: boolean;
+    error?: string;
+  } | null>(null);
+  const [googleLoadedAt, setGoogleLoadedAt] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     meetingService.list().then(setMeetings);
     taskService.list().then((l) => setTasks(l.filter((t) => t.dueDate)));
     companyService.list().then((l) => setCompanyMap(new Map(l.map((c) => [c.id, c]))));
+    getLinkedCalendarEvents()
+      .then((result) => {
+        setGoogleCalendar(result);
+        setGoogleLoadedAt(Date.now());
+      })
+      .catch(() => {
+        setGoogleCalendar({ events: [], connected: false });
+        setGoogleLoadedAt(Date.now());
+      });
   }, []);
 
   const companyName = (id?: string) => (id ? companyMap.get(id)?.tradingName ?? companyMap.get(id)?.legalName ?? '' : '');
@@ -48,18 +64,26 @@ export default function CalendarPage() {
   }, [month]);
 
   const meetingsOn = (d: Date) => (meetings ?? []).filter((m) => isSameDay(parseISO(m.start), d));
+  const googleMeetingsOn = (d: Date) =>
+    (googleCalendar?.events ?? []).filter((event) => isSameDay(parseISO(event.start), d));
   const tasksOn = (d: Date) => (tasks ?? []).filter((t) => t.dueDate && isSameDay(parseISO(t.dueDate), d));
 
   const stats = React.useMemo(() => {
     const ms = meetings ?? [];
     const ts = tasks ?? [];
     const inMonth = (iso?: string) => iso != null && isSameMonth(parseISO(iso), month);
+    const googleThisMonth = (googleCalendar?.events ?? []).filter((event) => inMonth(event.start));
+    const now = new Date();
     return {
-      scheduled: ms.filter((m) => m.status === 'scheduled').length,
+      scheduled:
+        ms.filter((m) => m.status === 'scheduled' && inMonth(m.start)).length +
+        googleThisMonth.filter((event) => parseISO(event.end) >= now).length,
       tasksThisMonth: ts.filter((t) => inMonth(t.dueDate)).length,
-      completed: ms.filter((m) => m.status === 'completed').length,
+      completed:
+        ms.filter((m) => m.status === 'completed' && inMonth(m.start)).length +
+        googleThisMonth.filter((event) => parseISO(event.end) < now).length,
     };
-  }, [meetings, tasks, month]);
+  }, [meetings, tasks, month, googleCalendar]);
 
   const upcoming = React.useMemo(() =>
     (meetings ?? [])
@@ -96,6 +120,7 @@ export default function CalendarPage() {
               {WEEKDAY_KEYS.map((k) => <div key={k} className="bg-muted/60 py-2 text-center text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{t(k)}</div>)}
               {days.map((d) => {
                 const ms = meetingsOn(d);
+                const gs = googleMeetingsOn(d);
                 const ts = tasksOn(d);
                 const inMonth = isSameMonth(d, month);
                 const isToday = isSameDay(d, ANCHOR);
@@ -110,10 +135,15 @@ export default function CalendarPage() {
                       {ms.slice(0, 2).map((m) => (
                         <div key={m.id} className="truncate rounded bg-info-subtle px-1 py-0.5 text-2xs text-info">{format(parseISO(m.start), 'HH:mm')} {m.title}</div>
                       ))}
-                      {ts.slice(0, 2 - Math.min(ms.length, 2)).map((t) => (
+                      {gs.slice(0, 2 - Math.min(ms.length, 2)).map((event) => (
+                        <div key={`google-${event.id}`} className="truncate rounded bg-brand-teal/10 px-1 py-0.5 text-2xs text-brand-teal">
+                          {event.allDay ? '' : `${format(parseISO(event.start), 'HH:mm')} `}{event.summary}
+                        </div>
+                      ))}
+                      {ts.slice(0, 2 - Math.min(ms.length + gs.length, 2)).map((t) => (
                         <div key={t.id} className="truncate rounded bg-warning-subtle px-1 py-0.5 text-2xs text-warning-foreground">⏰ {t.title}</div>
                       ))}
-                      {ms.length + ts.length > 2 && <div className="px-1 text-2xs text-muted-foreground">{t('moreCount', { count: ms.length + ts.length - 2 })}</div>}
+                      {ms.length + gs.length + ts.length > 2 && <div className="px-1 text-2xs text-muted-foreground">{t('moreCount', { count: ms.length + gs.length + ts.length - 2 })}</div>}
                     </div>
                   </button>
                 );
@@ -152,7 +182,7 @@ export default function CalendarPage() {
         </Card>
 
         {/* Google Calendar — read-only, from the shared ad@ mailbox */}
-        <GoogleCalendarPanel />
+        <GoogleCalendarPanel calendarState={googleCalendar} asOf={googleLoadedAt} />
         </div>
       </div>
 
@@ -183,7 +213,7 @@ export default function CalendarPage() {
                     <Link href="/admin/tasks" className="mt-1 inline-block text-xs font-medium text-brand-teal hover:underline">{t('openInTasks')}</Link>
                   </div>
                 ))}
-                <GoogleCalendarPanel day={selected} />
+                <GoogleCalendarPanel day={selected} calendarState={googleCalendar} asOf={googleLoadedAt} />
               </div>
             </>
           )}

@@ -1121,9 +1121,9 @@
   "AdminCalendar": {
     "pageTitle": "Calendario",
     "pageSubtitle": "Riunioni, call tecniche e scadenze dei task in un colpo d'occhio.",
-    "statMeetingsScheduled": "Riunioni in programma",
+    "statMeetingsScheduled": "Programmate questo mese",
     "statTasksDueThisMonth": "Task in scadenza questo mese",
-    "statMeetingsCompleted": "Riunioni completate",
+    "statMeetingsCompleted": "Completate questo mese",
     "today": "Oggi",
     "previousMonth": "Mese precedente",
     "nextMonth": "Mese successivo",

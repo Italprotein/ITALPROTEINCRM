@@ -24,11 +24,9 @@ export function AnimatedCounter({
   const ref = React.useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: '-40px' });
   const [display, setDisplay] = React.useState(0);
-  const startedRef = React.useRef(false);
 
   React.useEffect(() => {
-    if (!inView || startedRef.current) return;
-    startedRef.current = true;
+    if (!inView) return;
 
     const reduce =
       typeof window !== 'undefined' &&
@@ -41,19 +39,23 @@ export function AnimatedCounter({
 
     let raf = 0;
     let start: number | null = null;
+    const from = display;
     const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 
     const tick = (now: number) => {
       if (start === null) start = now;
       const elapsed = now - start;
       const t = Math.min(1, elapsed / durationMs);
-      setDisplay(value * easeOut(t));
+      setDisplay(from + (value - from) * easeOut(t));
       if (t < 1) raf = requestAnimationFrame(tick);
       else setDisplay(value);
     };
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
+    // `display` is intentionally captured at the start of each value change.
+    // Including it would restart the animation on every frame.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inView, value, durationMs]);
 
   return (

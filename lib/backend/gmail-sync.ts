@@ -14,6 +14,7 @@ import {
   type GmailMessage,
 } from "./gmail";
 import type { GmailSyncResult } from "@/lib/types";
+import { isItalproteinNdaDocumentName } from "./nda-classification";
 
 // Gmail inbox sync engine. For every new inbox message it:
 //  1. stores an EmailMessage row (dedupe key: gmailMessageId),
@@ -243,10 +244,12 @@ function pickNdaAttachment(
   body: string,
 ): GmailAttachmentMeta | null {
   const docs = attachments.filter((a) => NDA_FILE_EXTENSIONS.has(fileExtension(a.filename)));
-  const byName = docs.find((a) => /nda/i.test(a.filename));
+  const byName = docs.find((a) => isItalproteinNdaDocumentName(a.filename));
   if (byName) return byName;
-  // "NDA" as an uppercase word in the mail itself + a document attached.
-  if (/\bNDA\b/.test(`${subject}\n${body}`)) return docs[0] ?? null;
+  const mailText = `${subject}\n${body}`;
+  if (/\bNDA\b/i.test(mailText) && /ITAL[\s._-]*PROTEIN/i.test(mailText)) {
+    return docs[0] ?? null;
+  }
   return null;
 }
 
@@ -272,7 +275,6 @@ async function fileNdaFromAttachment(options: {
   if (attachment.sizeBytes > MAX_ATTACHMENT_BYTES) return null;
 
   const bytes = await getAttachmentBytes(auth, message.id, attachment.attachmentId);
-  const signed = /sign/i.test(attachment.filename);
   const reference = await nextNdaReference();
   const ext = fileExtension(attachment.filename) || "pdf";
 
@@ -310,11 +312,11 @@ async function fileNdaFromAttachment(options: {
       reference,
       companyId,
       type: "mutual",
-      status: signed ? "fully_signed" : "under_review",
+      status: "under_review",
       dateSent: emailDate,
       sentAt: emailDate,
-      signedAt: signed ? emailDate : null,
-      signedFileId: signed ? document.id : null,
+      signedAt: null,
+      signedFileId: null,
       versions: {
         create: [
           {
@@ -335,7 +337,7 @@ async function fileNdaFromAttachment(options: {
   await prisma.company
     .update({
       where: { id: companyId },
-      data: { ndaStatus: signed ? "fully_signed" : "under_review", lastActivityAt: emailDate },
+      data: { ndaStatus: "under_review", lastActivityAt: emailDate },
     })
     .catch(() => undefined);
 

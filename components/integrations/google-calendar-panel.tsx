@@ -18,7 +18,19 @@ import { Button } from '@/components/ui/button';
  * pretending they are the same thing would make it unclear where to edit.
  */
 
-export function GoogleCalendarPanel({ day }: { day?: Date | null }) {
+export function GoogleCalendarPanel({
+  day,
+  calendarState,
+  asOf,
+}: {
+  day?: Date | null;
+  calendarState?: {
+    events: LinkedCalendarEvent[];
+    connected: boolean;
+    error?: string;
+  } | null;
+  asOf?: number | null;
+}) {
   const t = useTranslations('GoogleCalendar');
   const [state, setState] = React.useState<{
     events: LinkedCalendarEvent[];
@@ -31,21 +43,24 @@ export function GoogleCalendarPanel({ day }: { day?: Date | null }) {
   const [loadedAt, setLoadedAt] = React.useState<number | null>(null);
 
   React.useEffect(() => {
+    if (calendarState !== undefined) return;
     getLinkedCalendarEvents()
       .then((res) => { setState(res); setLoadedAt(new Date().getTime()); })
       .catch(() => { setState({ events: [], connected: false }); setLoadedAt(new Date().getTime()); });
-  }, []);
+  }, [calendarState]);
+
+  const effectiveState = calendarState === undefined ? state : calendarState;
 
   const shown = React.useMemo(() => {
-    if (!state) return [];
-    if (day) return state.events.filter((e) => isSameDay(parseISO(e.start), day));
-    const from = loadedAt ?? 0;
-    return state.events.filter((e) => parseISO(e.end).getTime() >= from).slice(0, 8);
-  }, [state, day, loadedAt]);
+    if (!effectiveState) return [];
+    if (day) return effectiveState.events.filter((e) => isSameDay(parseISO(e.start), day));
+    const from = asOf ?? loadedAt ?? 0;
+    return effectiveState.events.filter((e) => parseISO(e.end).getTime() >= from).slice(0, 8);
+  }, [effectiveState, day, loadedAt, asOf]);
 
   // Not connected is the normal state before anyone authorises: say what to do,
   // don't render an empty box that looks broken.
-  if (state && !state.connected) {
+  if (effectiveState && !effectiveState.connected) {
     return (
       <Card>
         <CardHeader><CardTitle className="text-base">{t('title')}</CardTitle></CardHeader>
@@ -66,15 +81,15 @@ export function GoogleCalendarPanel({ day }: { day?: Date | null }) {
           <CalendarClock className="h-4 w-4 text-brand-teal" />
           {day ? t('titleForDay') : t('title')}
         </CardTitle>
-        {state && !state.error && (
+        {effectiveState && !effectiveState.error && (
           <Badge variant="muted">{t('eventCount', { count: shown.length })}</Badge>
         )}
       </CardHeader>
       <CardContent className="space-y-2">
-        {state === null ? (
+        {effectiveState === null ? (
           Array.from({ length: 3 }).map((_, i) => <div key={i} className="skeleton h-14 w-full" />)
-        ) : state.error ? (
-          <p className="text-sm text-muted-foreground">{state.error}</p>
+        ) : effectiveState.error ? (
+          <p className="text-sm text-muted-foreground">{effectiveState.error}</p>
         ) : shown.length === 0 ? (
           <p className="py-4 text-center text-sm text-muted-foreground">
             {day ? t('noneThisDay') : t('noneUpcoming')}

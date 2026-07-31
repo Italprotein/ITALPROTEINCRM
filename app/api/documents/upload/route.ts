@@ -12,6 +12,7 @@ import {
 import { can, canEdit } from "@/lib/permissions";
 import { documentToDTO } from "@/lib/services/document.mapper";
 import type { DocumentCategory } from "@/lib/types";
+import { isItalproteinNdaDocumentName } from "@/lib/backend/nda-classification";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -91,7 +92,10 @@ export async function POST(request: Request) {
     user.kind === "external" ? user.companyId : requestedCompanyId;
 
   const rawCategory = (form.get("category") as string | null)?.trim() as DocumentCategory;
-  const category: DocumentCategory = UPLOADABLE.includes(rawCategory) ? rawCategory : "other";
+  const autoFileAsNda = Boolean(companyId && isItalproteinNdaDocumentName(file.name));
+  const category: DocumentCategory = autoFileAsNda
+    ? "nda"
+    : UPLOADABLE.includes(rawCategory) ? rawCategory : "other";
   const description = (form.get("description") as string | null)?.trim() || null;
 
   const displayName = ((form.get("name") as string | null)?.trim() || file.name).slice(0, 200);
@@ -152,6 +156,49 @@ export async function POST(request: Request) {
   } catch (error) {
     if (storageKey) await deleteObject(storageKey);
     throw error;
+  }
+
+  // Auto-filing never infers a signature from an untrusted filename. It links
+  // the file to an NDA that remains under staff review, so portal access cannot
+  // be unlocked by naming a file "signed".
+  if (autoFileAsNda && companyId) {
+    const existing = await prisma.nDA.findFirst({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+    let ndaId = existing?.id;
+    if (!ndaId) {
+      const nda = await prisma.nDA.create({
+        data: {
+          reference: `NDA-${now.getFullYear()}-${now.getTime().toString(36).toUpperCase()}`,
+          companyId,
+          type: "mutual",
+          status: "under_review",
+          createdById: user.id,
+        },
+        select: { id: true },
+      });
+      ndaId = nda.id;
+      await prisma.company.update({
+        where: { id: companyId },
+        data: { ndaStatus: "under_review" },
+      });
+    }
+    await prisma.documentVersion.create({
+      data: {
+        documentId: document.id,
+        ndaId,
+        version: `upload-${now.getTime().toString(36)}`,
+        versionDate: now,
+        note: "Automatically filed by ITALPROTEIN + NDA filename rule; awaiting staff review.",
+        storageKey,
+        mimeType,
+        sizeBytes: bytes.length,
+        uploadedByUserId: user.id,
+        createdById: user.id,
+      },
+    });
   }
 
   // Uploading a file is a sensitive write: record who put what where, so file

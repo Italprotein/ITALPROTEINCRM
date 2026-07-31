@@ -1121,9 +1121,9 @@
   "AdminCalendar": {
     "pageTitle": "Calendar",
     "pageSubtitle": "Meetings, technical calls and task deadlines at a glance.",
-    "statMeetingsScheduled": "Meetings scheduled",
+    "statMeetingsScheduled": "Scheduled this month",
     "statTasksDueThisMonth": "Tasks due this month",
-    "statMeetingsCompleted": "Meetings completed",
+    "statMeetingsCompleted": "Completed this month",
     "today": "Today",
     "previousMonth": "Previous month",
     "nextMonth": "Next month",
