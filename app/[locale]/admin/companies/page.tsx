@@ -560,6 +560,7 @@ export default function CompaniesPage() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
+        sticky
         title={t('pageTitle')}
         subtitle={t('pageSubtitle')}
         actions={

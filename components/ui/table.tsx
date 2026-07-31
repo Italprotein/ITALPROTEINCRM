@@ -18,7 +18,7 @@ const Table = React.forwardRef<
   // Pass containerClassName="max-h-none" to opt a short table back out.
   <div
     className={cn(
-      'relative w-full overflow-auto scrollbar-thin',
+      'relative w-full overflow-auto scrollbar-always',
       'max-h-[calc(100vh-16rem)]',
       containerClassName,
     )}

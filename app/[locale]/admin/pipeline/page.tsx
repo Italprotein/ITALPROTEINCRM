@@ -32,6 +32,8 @@ import { uid, initials, cn } from '@/lib/utils';
 
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PipelineFunnel } from '@/components/crm/pipeline-funnel';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
@@ -130,6 +132,8 @@ export default function PipelinePage() {
 
   const loading = opps === null;
   const list = opps ?? [];
+  /** Companies as an array — the funnel reads their relationshipStage. */
+  const companyList = React.useMemo(() => [...companies.values()], [companies]);
 
   /* Derived statistics (recomputed locally so KPIs react to stage moves). */
   const stats = React.useMemo(() => {
@@ -248,6 +252,29 @@ export default function PipelinePage() {
           </div>
         }
       />
+
+      {/* The commercial funnel, built from the companies' own stages.
+          Opportunities are a separate, currently-empty record type; the real
+          pipeline lives on the company, which is what the sheet tracks. */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Funnel commerciale</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {companyList.length} companies, from first contact to won.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {companyList.length === 0 ? (
+            <div className="space-y-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="skeleton h-9 w-full" />
+              ))}
+            </div>
+          ) : (
+            <PipelineFunnel companies={companyList} />
+          )}
+        </CardContent>
+      </Card>
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
