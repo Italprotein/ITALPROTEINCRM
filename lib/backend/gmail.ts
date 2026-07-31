@@ -11,15 +11,24 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
 
+/**
+ * Everything the shared mailbox is asked for, in one consent.
+ *
+ * Granted scopes are fixed when the user approves, so adding one later leaves
+ * every existing token without it until somebody re-authorises by hand —
+ * requesting them together avoids a second round trip through Google.
+ *
+ * Requires the matching APIs to be enabled on the Cloud project: Gmail,
+ * Google Calendar and Google Drive.
+ */
 export const GMAIL_OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/gmail.send",
-  // Calendar is requested in the same consent so the mailbox is authorised
-  // once rather than twice. Adding it later would silently leave the stored
-  // token without calendar access until someone re-authorised by hand.
-  // Requires the Google Calendar API to be enabled on the Cloud project.
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/calendar.readonly",
+  // drive.readonly rather than full drive: the CRM links and reads existing
+  // files, it never needs to modify or delete anything in Drive.
+  "https://www.googleapis.com/auth/drive.readonly",
 ] as const;
 
 export class GmailError extends Error {
@@ -108,14 +117,41 @@ async function refreshAccessToken(refreshToken: string): Promise<TokenResponse |
 
 // ── Token storage ──────────────────────────────────────────────────────────
 
+/**
+ * Google scope URL -> the GoogleScope enum we persist. Recording what was
+ * actually granted (rather than what we asked for) means a partial consent —
+ * the user can untick scopes — is visible instead of assumed.
+ */
+const SCOPE_BY_URL: Record<string, GoogleScopeValue> = {
+  "https://www.googleapis.com/auth/gmail.readonly": "gmail_readonly",
+  "https://www.googleapis.com/auth/gmail.send": "gmail_send",
+  "https://www.googleapis.com/auth/calendar.events": "calendar_events",
+  "https://www.googleapis.com/auth/calendar.readonly": "calendar_readonly",
+  "https://www.googleapis.com/auth/drive.readonly": "drive_metadata_readonly",
+};
+
+type GoogleScopeValue =
+  | "gmail_readonly" | "gmail_send"
+  | "calendar_events" | "calendar_readonly"
+  | "drive_metadata_readonly" | "drive_file" | "documents";
+
+function grantedScopes(scope: string | undefined): GoogleScopeValue[] {
+  const granted = (scope ?? "").split(/\s+/).map((u) => SCOPE_BY_URL[u]).filter(Boolean) as GoogleScopeValue[];
+  // Never store an empty set: a token with no scopes would read as "connected
+  // but useless" everywhere downstream.
+  return granted.length ? [...new Set(granted)] : ["gmail_readonly", "gmail_send"];
+}
+
 export async function storeMailboxTokens(options: {
   googleAccountEmail: string;
   userId: string | null;
   accessToken: string;
   refreshToken?: string;
   expiresInSeconds: number;
+  /** The `scope` field Google returns with the token exchange. */
+  grantedScope?: string;
 }): Promise<void> {
-  const { googleAccountEmail, userId, accessToken, refreshToken, expiresInSeconds } = options;
+  const { googleAccountEmail, userId, accessToken, refreshToken, expiresInSeconds, grantedScope } = options;
   const email = googleAccountEmail.toLowerCase();
   const existing = await prisma.googleOAuthToken.findUnique({
     where: { googleAccountEmail_isServiceAccount: { googleAccountEmail: email, isServiceAccount: false } },
@@ -128,7 +164,7 @@ export async function storeMailboxTokens(options: {
     refreshTokenEncrypted: refreshToken
       ? encryptSecret(refreshToken)
       : (existing?.refreshTokenEncrypted ?? null),
-    scopes: ["gmail_readonly", "gmail_send"] as const,
+    scopes: grantedScopes(grantedScope),
     status: "active" as const,
     accessTokenExpiresAt: new Date(Date.now() + expiresInSeconds * 1000),
     lastRefreshedAt: new Date(),
@@ -137,11 +173,11 @@ export async function storeMailboxTokens(options: {
   if (existing) {
     await prisma.googleOAuthToken.update({
       where: { id: existing.id },
-      data: { ...data, scopes: { set: [...data.scopes] } },
+      data: { ...data, scopes: { set: data.scopes } },
     });
   } else {
     await prisma.googleOAuthToken.create({
-      data: { googleAccountEmail: email, isServiceAccount: false, ...data, scopes: [...data.scopes] },
+      data: { googleAccountEmail: email, isServiceAccount: false, ...data, scopes: data.scopes },
     });
   }
 }

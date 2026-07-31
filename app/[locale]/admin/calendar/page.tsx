@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { GoogleCalendarPanel } from '@/components/integrations/google-calendar-panel';
 
 const ANCHOR = startOfDay(new Date());
 const WEEKDAY_KEYS = ['weekdayMon', 'weekdayTue', 'weekdayWed', 'weekdayThu', 'weekdayFri', 'weekdaySat', 'weekdaySun'] as const;
@@ -125,6 +126,7 @@ export default function CalendarPage() {
           </CardContent>
         </Card>
 
+        <div className="space-y-4">
         {/* Upcoming */}
         <Card>
           <CardHeader><CardTitle className="text-base">{t('upcoming')}</CardTitle></CardHeader>
@@ -148,6 +150,10 @@ export default function CalendarPage() {
             })}
           </CardContent>
         </Card>
+
+        {/* Google Calendar — read-only, from the shared ad@ mailbox */}
+        <GoogleCalendarPanel />
+        </div>
       </div>
 
       {/* Day detail */}
@@ -177,6 +183,7 @@ export default function CalendarPage() {
                     <Link href="/admin/tasks" className="mt-1 inline-block text-xs font-medium text-brand-teal hover:underline">{t('openInTasks')}</Link>
                   </div>
                 ))}
+                <GoogleCalendarPanel day={selected} />
               </div>
             </>
           )}

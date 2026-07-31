@@ -2034,5 +2034,37 @@
   "PasswordGate": {
     "title": "Choose your own password to continue",
     "body": "This account still uses the password it was set up with. Because that password was shared with you rather than chosen by you, the CRM stays locked until you replace it. You will be signed out afterwards — sign back in with the new one."
+  },
+  "GoogleCalendar": {
+    "title": "Google Calendar",
+    "titleForDay": "Google Calendar this day",
+    "notConnected": "Google Calendar is not connected yet. Connect the ad@italprotein.com account in Settings to see booked meetings here.",
+    "goToSettings": "Open Settings",
+    "eventCount": "{count} events",
+    "noneUpcoming": "No upcoming events on the shared calendar.",
+    "noneThisDay": "Nothing on the shared Google calendar this day.",
+    "openInGoogle": "Open in Google Calendar",
+    "allDay": "{date} · all day",
+    "joinCall": "Join call",
+    "attendeeCount": "{count} attendees",
+    "noCompanyMatch": "No company matched",
+    "matchedByDomain": "matched by domain"
+  },
+  "DrivePanel": {
+    "title": "Google Drive files",
+    "noneLinked": "No Drive files linked to this company yet.",
+    "searchPlaceholder": "Search Drive by file name…",
+    "search": "Search",
+    "searchFailed": "Drive search failed",
+    "noResults": "No files matched that name.",
+    "notConnected": "Google Drive is not connected. Connect the ad@italprotein.com account in Settings.",
+    "link": "Link",
+    "linked": "File linked",
+    "linkFailed": "Could not link that file",
+    "alreadyLinked": "Linked",
+    "unlink": "Unlink from company",
+    "openInDrive": "Open in Drive",
+    "linkedOn": "Linked {date}",
+    "modifiedOn": "Modified {date}"
   }
 }

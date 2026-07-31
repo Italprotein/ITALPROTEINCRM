@@ -78,6 +78,7 @@ import { FadeIn } from '@/components/shared/motion';
 import { ChartCard, DonutChart, FunnelChartCard, CHART_COLORS } from '@/components/charts/chart-kit';
 import { DataTable } from '@/components/ui/data-table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { DriveFilesPanel } from '@/components/integrations/drive-files-panel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -175,6 +176,9 @@ export default function CompanyProfilePage() {
   const canCreateTask = !!role && canEdit(role, 'tasks');
   const canMarkNdaSent = !!role && canEdit(role, 'ndas') && can(role, 'nda.send');
   const canMarkNdaSigned = !!role && can(role, 'nda.mark_signed');
+  // Mirrors the guard on linkDriveFileToCompany, so the button is only shown
+  // to someone the server will actually let through.
+  const canLinkDriveFiles = !!role && can(role, 'company.edit');
 
   const ownerName = (ownerId: string | undefined, t: T) => {
     if (!ownerId) return t('unassigned');
@@ -909,6 +913,11 @@ export default function CompanyProfilePage() {
                 })}
               </div>
             )}
+
+            {/* Google Drive files linked to this company */}
+            <div className="mt-6 border-t pt-6">
+              <DriveFilesPanel companyId={id} canEdit={canLinkDriveFiles} />
+            </div>
           </TabsContent>
 
           {/* ── ACTIVITIES ── */}

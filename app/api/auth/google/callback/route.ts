@@ -43,6 +43,7 @@ export async function GET(request: Request) {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       expiresInSeconds: tokens.expires_in,
+      grantedScope: tokens.scope,
     });
     await prisma.auditEvent
       .create({

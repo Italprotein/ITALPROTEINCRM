@@ -486,6 +486,8 @@ enum GoogleScope {
   documents
   gmail_send
   gmail_readonly
+  calendar_events
+  calendar_readonly
 }
 
 enum GoogleTokenStatus {

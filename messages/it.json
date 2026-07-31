@@ -2034,5 +2034,37 @@
   "PasswordGate": {
     "title": "Scegli la tua password per continuare",
     "body": "Questo account usa ancora la password con cui è stato creato. Poiché quella password ti è stata comunicata e non scelta da te, il CRM resta bloccato finché non la sostituisci. Al termine verrai disconnesso: accedi di nuovo con la nuova password."
+  },
+  "GoogleCalendar": {
+    "title": "Google Calendar",
+    "titleForDay": "Google Calendar in questo giorno",
+    "notConnected": "Google Calendar non e ancora collegato. Collega l'account ad@italprotein.com nelle Impostazioni per vedere qui gli appuntamenti.",
+    "goToSettings": "Apri Impostazioni",
+    "eventCount": "{count} eventi",
+    "noneUpcoming": "Nessun evento in programma sul calendario condiviso.",
+    "noneThisDay": "Nulla sul calendario Google condiviso in questo giorno.",
+    "openInGoogle": "Apri in Google Calendar",
+    "allDay": "{date} · tutto il giorno",
+    "joinCall": "Partecipa",
+    "attendeeCount": "{count} partecipanti",
+    "noCompanyMatch": "Nessuna azienda associata",
+    "matchedByDomain": "associata per dominio"
+  },
+  "DrivePanel": {
+    "title": "File Google Drive",
+    "noneLinked": "Nessun file Drive collegato a questa azienda.",
+    "searchPlaceholder": "Cerca in Drive per nome file…",
+    "search": "Cerca",
+    "searchFailed": "Ricerca Drive non riuscita",
+    "noResults": "Nessun file corrisponde a quel nome.",
+    "notConnected": "Google Drive non e collegato. Collega l'account ad@italprotein.com nelle Impostazioni.",
+    "link": "Collega",
+    "linked": "File collegato",
+    "linkFailed": "Impossibile collegare il file",
+    "alreadyLinked": "Collegato",
+    "unlink": "Scollega dall'azienda",
+    "openInDrive": "Apri in Drive",
+    "linkedOn": "Collegato il {date}",
+    "modifiedOn": "Modificato il {date}"
   }
 }
