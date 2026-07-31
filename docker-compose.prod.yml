@@ -69,6 +69,8 @@ services:
       AI_PROVIDER: "${AI_PROVIDER:-anthropic}"
       AI_MODEL: "${AI_MODEL:-claude-opus-4-8}"
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      GROQ_MODEL: "${GROQ_MODEL:-openai/gpt-oss-20b}"
     expose:
       - "3000"
 
