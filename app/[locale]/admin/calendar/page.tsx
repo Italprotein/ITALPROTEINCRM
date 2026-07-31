@@ -6,7 +6,7 @@ import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   format, isSameMonth, isSameDay, addMonths, subMonths, parseISO, startOfDay,
 } from 'date-fns';
-import { CalendarDays, Users, ListChecks, ChevronLeft, ChevronRight, Video, Phone, MapPin, Plus } from 'lucide-react';
+import { CalendarDays, Users, ChevronLeft, ChevronRight, Video, Phone, MapPin, Plus } from 'lucide-react';
 import { meetingService, taskService, companyService } from '@/lib/mock-services';
 import type { Meeting, Task, Company } from '@/lib/types';
 import { getLabel } from '@/lib/labels';
@@ -75,7 +75,6 @@ export default function CalendarPage() {
 
   const stats = React.useMemo(() => {
     const ms = meetings ?? [];
-    const ts = tasks ?? [];
     const inMonth = (iso?: string) => iso != null && isSameMonth(parseISO(iso), month);
     const googleThisMonth = (googleCalendar?.events ?? []).filter((event) => inMonth(event.start));
     const now = new Date();
@@ -83,12 +82,11 @@ export default function CalendarPage() {
       scheduled:
         ms.filter((m) => m.status === 'scheduled' && inMonth(m.start)).length +
         googleThisMonth.filter((event) => parseISO(event.end) >= now).length,
-      tasksThisMonth: ts.filter((t) => inMonth(t.dueDate)).length,
       completed:
         ms.filter((m) => m.status === 'completed' && inMonth(m.start)).length +
         googleThisMonth.filter((event) => parseISO(event.end) < now).length,
     };
-  }, [meetings, tasks, month, googleCalendar]);
+  }, [meetings, month, googleCalendar]);
 
   const upcoming = React.useMemo(() =>
     (meetings ?? [])
@@ -112,10 +110,9 @@ export default function CalendarPage() {
         ) : undefined}
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <StatCard label={t('statMeetingsScheduled')} value={stats.scheduled} icon={Users} tone="gold" />
-        <StatCard label={t('statTasksDueThisMonth')} value={stats.tasksThisMonth} icon={ListChecks} tone="warning" delay={0.05} />
-        <StatCard label={t('statMeetingsCompleted')} value={stats.completed} icon={CalendarDays} tone="success" delay={0.1} />
+        <StatCard label={t('statMeetingsCompleted')} value={stats.completed} icon={CalendarDays} tone="success" delay={0.05} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
