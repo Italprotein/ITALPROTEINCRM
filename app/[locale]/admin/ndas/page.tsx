@@ -25,6 +25,7 @@ import {
   History,
   FileText,
   ShieldCheck,
+  RefreshCw,
 } from 'lucide-react';
 
 import { ndaService, companyService } from '@/lib/mock-services';
@@ -122,6 +123,7 @@ export default function NdasPage() {
   const canEditNdas = !!role && canEdit(role, 'ndas');
 
   const [rows, setRows] = React.useState<NDA[] | null>(null);
+  const [syncingDrive, setSyncingDrive] = React.useState(false);
   const [companies, setCompanies] = React.useState<Map<string, Company>>(new Map());
   const [stats, setStats] = React.useState<Stats | null>(null);
 
@@ -257,7 +259,27 @@ export default function NdasPage() {
   }
 
   function download(n: NDA) {
+    const file = n.signedFiles?.[0];
+    if (!file) {
+      toast({ variant: 'danger', title: 'No NDA file', description: 'Sync or upload the latest NDA document first.' });
+      return;
+    }
+    window.location.assign(`/api/documents/${file.id}/download`);
     toast({ variant: 'info', title: t('toastDownloadStartedTitle'), description: t('toastDownloadStartedDescription', { reference: n.reference }) });
+  }
+
+  async function syncDriveNdas() {
+    setSyncingDrive(true);
+    const response = await fetch('/api/ndas/sync-drive', { method: 'POST' });
+    const result = await response.json();
+    setSyncingDrive(false);
+    if (!response.ok) {
+      toast({ variant: 'danger', title: 'Drive sync failed', description: result.error ?? 'Could not read Clienti Industriali.' });
+      return;
+    }
+    setRows(await ndaService.list());
+    refreshStats();
+    toast({ variant: 'success', title: 'Drive NDAs synced', description: `${result.synced} latest NDA files updated across ${result.matched} matched companies.` });
   }
 
   function createFollowUpTask(n: NDA) {
@@ -517,6 +539,10 @@ export default function NdasPage() {
         actions={
           canPrepare ? (
             <>
+              <Button variant="outline" onClick={() => void syncDriveNdas()} disabled={syncingDrive}>
+                <RefreshCw className={syncingDrive ? 'animate-spin' : ''} />
+                {syncingDrive ? 'Syncing Drive…' : 'Sync Drive NDAs'}
+              </Button>
               <Button variant="outline" onClick={() => setUploadOpen(true)}>
                 <Upload />
                 {t('uploadNda')}

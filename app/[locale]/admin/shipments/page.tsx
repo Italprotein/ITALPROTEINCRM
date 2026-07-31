@@ -74,6 +74,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Link } from '@/lib/i18n/navigation';
 import { toast } from '@/components/ui/use-toast';
+import type { CourierUpdate } from '@/lib/backend/courier-email';
 
 /* ────────────────────────────── Constants ────────────────────────────── */
 
@@ -122,6 +123,7 @@ export default function ShipmentsPage() {
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
   const [sampleMap, setSampleMap] = React.useState<Map<string, SampleRequest>>(new Map());
   const [stats, setStats] = React.useState<Awaited<ReturnType<typeof shipmentService.getStatistics>> | null>(null);
+  const [courierUpdates, setCourierUpdates] = React.useState<CourierUpdate[]>([]);
 
   // filters
   const [fStatus, setFStatus] = React.useState<string>(ALL);
@@ -137,6 +139,10 @@ export default function ShipmentsPage() {
     shipmentService.getStatistics().then(setStats);
     companyService.list().then((list) => setCompanyMap(new Map(list.map((c) => [c.id, c]))));
     sampleService.list().then((list) => setSampleMap(new Map(list.map((s) => [s.id, s]))));
+    fetch('/api/shipments/courier-updates', { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : [])
+      .then(setCourierUpdates)
+      .catch(() => setCourierUpdates([]));
   }, []);
 
   /* ── derived option lists ── */
@@ -478,6 +484,35 @@ export default function ShipmentsPage() {
           ) : null
         }
       />
+
+      <Card className="p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Courier email updates</h2>
+            <p className="text-xs text-muted-foreground">Latest tracking events fetched from DHL, BRT and Poste Italiane messages.</p>
+          </div>
+          <Badge variant="secondary">{courierUpdates.length}</Badge>
+        </div>
+        {courierUpdates.length ? (
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {courierUpdates.slice(0, 12).map((update) => (
+              <div key={update.messageId} className="rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold">{update.carrier}</span>
+                  <Badge variant={update.status === 'delivered' ? 'success' : update.status === 'exception' ? 'danger' : 'info'}>
+                    {update.status.replaceAll('_', ' ')}
+                  </Badge>
+                </div>
+                <p className="mt-1 font-mono text-sm">{update.trackingNumber}</p>
+                <p className="mt-1 truncate text-xs text-muted-foreground" title={update.subject}>{update.subject}</p>
+                <p className="mt-2 text-2xs text-muted-foreground">{formatDate(update.occurredAt, locale)}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground">No courier messages have been synced yet.</p>
+        )}
+      </Card>
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">

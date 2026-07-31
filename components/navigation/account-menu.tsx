@@ -1,13 +1,13 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { ChevronsUpDown, LogOut, Repeat, BadgeCheck, RotateCcw, ShieldCheck } from 'lucide-react';
+import { ChevronsUpDown, LogOut, Repeat, BadgeCheck, RotateCcw, ShieldCheck, Camera, Loader2 } from 'lucide-react';
 import { useRouter } from '@/lib/i18n/navigation';
 import { useSession } from '@/components/providers/session-provider';
 import { authService } from '@/lib/mock-services';
 import { resetLocalData } from '@/lib/local-store';
 import type { Role, Workspace } from '@/lib/types';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
@@ -15,6 +15,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { initials } from '@/lib/utils';
 import { isApiMode } from '@/lib/data-mode';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/use-toast';
+import * as React from 'react';
 
 const isApi = isApiMode;
 
@@ -30,6 +34,32 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
   const tr = useTranslations('Roles');
   const router = useRouter();
   const { account, switchRole, signOut } = useSession();
+  const [pictureOpen, setPictureOpen] = React.useState(false);
+  const [avatar, setAvatar] = React.useState<string | null>(null);
+  const [uploading, setUploading] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isApi || !account) return;
+    void fetch('/api/profile/avatar', { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => setAvatar(data?.image ?? null));
+  }, [account]);
+
+  async function uploadPicture(file: File) {
+    setUploading(true);
+    const form = new FormData();
+    form.set('image', file);
+    const response = await fetch('/api/profile/avatar', { method: 'POST', body: form });
+    const data = await response.json();
+    setUploading(false);
+    if (!response.ok) {
+      toast({ variant: 'danger', title: 'Picture not changed', description: 'Use a JPG, PNG or WebP image under 2 MB.' });
+      return;
+    }
+    setAvatar(data.image);
+    setPictureOpen(false);
+    toast({ variant: 'success', title: 'Profile picture updated' });
+  }
 
   if (!account) return null;
   const roles = rolesFor(account.workspace);
@@ -38,6 +68,7 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg p-1 pr-2 outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-accent">
         <Avatar className="h-8 w-8">
+          {avatar && <AvatarImage src={avatar} alt="" />}
           <AvatarFallback style={{ backgroundColor: account.avatarColor, color: '#fff' }} className="text-2xs">
             {initials(`${account.firstName} ${account.lastName}`)}
           </AvatarFallback>
@@ -52,6 +83,7 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
         <DropdownMenuLabel className="normal-case">
           <div className="flex items-center gap-3 py-1">
             <Avatar className="h-9 w-9">
+              {avatar && <AvatarImage src={avatar} alt="" />}
               <AvatarFallback style={{ backgroundColor: account.avatarColor, color: '#fff' }} className="text-2xs">
                 {initials(`${account.firstName} ${account.lastName}`)}
               </AvatarFallback>
@@ -88,6 +120,11 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
             <ShieldCheck className="mr-2 h-4 w-4" /> {t('security')}
           </DropdownMenuItem>
         )}
+        {isApi && (
+          <DropdownMenuItem onSelect={() => setPictureOpen(true)}>
+            <Camera className="mr-2 h-4 w-4" /> Change picture
+          </DropdownMenuItem>
+        )}
         {/* "Back to home" removed: it navigated to the public marketing site,
             which is rarely what a signed-in user wants. The ITALPROTEIN lockup
             in the sidebar/header now goes to each area's own home instead. */}
@@ -99,6 +136,35 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
           <LogOut className="mr-2 h-4 w-4" /> {t('signOut')}
         </DropdownMenuItem>
       </DropdownMenuContent>
+      <Dialog open={pictureOpen} onOpenChange={setPictureOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change profile picture</DialogTitle>
+            <DialogDescription>Choose a JPG, PNG or WebP image up to 2 MB.</DialogDescription>
+          </DialogHeader>
+          <label className="flex cursor-pointer flex-col items-center gap-4 rounded-xl border border-dashed p-8 text-center hover:bg-muted/40">
+            <Avatar className="h-20 w-20">
+              {avatar && <AvatarImage src={avatar} alt="" />}
+              <AvatarFallback style={{ backgroundColor: account.avatarColor, color: '#fff' }}>
+                {initials(`${account.firstName} ${account.lastName}`)}
+              </AvatarFallback>
+            </Avatar>
+            <Button type="button" variant="outline" disabled={uploading} asChild>
+              <span>{uploading ? <Loader2 className="animate-spin" /> : <Camera />} {uploading ? 'Uploading…' : 'Choose picture'}</span>
+            </Button>
+            <input
+              className="hidden"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={uploading}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void uploadPicture(file);
+              }}
+            />
+          </label>
+        </DialogContent>
+      </Dialog>
     </DropdownMenu>
   );
 }

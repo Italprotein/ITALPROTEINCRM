@@ -367,7 +367,15 @@ export async function runGmailSync(options?: { maxMessages?: number }): Promise<
 
   let refs;
   try {
-    refs = await listMessageIds(auth, query, maxMessages);
+    const [regular, courier] = await Promise.all([
+      listMessageIds(auth, query, maxMessages),
+      listMessageIds(
+        auth,
+        "newer_than:2y {from:(dhl.com) from:(brt.it) from:(poste.it) from:(sda.it) subject:(DHL) subject:(BRT)}",
+        500,
+      ),
+    ]);
+    refs = [...new Map([...regular, ...courier].map((item) => [item.id, item])).values()];
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "gmail_list_failed", ...empty };
   }

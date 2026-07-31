@@ -25,6 +25,8 @@ export interface DriveFile {
   owner?: string;
 }
 
+export const DRIVE_FOLDER_MIME = "application/vnd.google-apps.folder";
+
 interface RawFile {
   id: string;
   name: string;
@@ -113,6 +115,53 @@ export async function getDriveFile(fileId: string): Promise<DriveFile | null> {
   if (res.status === 404) return null;
   if (!res.ok) throw new GmailError(`Google Drive request failed (${res.status})`, res.status);
   return toFile((await res.json()) as RawFile);
+}
+
+/** Lists direct children of a Drive folder, including shared-drive folders. */
+export async function listDriveFolder(folderId: string): Promise<DriveFile[]> {
+  const auth = await getGmailAuth();
+  if (!auth) return [];
+  const files: DriveFile[] = [];
+  let pageToken: string | undefined;
+  do {
+    const params = new URLSearchParams({
+      q: `'${escapeQuery(folderId)}' in parents and trashed = false`,
+      fields: `nextPageToken,${FIELDS}`,
+      pageSize: "1000",
+      orderBy: "modifiedTime desc",
+      supportsAllDrives: "true",
+      includeItemsFromAllDrives: "true",
+    });
+    if (pageToken) params.set("pageToken", pageToken);
+    const response = await fetch(`${DRIVE_BASE}/files?${params}`, {
+      headers: { Authorization: `Bearer ${auth.accessToken}` },
+      cache: "no-store",
+    });
+    if (!response.ok) throw new GmailError(`Google Drive request failed (${response.status})`, response.status);
+    const data = (await response.json()) as { files?: RawFile[]; nextPageToken?: string };
+    files.push(...(data.files ?? []).map(toFile));
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+  return files;
+}
+
+/** Downloads a Drive file. Native Google files are exported as PDF. */
+export async function downloadDriveFile(file: DriveFile): Promise<{ bytes: Buffer; mimeType: string }> {
+  const auth = await getGmailAuth();
+  if (!auth) throw new GmailError("Google account is not connected.", 401);
+  const native = file.mimeType.startsWith("application/vnd.google-apps.");
+  const url = native
+    ? `${DRIVE_BASE}/files/${encodeURIComponent(file.id)}/export?mimeType=application%2Fpdf`
+    : `${DRIVE_BASE}/files/${encodeURIComponent(file.id)}?alt=media&supportsAllDrives=true`;
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${auth.accessToken}` },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new GmailError(`Google Drive download failed (${response.status})`, response.status);
+  return {
+    bytes: Buffer.from(await response.arrayBuffer()),
+    mimeType: native ? "application/pdf" : (response.headers.get("content-type") ?? file.mimeType),
+  };
 }
 
 /** True when the stored token actually carries a Drive scope. */
