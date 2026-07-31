@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   if (!state?.uid) return settingsUrl("error");
 
   const user = await getCurrentUser();
-  if (!user || !can(user.role, "settings.edit") || user.id !== state.uid) return settingsUrl("error");
+  if (!user || !can(user.role, "integrations.manage") || user.id !== state.uid) return settingsUrl("error");
 
   try {
     const tokens = await exchangeOAuthCode(code);

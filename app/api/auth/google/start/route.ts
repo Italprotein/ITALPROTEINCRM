@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 // Middleware never covers /api, so this route enforces its own session check.
 export async function GET() {
   const user = await getCurrentUser();
-  if (!user || !can(user.role, "settings.edit")) {
+  if (!user || !can(user.role, "integrations.manage")) {
     return NextResponse.redirect(absoluteUrl("/en/team-login"));
   }
   if (!isGoogleConfigured()) {

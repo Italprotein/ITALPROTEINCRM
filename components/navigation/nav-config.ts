@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard, Building2, Users, Workflow, FlaskConical, Truck, MessageSquareText,
   FolderKanban, Boxes, FileSignature, Receipt, Activity, ListChecks, Calendar, Mail,
-  BarChart3, Bell, UserPlus, UserCog, FileSpreadsheet, Settings, ScrollText, FileText, LifeBuoy, Handshake,
+  BarChart3, Bell, UserPlus, UserCog, FileSpreadsheet, Settings, ScrollText, FileText, LifeBuoy, Handshake, Plug,
 } from 'lucide-react';
 import type { InternalSection, PortalSection } from '@/lib/permissions';
 
@@ -77,6 +77,7 @@ export const INTERNAL_NAV: NavGroup[] = [
       { section: 'registrations', href: '/admin/registrations', labelKey: 'registrations', icon: UserPlus },
       { section: 'users', href: '/admin/users', labelKey: 'users', icon: UserCog },
       { section: 'import_export', href: '/admin/import-export', labelKey: 'import_export', icon: FileSpreadsheet },
+      { section: 'integrations', href: '/admin/integrations', labelKey: 'integrations', icon: Plug },
       { section: 'settings', href: '/admin/settings', labelKey: 'settings', icon: Settings },
       { section: 'audit', href: '/admin/audit', labelKey: 'audit', icon: ScrollText },
     ],

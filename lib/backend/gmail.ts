@@ -14,6 +14,12 @@ const GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
 export const GMAIL_OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/gmail.send",
+  // Calendar is requested in the same consent so the mailbox is authorised
+  // once rather than twice. Adding it later would silently leave the stored
+  // token without calendar access until someone re-authorised by hand.
+  // Requires the Google Calendar API to be enabled on the Cloud project.
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.readonly",
 ] as const;
 
 export class GmailError extends Error {

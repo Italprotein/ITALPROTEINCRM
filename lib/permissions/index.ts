@@ -13,7 +13,7 @@ export type InternalSection =
   | 'overview' | 'companies' | 'agencies' | 'contacts' | 'pipeline' | 'samples' | 'shipments'
   | 'feedback' | 'projects' | 'products' | 'ndas' | 'finance' | 'activities'
   | 'tasks' | 'calendar' | 'communications' | 'analytics' | 'notifications'
-  | 'registrations' | 'users' | 'import_export' | 'settings' | 'audit';
+  | 'registrations' | 'users' | 'import_export' | 'settings' | 'audit' | 'integrations';
 
 export type PortalSection =
   | 'dashboard' | 'profile' | 'samples' | 'feedback' | 'projects'
@@ -30,7 +30,7 @@ export type Action =
   | 'sample.approve' | 'sample.status_update' | 'shipment.update'
   | 'feedback.reply' | 'nda.prepare' | 'nda.send' | 'nda.mark_signed'
   | 'finance.edit' | 'registration.approve' | 'user.manage' | 'data.export'
-  | 'settings.edit' | 'audit.view'
+  | 'settings.edit' | 'audit.view' | 'integrations.manage'
   // portal
   | 'portal.request_sample' | 'portal.confirm_delivery' | 'portal.submit_feedback'
   | 'portal.upload_results' | 'portal.edit_company' | 'portal.submit_sensitive_edit'
@@ -40,7 +40,7 @@ export const INTERNAL_SECTIONS: InternalSection[] = [
   'overview', 'companies', 'agencies', 'contacts', 'pipeline', 'samples', 'shipments',
   'feedback', 'projects', 'products', 'ndas', 'finance', 'activities',
   'tasks', 'calendar', 'communications', 'analytics', 'notifications',
-  'registrations', 'users', 'import_export', 'settings', 'audit',
+  'registrations', 'users', 'import_export', 'settings', 'audit', 'integrations',
 ];
 
 export const PORTAL_SECTIONS: PortalSection[] = [
@@ -70,6 +70,7 @@ const ALL_INTERNAL_ACTIONS: Action[] = [
   'sample.approve', 'sample.status_update', 'shipment.update', 'feedback.reply',
   'nda.prepare', 'nda.send', 'nda.mark_signed', 'finance.edit',
   'registration.approve', 'user.manage', 'data.export', 'settings.edit', 'audit.view',
+  'integrations.manage',
 ];
 
 /* ────────────────────────────── THE MATRIX ────────────────────────────── */
@@ -94,11 +95,15 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
       'sample.approve', 'sample.status_update', 'shipment.update', 'feedback.reply',
       'nda.prepare', 'nda.send', 'nda.mark_signed', 'finance.edit',
       'registration.approve', 'data.export',
+      // Connecting the shared ad@italprotein.com mailbox and calendar is
+      // day-to-day operational work, not account administration — every CRM
+      // admin needs it, and gating it on settings.edit made it super_admin-only.
+      'integrations.manage',
     ],
   },
   business_dev: {
     workspace: 'internal',
-    sections: sections(INTERNAL_SECTIONS, 'view', {
+    sections: sections(INTERNAL_SECTIONS, 'view', { integrations: 'hidden',
       overview: 'full', companies: 'full', agencies: 'full', contacts: 'full', pipeline: 'full',
       samples: 'edit', ndas: 'edit', projects: 'edit', activities: 'full',
       tasks: 'full', calendar: 'full', communications: 'full',
@@ -111,7 +116,7 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
   },
   rnd_technical: {
     workspace: 'internal',
-    sections: sections(INTERNAL_SECTIONS, 'view', {
+    sections: sections(INTERNAL_SECTIONS, 'view', { integrations: 'hidden',
       overview: 'full', feedback: 'full', projects: 'full', products: 'full',
       samples: 'edit', activities: 'edit', tasks: 'full', calendar: 'full',
       finance: 'hidden', users: 'hidden', settings: 'hidden', audit: 'hidden',
@@ -121,7 +126,7 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
   },
   logistics: {
     workspace: 'internal',
-    sections: sections(INTERNAL_SECTIONS, 'view', {
+    sections: sections(INTERNAL_SECTIONS, 'view', { integrations: 'hidden',
       overview: 'full', samples: 'full', shipments: 'full',
       activities: 'edit', tasks: 'full', calendar: 'full',
       finance: 'hidden', users: 'hidden', settings: 'hidden', audit: 'hidden',
@@ -131,7 +136,7 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
   },
   finance: {
     workspace: 'internal',
-    sections: sections(INTERNAL_SECTIONS, 'view', {
+    sections: sections(INTERNAL_SECTIONS, 'view', { integrations: 'hidden',
       overview: 'full', finance: 'full', analytics: 'full', tasks: 'full',
       ndas: 'hidden', feedback: 'hidden', projects: 'hidden', products: 'hidden',
       users: 'hidden', settings: 'hidden', audit: 'hidden', registrations: 'hidden',
@@ -141,7 +146,7 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
   },
   management_readonly: {
     workspace: 'internal',
-    sections: sections(INTERNAL_SECTIONS, 'view', {
+    sections: sections(INTERNAL_SECTIONS, 'view', { integrations: 'hidden',
       users: 'hidden', settings: 'hidden', audit: 'hidden',
       import_export: 'hidden', registrations: 'hidden',
     }),

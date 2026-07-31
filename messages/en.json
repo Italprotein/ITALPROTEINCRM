@@ -77,7 +77,8 @@
     "group_legal_finance": "Legal & Finance",
     "group_productivity": "Productivity",
     "group_insights": "Insights",
-    "group_admin": "Administration"
+    "group_admin": "Administration",
+    "integrations": "Integrations"
   },
   "PortalNav": {
     "dashboard": "Dashboard",
@@ -1894,7 +1895,8 @@
     "gmailSyncNow": "Sync now",
     "gmailSyncDoneTitle": "Inbox synced",
     "gmailSyncDoneDescription": "{created} new messages imported.",
-    "gmailSyncFailed": "Sync failed — check the connection and try again."
+    "gmailSyncFailed": "Sync failed — check the connection and try again.",
+    "gmailNoPermission": "Ask a super admin to connect the Google account."
   },
   "AdminTasks": {
     "unassigned": "Unassigned",
