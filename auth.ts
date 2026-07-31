@@ -12,6 +12,7 @@ import {
 } from "@/lib/backend/rate-limit";
 import { mfaRequiredForRole, hasActiveSecondFactor, verifySecondFactor } from "@/lib/backend/mfa";
 import type { Role } from "@/lib/types";
+import { verifyLoginTicket } from "@/lib/backend/login-tickets";
 
 // Full Auth.js config (Node runtime). Email + password via the Credentials
 // provider, verified against User.passwordHash with bcrypt. Sessions are JWT
@@ -26,13 +27,47 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
         workspace: { label: "Workspace", type: "text" },
         totp: { label: "Authentication code", type: "text" },
+        loginTicket: { label: "Verified login ticket", type: "text" },
       },
       authorize: async (credentials, request) => {
         const email = String(credentials?.email ?? "").trim().toLowerCase();
         const password = String(credentials?.password ?? "");
         const workspace = String(credentials?.workspace ?? "");
         const totp = String(credentials?.totp ?? "");
-        if (!email || !password || (workspace !== "internal" && workspace !== "external")) return null;
+        const loginTicket = String(credentials?.loginTicket ?? "");
+        if (workspace !== "internal" && workspace !== "external") return null;
+
+        // The separated password/MFA flow exchanges its completed challenge for
+        // a two-minute signed ticket. Re-read the user and authVersion here so
+        // disabling the account or revoking sessions invalidates the ticket.
+        if (loginTicket) {
+          const ticket = verifyLoginTicket(loginTicket, "login");
+          if (!ticket || ticket.workspace !== workspace) return null;
+          const ticketUser = await prisma.user.findUnique({
+            where: { id: ticket.userId },
+            include: { role: true },
+          });
+          if (
+            !ticketUser ||
+            ticketUser.status !== "active" ||
+            ticketUser.authVersion !== ticket.authVersion ||
+            ticketUser.kind !== workspace ||
+            ticketUser.role.kind !== ticketUser.kind ||
+            (ticketUser.kind === "external" && !ticketUser.companyId)
+          ) return null;
+          await prisma.user.update({ where: { id: ticketUser.id }, data: { lastLoginAt: new Date() } }).catch(() => undefined);
+          return {
+            id: ticketUser.id,
+            email: ticketUser.email ?? undefined,
+            name: ticketUser.name ?? undefined,
+            role: ticketUser.role.key,
+            kind: ticketUser.kind,
+            companyId: ticketUser.companyId ?? null,
+            authVersion: ticketUser.authVersion,
+          };
+        }
+
+        if (!email || !password) return null;
 
         const ip = clientIpFromHeaders(request?.headers);
         // Volumetric guard: every attempt spends per-IP quota.

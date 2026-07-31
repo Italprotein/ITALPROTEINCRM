@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useId } from 'react';
+import { useState, useRef, useId, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import {
@@ -71,11 +71,10 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
   const { signInAs } = useSession();
   const emailId = useId();
   const passwordId = useId();
-  const totpId = useId();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [totp, setTotp] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [state, setState] = useState<FormState>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [wrongWorkspace, setWrongWorkspace] = useState(false);
@@ -96,11 +95,27 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
 
     // ── Real auth (Auth.js Credentials provider) ──
     if (isApi) {
+      const checked = await fetch('/api/auth/login-check', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password, workspace }),
+      });
+      const check = await checked.json();
+      if (!checked.ok) {
+        setState('error');
+        setErrorMsg(t('errorInvalid'));
+        setTimeout(() => setState('idle'), 3200);
+        return;
+      }
+      if (rememberMe) localStorage.setItem(`italprotein-login-email:${workspace}`, email.trim().toLowerCase());
+      else localStorage.removeItem(`italprotein-login-email:${workspace}`);
+      if (check.mfaRequired) {
+        router.push(`/verify?workspace=${workspace}&next=${encodeURIComponent(redirectTo)}`);
+        return;
+      }
       const res = await signIn('credentials', {
-        email: email.trim().toLowerCase(),
-        password,
         workspace,
-        totp: totp.trim(),
+        loginTicket: check.loginTicket,
         redirect: false,
       });
       if (!res || res.error) {
@@ -145,6 +160,15 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
       : state === 'success'
         ? 'border-success ring-1 ring-success/50'
         : 'border-input focus-within:border-brand-gold/60 focus-within:ring-1 focus-within:ring-brand-gold/30';
+
+  useEffect(() => {
+    if (!isApi) return;
+    const saved = localStorage.getItem(`italprotein-login-email:${workspace}`);
+    if (saved) {
+      setEmail(saved);
+      setRememberMe(true);
+    }
+  }, [isApi, workspace]);
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,44%)_1fr]">
@@ -325,35 +349,16 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
                 </div>
               )}
 
-              {/* Second factor. Shown on the staff door only, and optional in the
-                  form: the server decides whether a code is actually required
-                  (mandatory for super_admin, enforced for anyone enrolled), so
-                  the five admins without MFA simply leave it blank. */}
-              {isApi && isTeam && (
-                <div className="space-y-1.5">
-                  <label htmlFor={totpId} className="flex items-center gap-1.5 text-sm font-medium">
-                    <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground" />
-                    {t('twoFactorLabel')}
-                  </label>
-                  <div className={cn('relative overflow-hidden rounded-lg border transition-all duration-200', borderClass)}>
-                    <input
-                      id={totpId}
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      value={totp}
-                      maxLength={9}
-                      disabled={state === 'submitting' || state === 'success'}
-                      placeholder={t('twoFactorPlaceholder')}
-                      onChange={(e) => {
-                        setTotp(e.target.value);
-                        if (state === 'error') setState('idle');
-                      }}
-                      className="h-12 w-full bg-transparent px-4 text-sm tracking-widest placeholder:tracking-normal placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">{t('twoFactorHint')}</p>
-                </div>
+              {isApi && (
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(event) => setRememberMe(event.target.checked)}
+                    className="h-4 w-4 rounded border-input accent-brand-navy"
+                  />
+                  Remember my email on this device
+                </label>
               )}
 
               <Button type="submit" disabled={!email.trim() || (isApi && !password) || state === 'submitting' || state === 'success'} className="h-12 w-full gap-2 text-sm font-semibold">
