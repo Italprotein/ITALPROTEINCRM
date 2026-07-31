@@ -17,6 +17,8 @@ type OptionalEnvKey =
   | 'GMAIL_REPLY_TO'
   | 'AI_PROVIDER'
   | 'ANTHROPIC_API_KEY'
+  | 'OPENAI_API_KEY'
+  | 'OPENAI_MODEL'
   | 'AI_MODEL'
   | 'AI_ASSISTANT_NAME'
   | 'AI_VECTOR_STORE_URL'
@@ -94,6 +96,10 @@ export function getBackendEnv() {
       model: readEnv('AI_MODEL') ?? 'claude-opus-4-8',
       assistantName: readEnv('AI_ASSISTANT_NAME') ?? 'Amina',
       vectorStoreUrl: readEnv('AI_VECTOR_STORE_URL'),
+    },
+    openai: {
+      apiKey: readEnv('OPENAI_API_KEY'),
+      model: readEnv('OPENAI_MODEL') ?? 'gpt-5.6-sol',
     },
     storage: {
       bucket: readEnv('OBJECT_STORAGE_BUCKET'),

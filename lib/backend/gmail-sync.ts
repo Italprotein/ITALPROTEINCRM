@@ -4,7 +4,6 @@ import {
   getAttachmentBytes,
   getGmailAuth,
   getMessage,
-  getThread,
   headerValue,
   listAttachmentMeta,
   listMessageIds,
@@ -15,17 +14,16 @@ import {
 } from "./gmail";
 import type { GmailSyncResult } from "@/lib/types";
 import { isItalproteinNdaDocumentName } from "./nda-classification";
+import { firstMentionedLeadMember } from "./lead-attribution";
 
 // Gmail inbox sync engine. For every new inbox message it:
 //  1. stores an EmailMessage row (dedupe key: gmailMessageId),
 //  2. auto-files "NDA" attachments as Document + DocumentVersion + NDA rows,
-//  3. attributes the sender's company NAME to an admin's "My Leads" list —
-//     matched via the "Dear <admin>" greeting, falling back to the admin
-//     signature on the FIRST sent mail of the thread.
+//  3. attributes the sender's company NAME to the Italprotein member whose
+//     name occurs first in the counterparty's incoming message.
 
 const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
 const NDA_FILE_EXTENSIONS = new Set(["pdf", "doc", "docx", "rtf", "odt"]);
-const GREETING_WORDS = ["dear", "hi", "hello", "ciao", "gentile", "caro", "cara", "buongiorno"];
 
 const FREEMAIL_DOMAINS = new Set([
   "gmail.com",
@@ -54,7 +52,7 @@ const FREEMAIL_DOMAINS = new Set([
   "tin.it",
 ]);
 
-interface AdminRecord {
+interface MemberRecord {
   id: string;
   fullName: string;
   firstName: string;
@@ -67,13 +65,13 @@ function splitName(name: string | null): { firstName: string; lastName: string }
   return { firstName: parts[0] ?? "", lastName: parts.slice(1).join(" ") };
 }
 
-async function loadAdmins(): Promise<AdminRecord[]> {
+async function loadMembers(): Promise<MemberRecord[]> {
   const rows = await prisma.user.findMany({
     where: { kind: "internal", status: "active" },
     include: { role: true },
   });
   return rows
-    .filter((r) => ["super_admin", "crm_admin"].includes(r.role.key) && r.name)
+    .filter((r) => r.name)
     .map((r) => {
       const { firstName, lastName } = splitName(r.name);
       return {
@@ -123,50 +121,10 @@ function initialsOf(name: string): string {
   );
 }
 
-// ── Admin matching ("Dear <name>" / signature) ─────────────────────────────
+// ── Member matching ────────────────────────────────────────────────────────
 
-function matchAdminInGreeting(body: string, admins: AdminRecord[]): AdminRecord | null {
-  const head = body.slice(0, 600);
-  const greeting = new RegExp(
-    `\\b(?:${GREETING_WORDS.join("|")})\\s+([\\p{L}'’-]+)(?:\\s+([\\p{L}'’-]+))?`,
-    "iu",
-  );
-  const match = head.match(greeting);
-  if (!match) return null;
-  const first = (match[1] ?? "").toLowerCase();
-  const second = (match[2] ?? "").toLowerCase();
-  for (const admin of admins) {
-    const fn = admin.firstName.toLowerCase();
-    const ln = admin.lastName.toLowerCase();
-    if (first === fn && (!second || !ln || second === ln)) return admin;
-    if (ln && first === ln && second === fn) return admin;
-  }
-  return null;
-}
-
-/** Look for an admin name in the signature zone (last lines) of a sent mail. */
-function matchAdminInSignature(body: string, admins: AdminRecord[]): AdminRecord | null {
-  const lines = body
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0 && !l.startsWith(">"));
-  const zone = lines.slice(-12);
-  for (const admin of admins) {
-    const full = admin.fullName.toLowerCase();
-    for (const line of zone) {
-      const lower = line.toLowerCase();
-      if (full && lower.includes(full)) return admin;
-      // Signature-like short line that is exactly / starts with the first name.
-      if (
-        line.split(/\s+/).length <= 4 &&
-        (lower === admin.firstName.toLowerCase() ||
-          lower.startsWith(`${admin.firstName.toLowerCase()} `))
-      ) {
-        return admin;
-      }
-    }
-  }
-  return null;
+function matchLeadMember(body: string, admins: MemberRecord[]): MemberRecord | null {
+  return firstMentionedLeadMember(body, admins);
 }
 
 // ── Company resolution for NDA filing ──────────────────────────────────────
@@ -190,7 +148,7 @@ async function resolveCompanyId(senderEmail: string, domain: string): Promise<st
   return null;
 }
 
-async function fallbackOwnerId(admins: AdminRecord[]): Promise<string | null> {
+async function fallbackOwnerId(admins: MemberRecord[]): Promise<string | null> {
   if (admins.length) return admins[0].id;
   const anyInternal = await prisma.user.findFirst({
     where: { kind: "internal", status: "active" },
@@ -344,6 +302,116 @@ async function fileNdaFromAttachment(options: {
   return nda.id;
 }
 
+/**
+ * Rebuild Gmail-derived leads from stored inbound messages. This makes the new
+ * ownership rule apply to historical mail as well as messages fetched today.
+ * The first inbound message for a company that mentions a member establishes
+ * that company's responsible owner; quoted thread history is ignored.
+ */
+async function reconcileStoredLeadOwnership(
+  members: MemberRecord[],
+  memberEmails: Set<string>,
+): Promise<{ created: number; updated: number }> {
+  const messages = await prisma.emailMessage.findMany({
+    where: { direction: "inbound" },
+    orderBy: { internalDate: "asc" },
+    select: { id: true, fromAddress: true, bodyText: true, internalDate: true },
+  });
+
+  type StoredMessage = (typeof messages)[number];
+  const byCompany = new Map<
+    string,
+    { companyName: string; sourceDomain: string; messages: StoredMessage[] }
+  >();
+
+  for (const message of messages) {
+    const from = message.fromAddress.toLowerCase();
+    const domain = domainOf(from);
+    if (!domain || domain === "italprotein.com" || memberEmails.has(from)) continue;
+    const companyName = companyNameFromDomain(domain);
+    if (!companyName) continue;
+    const key = companyName.toLocaleLowerCase();
+    const bucket = byCompany.get(key) ?? { companyName, sourceDomain: domain, messages: [] };
+    bucket.messages.push(message);
+    byCompany.set(key, bucket);
+  }
+
+  const desired = [...byCompany.values()]
+    .map((bucket) => {
+      const establishingMessage = bucket.messages.find((message) =>
+        firstMentionedLeadMember(message.bodyText ?? "", members),
+      );
+      if (!establishingMessage) return null;
+      const owner = firstMentionedLeadMember(establishingMessage.bodyText ?? "", members);
+      if (!owner) return null;
+      return {
+        ...bucket,
+        owner,
+        firstSeenAt: bucket.messages[0].internalDate,
+        lastSeenAt: bucket.messages[bucket.messages.length - 1].internalDate,
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+
+  const oldLeads = await prisma.lead.findMany({ where: { source: "gmail" } });
+  let created = 0;
+  let updated = 0;
+
+  await prisma.$transaction(async (tx) => {
+    if (oldLeads.length) {
+      await tx.emailMessage.updateMany({
+        where: { leadId: { in: oldLeads.map((lead) => lead.id) } },
+        data: { leadId: null, matchedAdminUserId: null },
+      });
+    }
+
+    const retained = new Set<string>();
+    for (const entry of desired) {
+      const existing = oldLeads.find(
+        (lead) =>
+          lead.adminUserId === entry.owner.id &&
+          lead.companyName.toLocaleLowerCase() === entry.companyName.toLocaleLowerCase(),
+      );
+      const lead = existing
+        ? await tx.lead.update({
+            where: { id: existing.id },
+            data: {
+              sourceDomain: entry.sourceDomain,
+              emailCount: entry.messages.length,
+              firstSeenAt: entry.firstSeenAt,
+              lastSeenAt: entry.lastSeenAt,
+            },
+          })
+        : await tx.lead.create({
+            data: {
+              adminUserId: entry.owner.id,
+              companyName: entry.companyName,
+              sourceDomain: entry.sourceDomain,
+              source: "gmail",
+              emailCount: entry.messages.length,
+              firstSeenAt: entry.firstSeenAt,
+              lastSeenAt: entry.lastSeenAt,
+            },
+          });
+      existing ? (updated += 1) : (created += 1);
+      retained.add(lead.id);
+      await tx.emailMessage.updateMany({
+        where: { id: { in: entry.messages.map((message) => message.id) } },
+        data: { leadId: lead.id, matchedAdminUserId: entry.owner.id },
+      });
+    }
+
+    const obsoleteIds = oldLeads
+      .map((lead) => lead.id)
+      .filter((leadId) => !retained.has(leadId));
+    if (obsoleteIds.length) {
+      await tx.lead.deleteMany({ where: { id: { in: obsoleteIds } } });
+    }
+  });
+
+  return { created, updated };
+}
+
 // ── Main sync ──────────────────────────────────────────────────────────────
 
 export async function runGmailSync(options?: { maxMessages?: number }): Promise<GmailSyncResult> {
@@ -353,7 +421,7 @@ export async function runGmailSync(options?: { maxMessages?: number }): Promise<
 
   const maxMessages = options?.maxMessages ?? 200;
   const mailboxEmail = auth.email.toLowerCase();
-  const admins = await loadAdmins();
+  const admins = await loadMembers();
   const adminEmails = new Set(admins.map((a) => a.email).filter(Boolean));
 
   const newest = await prisma.emailMessage.findFirst({
@@ -391,8 +459,6 @@ export async function runGmailSync(options?: { maxMessages?: number }): Promise<
   const fresh = refs.filter((r) => !existing.has(r.id));
 
   const result: GmailSyncResult = { ok: true, ...empty, fetched: refs.length };
-  const threadCache = new Map<string, GmailMessage[]>();
-
   for (const ref of fresh) {
     try {
       const message = await getMessage(auth, ref.id);
@@ -433,24 +499,8 @@ export async function runGmailSync(options?: { maxMessages?: number }): Promise<
         !adminEmails.has(from.email);
       if (!isExternal) continue;
 
-      // ── Admin attribution: greeting first, first-sent-mail signature second.
-      let admin = matchAdminInGreeting(body, admins);
-      if (!admin) {
-        let thread = threadCache.get(message.threadId);
-        if (!thread) {
-          thread = (await getThread(auth, message.threadId)).messages ?? [];
-          threadCache.set(message.threadId, thread);
-        }
-        const firstSent = thread
-          .filter((m) => {
-            const f = parseAddressList(headerValue(m, "From"))[0];
-            return f?.email === mailboxEmail;
-          })
-          .sort((a, b) => Number(a.internalDate ?? 0) - Number(b.internalDate ?? 0))[0];
-        if (firstSent) {
-          admin = matchAdminInSignature(extractBodyText(firstSent.payload), admins);
-        }
-      }
+      // ── Lead attribution: first Italprotein member named by the sender.
+      const admin = matchLeadMember(body, admins);
 
       // ── My Leads: store the counterparty company NAME under the admin.
       let leadId: string | null = null;
@@ -536,5 +586,8 @@ export async function runGmailSync(options?: { maxMessages?: number }): Promise<
     }
   }
 
+  const reconciled = await reconcileStoredLeadOwnership(admins, adminEmails);
+  result.leadsCreated = reconciled.created;
+  result.leadsUpdated = reconciled.updated;
   return result;
 }

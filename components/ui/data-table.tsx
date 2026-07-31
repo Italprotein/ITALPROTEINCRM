@@ -64,6 +64,7 @@ export interface DataTableProps<T> {
   searchPlaceholder?: string;
   searchValue?: (row: T) => string;
   pageSize?: number;
+  pageSizeOptions?: readonly number[];
   selectable?: boolean;
   onSelectionChange?: (ids: string[]) => void;
   bulkActions?: (ids: string[], clear: () => void) => React.ReactNode;
@@ -86,6 +87,8 @@ export interface DataTableProps<T> {
 }
 
 type SortDir = 'asc' | 'desc' | null;
+
+const DEFAULT_PAGE_SIZE_OPTIONS = [12, 25, 50, 100] as const;
 
 const alignClass: Record<NonNullable<Column<unknown>['align']>, string> = {
   left: 'text-left',
@@ -128,7 +131,8 @@ export function DataTable<T>(props: DataTableProps<T>): React.JSX.Element {
     searchable = false,
     searchPlaceholder = 'Search…',
     searchValue,
-    pageSize = 10,
+    pageSize: initialPageSize = 12,
+    pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
     selectable = false,
     onSelectionChange,
     bulkActions,
@@ -154,10 +158,18 @@ export function DataTable<T>(props: DataTableProps<T>): React.JSX.Element {
   const [sortKey, setSortKey] = React.useState<string | null>(defaultSortKey ?? null);
   const [sortDir, setSortDir] = React.useState<SortDir>(defaultSortDir ?? null);
   const [page, setPage] = React.useState(0);
+  const [pageSize, setPageSize] = React.useState(initialPageSize);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
   const [density, setDensity] = React.useState<'compact' | 'comfortable'>(
     densityProp ?? 'comfortable',
+  );
+  const availablePageSizes = React.useMemo(
+    () =>
+      [...new Set([initialPageSize, ...pageSizeOptions])]
+        .filter((size) => Number.isInteger(size) && size > 0)
+        .sort((a, b) => a - b),
+    [initialPageSize, pageSizeOptions],
   );
   const [hidden, setHidden] = React.useState<Set<string>>(() => {
     const initial = new Set<string>();
@@ -741,12 +753,33 @@ export function DataTable<T>(props: DataTableProps<T>): React.JSX.Element {
       {/* ── pagination footer ── */}
       {!loading && total > 0 ? (
         <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-          <p className="text-sm text-muted-foreground tabular">
-            <span className="font-medium text-foreground">{rangeStart}</span>
-            {'–'}
-            <span className="font-medium text-foreground">{rangeEnd}</span> of{' '}
-            <span className="font-medium text-foreground">{total}</span>
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-muted-foreground tabular">
+              <span className="font-medium text-foreground">{rangeStart}</span>
+              {'–'}
+              <span className="font-medium text-foreground">{rangeEnd}</span> of{' '}
+              <span className="font-medium text-foreground">{total}</span>
+            </p>
+            <label className="flex items-center gap-1.5 text-muted-foreground" title="Rows per page">
+              <Rows3 className="h-4 w-4" aria-hidden="true" />
+              <span className="sr-only">Rows per page</span>
+              <select
+                value={pageSize}
+                onChange={(event) => {
+                  setPageSize(Number(event.target.value));
+                  setPage(0);
+                }}
+                className="h-8 rounded-md border border-input bg-background px-2 text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Rows per page"
+              >
+                {availablePageSizes.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           {pageCount > 1 ? (
             <div className="flex items-center gap-1">
               <Button

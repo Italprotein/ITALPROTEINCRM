@@ -654,7 +654,7 @@ export default function ContactsPage() {
         enableDensityToggle
         exportFilename="contacts"
         storageKey="contacts"
-        pageSize={10}
+        pageSize={12}
         emptyTitle={t('emptyTitle')}
         emptyDescription={t('emptyDescription')}
       />

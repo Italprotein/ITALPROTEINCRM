@@ -24,6 +24,7 @@ const GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
 export const GMAIL_OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/gmail.send",
+  "https://www.googleapis.com/auth/gmail.compose",
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/calendar.readonly",
   // drive.readonly rather than full drive: the CRM links and reads existing
@@ -125,13 +126,14 @@ async function refreshAccessToken(refreshToken: string): Promise<TokenResponse |
 const SCOPE_BY_URL: Record<string, GoogleScopeValue> = {
   "https://www.googleapis.com/auth/gmail.readonly": "gmail_readonly",
   "https://www.googleapis.com/auth/gmail.send": "gmail_send",
+  "https://www.googleapis.com/auth/gmail.compose": "gmail_compose",
   "https://www.googleapis.com/auth/calendar.events": "calendar_events",
   "https://www.googleapis.com/auth/calendar.readonly": "calendar_readonly",
   "https://www.googleapis.com/auth/drive.readonly": "drive_metadata_readonly",
 };
 
 type GoogleScopeValue =
-  | "gmail_readonly" | "gmail_send"
+  | "gmail_readonly" | "gmail_send" | "gmail_compose"
   | "calendar_events" | "calendar_readonly"
   | "drive_metadata_readonly" | "drive_file" | "documents";
 
@@ -368,6 +370,22 @@ export async function sendRawMessage(auth: GmailAuth, raw: string): Promise<Gmai
   });
 }
 
+export interface GmailDraftRef {
+  id: string;
+  message: GmailMessageRef;
+}
+
+export async function createRawDraft(
+  auth: GmailAuth,
+  raw: string,
+  threadId?: string,
+): Promise<GmailDraftRef> {
+  return gmailFetch<GmailDraftRef>(auth, "/drafts", {
+    method: "POST",
+    body: JSON.stringify({ message: { raw, ...(threadId ? { threadId } : {}) } }),
+  });
+}
+
 // ── MIME helpers ───────────────────────────────────────────────────────────
 
 function encodeHeaderWord(value: string): string {
@@ -402,6 +420,8 @@ export function buildRawEmail(options: {
   replyTo?: string;
   subject: string;
   text: string;
+  inReplyTo?: string;
+  references?: string;
 }): string {
   const { fromName, subject, text } = options;
   const from = requireEmailAddress(options.from);
@@ -417,6 +437,8 @@ export function buildRawEmail(options: {
     ...(cc && cc.length ? [`Cc: ${cc.join(", ")}`] : []),
     ...(replyTo ? [`Reply-To: ${replyTo}`] : []),
     `Subject: ${encodeHeaderWord(subject)}`,
+    ...(options.inReplyTo ? [`In-Reply-To: ${options.inReplyTo.replace(/[\r\n]/g, "")}`] : []),
+    ...(options.references ? [`References: ${options.references.replace(/[\r\n]/g, "")}`] : []),
     "MIME-Version: 1.0",
     'Content-Type: text/plain; charset="UTF-8"',
     "Content-Transfer-Encoding: base64",

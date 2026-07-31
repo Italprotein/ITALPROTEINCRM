@@ -14,6 +14,10 @@ import {
   MoreHorizontal,
   ArrowRight,
   X,
+  Sparkles,
+  MailPlus,
+  ExternalLink,
+  Loader2,
 } from 'lucide-react';
 
 import { taskService, companyService } from '@/lib/mock-services';
@@ -60,6 +64,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { toast } from '@/components/ui/use-toast';
+import { createAiReplyDraft, generateAiTasksFromInbox } from '@/lib/services/ai-task.actions';
 
 /* ────────────────────────────── Constants ────────────────────────────── */
 
@@ -117,6 +122,9 @@ export default function TasksPage() {
   const [view, setView] = React.useState<'table' | 'board'>('table');
   const [filter, setFilter] = React.useState<FilterKey>('team');
   const [createOpen, setCreateOpen] = React.useState(false);
+  const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
+  const [aiGenerating, setAiGenerating] = React.useState(false);
+  const [drafting, setDrafting] = React.useState(false);
 
   React.useEffect(() => {
     taskService.list().then(setRows);
@@ -279,6 +287,68 @@ export default function TasksPage() {
   function handleCreate(t: Task) {
     setRows((prev) => (prev ? [t, ...prev] : [t]));
     refreshStats();
+  }
+
+  async function generateTodayTasks() {
+    setAiGenerating(true);
+    try {
+      const result = await generateAiTasksFromInbox(locale === 'it' ? 'it' : 'en');
+      if (!result.ok) {
+        const key =
+          result.error === 'openai_not_configured'
+            ? 'aiErrorOpenaiNotConfigured'
+            : result.error === 'rate_limited'
+              ? 'aiErrorRateLimited'
+              : 'aiErrorGeneration';
+        toast({ variant: 'danger', title: t('aiErrorTitle'), description: t(key) });
+        return;
+      }
+      setRows((previous) => (previous ? [...result.tasks, ...previous] : result.tasks));
+      setFilter('mine');
+      refreshStats();
+      toast({
+        variant: 'success',
+        title: t('aiGeneratedTitle'),
+        description: result.tasks.length
+          ? t('aiGeneratedDescription', { count: result.tasks.length })
+          : t('aiNoTasksDescription'),
+      });
+    } catch {
+      toast({ variant: 'danger', title: t('aiErrorTitle'), description: t('aiErrorGeneration') });
+    } finally {
+      setAiGenerating(false);
+    }
+  }
+
+  async function draftReply(task: Task) {
+    setDrafting(true);
+    try {
+      const result = await createAiReplyDraft(task.id, locale === 'it' ? 'it' : 'en');
+      if (!result.ok) {
+        const key =
+          result.error === 'openai_not_configured'
+            ? 'aiErrorOpenaiNotConfigured'
+            : result.error === 'gmail_not_connected'
+              ? 'aiErrorGmailNotConnected'
+              : result.error === 'gmail_reconnect_required'
+                ? 'aiErrorGmailReconnect'
+                : 'aiErrorDraft';
+        toast({ variant: 'danger', title: t('aiDraftErrorTitle'), description: t(key) });
+        return;
+      }
+      setRows((previous) =>
+        previous?.map((row) => (row.id === task.id ? { ...row, status: 'in_progress' } : row)) ?? previous,
+      );
+      setSelectedTask((current) =>
+        current?.id === task.id ? { ...current, status: 'in_progress' } : current,
+      );
+      toast({ variant: 'success', title: t('aiDraftCreatedTitle'), description: t('aiDraftCreatedDescription') });
+      window.open(result.gmailUrl, '_blank', 'noopener,noreferrer');
+    } catch {
+      toast({ variant: 'danger', title: t('aiDraftErrorTitle'), description: t('aiErrorDraft') });
+    } finally {
+      setDrafting(false);
+    }
   }
 
   /* ── table columns ── */
@@ -501,10 +571,16 @@ export default function TasksPage() {
               </Button>
             </div>
             {canEditTasks ? (
-              <Button variant="gold" onClick={() => setCreateOpen(true)}>
-                <Plus />
-                {t('newTask')}
-              </Button>
+              <>
+                <Button variant="outline" onClick={generateTodayTasks} disabled={aiGenerating}>
+                  {aiGenerating ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                  {aiGenerating ? t('aiGenerating') : t('aiGenerateToday')}
+                </Button>
+                <Button variant="gold" onClick={() => setCreateOpen(true)}>
+                  <Plus />
+                  {t('newTask')}
+                </Button>
+              </>
             ) : null}
           </>
         }
@@ -570,6 +646,7 @@ export default function TasksPage() {
           searchValue={(task) => [task.title, task.description, companyName(task.companyId), nameOf(task.ownerId, t('unassigned'))].filter(Boolean).join(' ')}
           pageSize={12}
           rowActions={rowActions}
+          onRowClick={setSelectedTask}
           mobileCard={mobileCard}
           enableColumnVisibility
           enableDensityToggle
@@ -596,6 +673,72 @@ export default function TasksPage() {
         defaultOwnerId={account?.id ?? ''}
         onCreated={handleCreate}
       />
+
+      <Dialog open={Boolean(selectedTask)} onOpenChange={(open) => !open && setSelectedTask(null)}>
+        <DialogContent className="max-w-xl">
+          {selectedTask ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{selectedTask.title}</DialogTitle>
+                <DialogDescription>{t('detailsDescription')}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/20 p-3 sm:grid-cols-3">
+                  <div>
+                    <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{t('colStatus')}</p>
+                    <div className="mt-1"><StatusBadge kind="taskStatus" value={selectedTask.status} /></div>
+                  </div>
+                  <div>
+                    <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{t('colPriority')}</p>
+                    <div className="mt-1"><PriorityBadge value={selectedTask.priority} /></div>
+                  </div>
+                  <div>
+                    <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{t('colType')}</p>
+                    <div className="mt-1"><StatusBadge kind="taskType" value={selectedTask.type} /></div>
+                  </div>
+                  <div>
+                    <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{t('colDue')}</p>
+                    <p className="mt-1 text-sm font-medium">{selectedTask.dueDate ? formatDate(selectedTask.dueDate, locale) : '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{t('colCompany')}</p>
+                    <p className="mt-1 truncate text-sm font-medium">{companyName(selectedTask.companyId)}</p>
+                  </div>
+                  <div>
+                    <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{t('colAssignee')}</p>
+                    <p className="mt-1 truncate text-sm font-medium">{nameOf(selectedTask.ownerId, t('unassigned'))}</p>
+                  </div>
+                </div>
+                <div>
+                  <Label>{t('detailsBody')}</Label>
+                  <p className="mt-1.5 whitespace-pre-wrap rounded-lg border bg-card p-3 text-sm leading-relaxed text-muted-foreground">
+                    {selectedTask.description || t('detailsNoDescription')}
+                  </p>
+                </div>
+                {selectedTask.relatedType === 'email_message' ? (
+                  <div className="flex items-start gap-2 rounded-lg border border-brand-gold/30 bg-brand-gold/5 p-3">
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-brand-gold" />
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{t('aiEmailSourceTitle')}</p>
+                      <p className="text-xs text-muted-foreground">{t('aiEmailSourceDescription')}</p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSelectedTask(null)}>{t('close')}</Button>
+                {canEditTasks && selectedTask.relatedType === 'email_message' ? (
+                  <Button variant="gold" onClick={() => draftReply(selectedTask)} disabled={drafting}>
+                    {drafting ? <Loader2 className="animate-spin" /> : <MailPlus />}
+                    {drafting ? t('aiDrafting') : t('aiDraftReply')}
+                    {!drafting ? <ExternalLink className="h-3.5 w-3.5" /> : null}
+                  </Button>
+                ) : null}
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

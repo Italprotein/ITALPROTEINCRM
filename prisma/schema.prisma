@@ -487,6 +487,7 @@ enum GoogleScope {
   documents
   gmail_send
   gmail_readonly
+  gmail_compose
   calendar_events
   calendar_readonly
 }
@@ -2404,9 +2405,9 @@ model EmailMessage {
   @@map("email_messages")
 }
 
-// "My Leads": one row per (admin, company name) extracted from Gmail
-// ("Dear <admin>" greeting or the admin's signature on the first sent mail in
-// the thread). Stores only the counterparty company NAME by design.
+// "My Leads": one row per responsible member and company extracted from Gmail.
+// Ownership is established by the member whose name appears first in the
+// counterparty's earliest qualifying incoming message.
 model Lead {
   id           String   @id @default(cuid())
   companyName  String

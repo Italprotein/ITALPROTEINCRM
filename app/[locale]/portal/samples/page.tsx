@@ -370,7 +370,7 @@ export default function PortalSamplesPage() {
           searchValue={(s) =>
             `${s.reference} ${s.requestedProduct} ${getLabel('applicationCategory', s.applicationCategory)} ${getLabel('sampleStatus', s.status)}`
           }
-          pageSize={10}
+          pageSize={12}
           rowActions={rowActions}
           onRowClick={(s) => router.push(`/portal/samples/${s.id}`)}
           mobileCard={mobileCard}

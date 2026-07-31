@@ -117,7 +117,7 @@ export default function AuditPage() {
       <DataTable<AuditRow>
         data={filtered} columns={columns} getRowId={(r) => r.id} loading={rows === null}
         searchable searchPlaceholder={t('searchPlaceholder')} searchValue={(r) => `${actorName(r.actorId)} ${r.action} ${r.entity} ${r.summary}`}
-        pageSize={15} toolbar={toolbar} enableColumnVisibility enableDensityToggle
+        pageSize={12} toolbar={toolbar} enableColumnVisibility enableDensityToggle
         emptyTitle={t('emptyTitle')} exportFilename="audit-log" storageKey="audit-table"
       />
     </div>

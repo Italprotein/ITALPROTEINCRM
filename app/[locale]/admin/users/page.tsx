@@ -162,7 +162,7 @@ export default function UsersPage() {
       <DataTable<StaffMember>
         data={rows ?? []} columns={columns} getRowId={(u) => u.id} loading={rows === null}
         searchable searchPlaceholder={t('searchPlaceholder')} searchValue={(u) => `${u.firstName} ${u.lastName} ${u.email} ${u.jobTitle}`}
-        pageSize={10} rowActions={rowActions} onRowClick={(u) => setPermRole(u)} mobileCard={mobileCard}
+        pageSize={12} rowActions={rowActions} onRowClick={(u) => setPermRole(u)} mobileCard={mobileCard}
         enableColumnVisibility emptyTitle={t('emptyTitle')} exportFilename="staff" storageKey="users-table"
       />
 
