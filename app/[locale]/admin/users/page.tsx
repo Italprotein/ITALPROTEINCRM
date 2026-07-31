@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { UserCog, UserCheck, MailPlus, Briefcase, MoreHorizontal, Shield, Ban, RefreshCw, Plus } from 'lucide-react';
+import { UserCog, UserCheck, MailPlus, Briefcase, MoreHorizontal, Shield, Ban, RefreshCw } from 'lucide-react';
 import { userService, companyService } from '@/lib/mock-services';
 import { resendUserInvitation } from '@/lib/services/user.actions';
 import type { Company, InternalRole } from '@/lib/types';
@@ -24,7 +24,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { toast } from '@/components/ui/use-toast';
-import { InviteStaffDialog } from '@/components/admin/invite-staff-dialog';
 import { useSession } from '@/components/providers/session-provider';
 
 const ROLES: InternalRole[] = ['super_admin', 'crm_admin', 'business_dev', 'rnd_technical', 'logistics', 'finance', 'management_readonly'];
@@ -38,7 +37,6 @@ export default function UsersPage() {
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
   const [stats, setStats] = React.useState<Awaited<ReturnType<typeof userService.getStatistics>> | null>(null);
   const [permRole, setPermRole] = React.useState<StaffMember | null>(null);
-  const [inviteOpen, setInviteOpen] = React.useState(false);
 
   React.useEffect(() => {
     userService.list().then(setRows);
@@ -152,7 +150,6 @@ export default function UsersPage() {
       <PageHeader
         title={t('title')}
         subtitle={t('subtitle')}
-        actions={<Button variant="gold" onClick={() => setInviteOpen(true)}><Plus /> {t('inviteUser')}</Button>}
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -246,14 +243,6 @@ export default function UsersPage() {
         </SheetContent>
       </Sheet>
 
-      <InviteStaffDialog
-        open={inviteOpen}
-        onOpenChange={setInviteOpen}
-        onInvited={(user) => {
-          setRows((current) => (current ? [...current, user] : [user]));
-          void userService.getStatistics().then(setStats);
-        }}
-      />
     </div>
   );
 }
