@@ -289,19 +289,6 @@ export default function CompaniesPage() {
       defaultHidden: true,
     },
     {
-      key: 'value',
-      header: t('colOpportunity'),
-      align: 'right',
-      sortable: true,
-      sortValue: (c) => c.opportunityValue ?? 0,
-      cell: (c) => (
-        <span className="tabular font-medium">
-          {c.opportunityValue ? formatCurrency(c.opportunityValue, c.preferredCurrency, locale, { compact: true }) : '—'}
-        </span>
-      ),
-      hideable: true,
-    },
-    {
       key: 'priority',
       header: t('colPriority'),
       sortValue: (c) => PRIORITIES.indexOf(c.priority),
@@ -600,17 +587,8 @@ export default function CompaniesPage() {
         }
       />
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <StatCard label={t('statTotalCompanies')} value={stats?.total ?? 0} icon={Building2} tone="gold" />
-        <StatCard label={t('statActive')} value={stats?.active ?? 0} icon={ActivityIcon} tone="info" delay={0.05} />
-        <StatCard label={t('statCustomers')} value={stats?.customers ?? 0} icon={CheckCircle2} tone="success" delay={0.1} />
-        <StatCard label={t('statNdasSigned')} value={stats?.ndaSigned ?? 0} icon={FileSignature} tone="success" delay={0.15} />
-        <StatCard label={t('statHighPriority')} value={stats?.highPriority ?? 0} icon={Flame} tone="warning" delay={0.2} />
-      </div>
-
-      {/* Table — the work surface. Analytics live on /admin/analytics; this
-          landing page stays focused on finding and acting on companies. */}
+      {/* Table first — it is the work surface. The KPI row is a summary, so it
+          sits below rather than pushing the list off screen on every visit. */}
       <DataTable<Company>
         data={filtered}
         columns={columns}
@@ -635,6 +613,16 @@ export default function CompaniesPage() {
         defaultSortDir="desc"
         storageKey="companies-table"
       />
+
+      {/* Summary of the whole book of business — below the list, since the list
+          is what people come here to work with. */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <StatCard label={t('statTotalCompanies')} value={stats?.total ?? 0} icon={Building2} tone="gold" />
+        <StatCard label={t('statActive')} value={stats?.active ?? 0} icon={ActivityIcon} tone="info" delay={0.05} />
+        <StatCard label={t('statCustomers')} value={stats?.customers ?? 0} icon={CheckCircle2} tone="success" delay={0.1} />
+        <StatCard label={t('statNdasSigned')} value={stats?.ndaSigned ?? 0} icon={FileSignature} tone="success" delay={0.15} />
+        <StatCard label={t('statHighPriority')} value={stats?.highPriority ?? 0} icon={Flame} tone="warning" delay={0.2} />
+      </div>
 
       <CreateCompanyDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={handleCreate} />
 
