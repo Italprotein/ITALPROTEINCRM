@@ -110,7 +110,10 @@ export async function updateTask(id: string, patch: Partial<Task>): Promise<Task
 
 export async function removeTask(id: string): Promise<void> {
   await requireSectionEdit("tasks");
-  await prisma.task.delete({ where: { id } }).catch(() => undefined);
+  const result = await prisma.task.deleteMany({
+    where: { AND: [await scopeWhere(), { id }] },
+  });
+  if (result.count === 0) throw new Error("Task not found");
 }
 
 export async function tasksByOwner(ownerId: string): Promise<Task[]> {

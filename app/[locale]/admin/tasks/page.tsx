@@ -18,6 +18,7 @@ import {
   MailPlus,
   ExternalLink,
   Loader2,
+  Trash2,
 } from 'lucide-react';
 
 import { taskService, companyService } from '@/lib/mock-services';
@@ -123,6 +124,8 @@ export default function TasksPage() {
   const [filter, setFilter] = React.useState<FilterKey>('team');
   const [createOpen, setCreateOpen] = React.useState(false);
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<Task | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
   const [aiGenerating, setAiGenerating] = React.useState(false);
   const [drafting, setDrafting] = React.useState(false);
 
@@ -287,6 +290,36 @@ export default function TasksPage() {
   function handleCreate(t: Task) {
     setRows((prev) => (prev ? [t, ...prev] : [t]));
     refreshStats();
+  }
+
+  function requestDelete(task: Task) {
+    setSelectedTask(null);
+    setDeleteTarget(task);
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget || deleting) return;
+    const task = deleteTarget;
+    setDeleting(true);
+    try {
+      await taskService.remove(task.id);
+      setRows((previous) => previous?.filter((row) => row.id !== task.id) ?? previous);
+      setDeleteTarget(null);
+      refreshStats();
+      toast({
+        variant: 'success',
+        title: t('toastDeletedTitle'),
+        description: t('toastDeletedDescription', { title: task.title }),
+      });
+    } catch {
+      toast({
+        variant: 'danger',
+        title: t('toastDeleteFailedTitle'),
+        description: t('toastDeleteFailedDescription'),
+      });
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function generateTodayTasks() {
@@ -496,6 +529,14 @@ export default function TasksPage() {
                   {getLabel('taskStatus', lane)}
                 </DropdownMenuItem>
               ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-danger focus:bg-danger/10 focus:text-danger [&_svg]:!text-danger"
+                onSelect={() => requestDelete(task)}
+              >
+                <Trash2 />
+                {t('deleteTask')}
+              </DropdownMenuItem>
             </>
           ) : null}
         </DropdownMenuContent>
@@ -538,6 +579,7 @@ export default function TasksPage() {
               ) : null}
             </div>
           </div>
+          <span onClick={(event) => event.stopPropagation()}>{rowActions(task)}</span>
         </div>
       </Card>
     );
@@ -663,6 +705,7 @@ export default function TasksPage() {
           companyName={companyName}
           canEditTasks={canEditTasks}
           onMove={moveTo}
+          onDelete={requestDelete}
         />
       )}
 
@@ -726,6 +769,12 @@ export default function TasksPage() {
                 ) : null}
               </div>
               <DialogFooter>
+                {canEditTasks ? (
+                  <Button variant="destructive" onClick={() => requestDelete(selectedTask)}>
+                    <Trash2 />
+                    {t('deleteTask')}
+                  </Button>
+                ) : null}
                 <Button variant="outline" onClick={() => setSelectedTask(null)}>{t('close')}</Button>
                 {canEditTasks && selectedTask.relatedType === 'email_message' ? (
                   <Button variant="gold" onClick={() => draftReply(selectedTask)} disabled={drafting}>
@@ -737,6 +786,31 @@ export default function TasksPage() {
               </DialogFooter>
             </>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteTarget(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('deleteDialogTitle')}</DialogTitle>
+            <DialogDescription>
+              {deleteTarget ? t('deleteDialogDescription', { title: deleteTarget.title }) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              {t('cancel')}
+            </Button>
+            <Button variant="destructive" onClick={() => void confirmDelete()} disabled={deleting}>
+              {deleting ? <Loader2 className="animate-spin" /> : <Trash2 />}
+              {deleting ? t('deletingTask') : t('confirmDeleteTask')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
@@ -752,6 +826,7 @@ function TaskBoard({
   companyName,
   canEditTasks,
   onMove,
+  onDelete,
 }: {
   rows: Task[];
   loading: boolean;
@@ -759,6 +834,7 @@ function TaskBoard({
   companyName: (id?: string) => string;
   canEditTasks: boolean;
   onMove: (t: Task, status: TaskStatus) => void;
+  onDelete: (t: Task) => void;
 }) {
   const t = useTranslations('AdminTasks');
   if (loading) {
@@ -823,6 +899,14 @@ function TaskBoard({
                                 {getLabel('taskStatus', lane)}
                               </DropdownMenuItem>
                             ))}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-danger focus:bg-danger/10 focus:text-danger [&_svg]:!text-danger"
+                              onSelect={() => onDelete(task)}
+                            >
+                              <Trash2 />
+                              {t('deleteTask')}
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       ) : null}
