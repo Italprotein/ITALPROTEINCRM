@@ -15,7 +15,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { DataTable, type Column } from '@/components/ui/data-table';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,7 +90,7 @@ export default function UsersPage() {
       key: 'name', header: t('colName'), sortValue: (u) => u.lastName,
       cell: (u) => (
         <div className="flex items-center gap-3">
-          <Avatar className="h-9 w-9"><AvatarFallback style={{ backgroundColor: u.avatarColor, color: '#fff' }} className="text-2xs">{initials(`${u.firstName} ${u.lastName}`)}</AvatarFallback></Avatar>
+          <Avatar className="h-9 w-9">{u.avatarUrl && <AvatarImage src={u.avatarUrl} alt="" />}<AvatarFallback style={{ backgroundColor: u.avatarColor, color: '#fff' }} className="text-2xs">{initials(`${u.firstName} ${u.lastName}`)}</AvatarFallback></Avatar>
           <div className="min-w-0"><p className="truncate font-medium text-foreground">{u.firstName} {u.lastName}</p><p className="truncate text-xs text-muted-foreground">{u.email}</p></div>
         </div>
       ),
@@ -138,7 +138,7 @@ export default function UsersPage() {
     return (
       <Card className="p-3" onClick={() => setPermRole(u)}>
         <div className="flex items-center gap-3">
-          <Avatar className="h-9 w-9"><AvatarFallback style={{ backgroundColor: u.avatarColor, color: '#fff' }} className="text-2xs">{initials(`${u.firstName} ${u.lastName}`)}</AvatarFallback></Avatar>
+          <Avatar className="h-9 w-9">{u.avatarUrl && <AvatarImage src={u.avatarUrl} alt="" />}<AvatarFallback style={{ backgroundColor: u.avatarColor, color: '#fff' }} className="text-2xs">{initials(`${u.firstName} ${u.lastName}`)}</AvatarFallback></Avatar>
           <div className="min-w-0 flex-1"><p className="truncate font-medium">{u.firstName} {u.lastName}</p><p className="truncate text-xs text-muted-foreground">{u.jobTitle}</p></div>
           <Badge variant={statusBadge[u.status]}>{u.status}</Badge>
         </div>
@@ -202,7 +202,7 @@ export default function UsersPage() {
             <>
               <SheetHeader>
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-11 w-11"><AvatarFallback style={{ backgroundColor: permRole.avatarColor, color: '#fff' }}>{initials(`${permRole.firstName} ${permRole.lastName}`)}</AvatarFallback></Avatar>
+                  <Avatar className="h-11 w-11">{permRole.avatarUrl && <AvatarImage src={permRole.avatarUrl} alt="" />}<AvatarFallback style={{ backgroundColor: permRole.avatarColor, color: '#fff' }}>{initials(`${permRole.firstName} ${permRole.lastName}`)}</AvatarFallback></Avatar>
                   <div><SheetTitle>{permRole.firstName} {permRole.lastName}</SheetTitle><SheetDescription>{permRole.jobTitle} · {permRole.email}</SheetDescription></div>
                 </div>
               </SheetHeader>

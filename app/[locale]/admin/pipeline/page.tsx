@@ -38,7 +38,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -406,7 +406,7 @@ function OpportunityCard({
   canMove: boolean;
   onOpen: (id: string) => void;
 }) {
-  const { nameOf, colorOf } = useStaffDirectory();
+  const { nameOf, colorOf, imageOf } = useStaffDirectory();
   const idx = BOARD_STAGES.indexOf(stage);
   const prev = idx > 0 ? BOARD_STAGES[idx - 1] : null;
   const next = idx < BOARD_STAGES.length - 1 ? BOARD_STAGES[idx + 1] : null;
@@ -492,6 +492,7 @@ function OpportunityCard({
 
       <div className="mt-2 flex items-center gap-1.5 border-t pt-2">
         <Avatar className="h-5 w-5">
+          {imageOf(opp.ownerId) && <AvatarImage src={imageOf(opp.ownerId)} alt="" />}
           <AvatarFallback
             className="text-[9px] text-white"
             style={color ? { backgroundColor: color } : undefined}
@@ -534,7 +535,7 @@ function PipelineTable({
   onMove: (opp: Opportunity, next: PipelineStage) => void;
   canMove: boolean;
 }) {
-  const { nameOf, colorOf } = useStaffDirectory();
+  const { nameOf, colorOf, imageOf } = useStaffDirectory();
   const columns: Column<Opportunity>[] = [
     {
       key: 'company',
@@ -614,6 +615,7 @@ function PipelineTable({
         return (
           <div className="flex items-center gap-1.5">
             <Avatar className="h-6 w-6">
+              {imageOf(o.ownerId) && <AvatarImage src={imageOf(o.ownerId)} alt="" />}
               <AvatarFallback
                 className="text-[10px] text-white"
                 style={color ? { backgroundColor: color } : undefined}

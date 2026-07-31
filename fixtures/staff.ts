@@ -14,6 +14,7 @@ export interface StaffMember {
   role: InternalRole;
   jobTitle: string;
   avatarColor?: string;
+  avatarUrl?: string;
   status: 'active' | 'invited' | 'suspended';
   lastActiveAt: string;
   phone?: string;

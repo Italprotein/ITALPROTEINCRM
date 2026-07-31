@@ -53,6 +53,9 @@ export function userToDTO(u: UserWithRelations): StaffMember {
     role: u.role.key as InternalRole,
     jobTitle: u.role.name ?? "",
     avatarColor,
+    avatarUrl: u.image?.startsWith("data:image/")
+      ? `/api/users/${encodeURIComponent(u.id)}/avatar?v=${u.updatedAt.getTime()}`
+      : undefined,
     status: toStaffStatus(u.status),
     lastActiveAt: (u.lastLoginAt ?? u.createdAt).toISOString(),
     phone: undefined, // no column on User; not persisted

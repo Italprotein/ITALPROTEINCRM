@@ -52,7 +52,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -499,6 +499,7 @@ function ThreadDetail({
             >
               {fromStaff && (
                 <Avatar className="h-8 w-8 shrink-0">
+                  {owner?.avatarUrl && <AvatarImage src={owner.avatarUrl} alt="" />}
                   <AvatarFallback
                     className="text-[11px] text-white"
                     style={color ? { backgroundColor: color } : undefined}

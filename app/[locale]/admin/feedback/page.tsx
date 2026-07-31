@@ -52,7 +52,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import {
   Select,
@@ -776,6 +776,9 @@ function ReviewSheet({
                     return (
                       <li key={c.id} className="flex gap-3">
                         <Avatar className="h-7 w-7 shrink-0">
+                          {!isClient && staff.get(c.byUserId)?.avatarUrl && (
+                            <AvatarImage src={staff.get(c.byUserId)?.avatarUrl} alt="" />
+                          )}
                           <AvatarFallback className="text-[10px]">
                             {isClient ? initials(author) : initials(author)}
                           </AvatarFallback>

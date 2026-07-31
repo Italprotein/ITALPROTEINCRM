@@ -35,6 +35,7 @@ export interface StaffDirectory {
   nameOf: (id: string | undefined | null, fallback?: string) => string;
   /** Avatar colour for a user id (undefined when unknown). */
   colorOf: (id: string | undefined | null) => string | undefined;
+  imageOf: (id: string | undefined | null) => string | undefined;
   get: (id: string | undefined | null) => StaffMember | undefined;
 }
 
@@ -65,6 +66,7 @@ export function useStaffDirectory(): StaffDirectory {
         return s ? `${s.firstName} ${s.lastName}` : fallback;
       },
       colorOf: (id) => get(id)?.avatarColor,
+      imageOf: (id) => get(id)?.avatarUrl,
     };
   }, [staff]);
 }
