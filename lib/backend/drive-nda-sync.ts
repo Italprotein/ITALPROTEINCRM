@@ -30,6 +30,7 @@ function companyForFolder(
   const folderKey = [...folderWords].sort().join("");
   const knownAliases: Record<string, string> = {
     bledaralbania: "Contatto Privato (Bledar)",
+    ncks: "NICK'S",
     prontofoods: "Pronto / Ristora",
   };
   const aliased = knownAliases[compactFolder];
