@@ -1,24 +1,18 @@
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowUp, Bot, CheckCircle2, CornerDownLeft, ListTodo, Loader2, X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Sparkles, X, ArrowUp, CornerDownLeft } from 'lucide-react';
 
+import { useSession } from '@/components/providers/session-provider';
+import { Link } from '@/lib/i18n/navigation';
+import { canEdit, isInternal } from '@/lib/permissions';
+import { generateAiTasksFromInbox } from '@/lib/services/ai-task.actions';
 import { cn } from '@/lib/utils';
 
-/*
- * Amina — the assistant surface.
- *
- * Mounted once per shell (internal / portal / public). The audience is NOT decided
- * here: the client only sends the message, and /api/assistant resolves the audience
- * from the verified session. Anything this component displays has already been
- * filtered server-side.
- *
- * Follows the components/navigation/global-search.tsx pattern (AnimatePresence
- * overlay + keyboard shortcut) so the two overlays feel like one system.
- * Search is Cmd/Ctrl+K; Amina is Cmd/Ctrl+J.
- */
+const MASCOT_SRC = '/images/amina-mascot.png';
 
 interface Citation {
   id: string;
@@ -33,9 +27,9 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   citations?: Citation[];
-  /** Set on assistant replies while the model call is still stubbed. */
-  stubbed?: boolean;
   failed?: boolean;
+  actionHref?: '/admin/tasks';
+  actionLabel?: string;
 }
 
 let localId = 0;
@@ -44,20 +38,24 @@ const nextId = () => `local-${++localId}`;
 export function Amina() {
   const t = useTranslations('Amina');
   const locale = useLocale();
+  const { session } = useSession();
   const [open, setOpen] = React.useState(false);
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const [threadId, setThreadId] = React.useState<string | null>(null);
   const [input, setInput] = React.useState('');
   const [sending, setSending] = React.useState(false);
+  const [generatingTasks, setGeneratingTasks] = React.useState(false);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const canGenerateTasks = Boolean(
+    session && isInternal(session.role) && canEdit(session.role, 'tasks'),
+  );
 
-  // Cmd/Ctrl+J opens Amina (K belongs to global search).
   React.useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
-        e.preventDefault();
-        setOpen((o) => !o);
+    function onKey(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'j') {
+        event.preventDefault();
+        setOpen((current) => !current);
       }
     }
     window.addEventListener('keydown', onKey);
@@ -65,163 +63,209 @@ export function Amina() {
   }, []);
 
   React.useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 60);
+    if (open) window.setTimeout(() => inputRef.current?.focus(), 60);
   }, [open]);
 
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages, sending]);
+  }, [messages, sending, generatingTasks]);
 
-  async function send() {
-    const text = input.trim();
-    if (!text || sending) return;
+  function addMessage(message: Omit<ChatMessage, 'id'>) {
+    setMessages((current) => [...current, { id: nextId(), ...message }]);
+  }
+
+  async function send(textOverride?: string) {
+    const text = (textOverride ?? input).trim();
+    if (!text || sending || generatingTasks) return;
 
     setInput('');
     setSending(true);
-    setMessages((prev) => [...prev, { id: nextId(), role: 'user', content: text }]);
+    addMessage({ role: 'user', content: text });
 
     try {
-      const res = await fetch('/api/assistant', {
+      const response = await fetch('/api/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text, threadId: threadId ?? undefined, locale }),
       });
+      const data = await response.json().catch(() => ({}));
 
-      if (!res.ok) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: nextId(),
-            role: 'assistant',
-            content: res.status === 429 ? t('errorRateLimited') : t('errorGeneric'),
-            failed: true,
-          },
-        ]);
+      if (!response.ok) {
+        const content =
+          data.error === 'assistant_not_configured'
+            ? t('errorConfiguration')
+            : response.status === 429
+              ? t('errorRateLimited')
+              : t('errorGeneric');
+        addMessage({ role: 'assistant', content, failed: true });
         return;
       }
 
-      const data = await res.json();
       setThreadId(data.threadId);
-      setMessages((prev) => [
-        ...prev,
+      setMessages((current) => [
+        ...current,
         {
           id: data.message.id,
           role: 'assistant',
           content: data.message.content,
           citations: data.message.citations,
-          stubbed: data.stubbed,
         },
       ]);
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { id: nextId(), role: 'assistant', content: t('errorGeneric'), failed: true },
-      ]);
+      addMessage({ role: 'assistant', content: t('errorGeneric'), failed: true });
     } finally {
       setSending(false);
     }
   }
 
-  function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
+  async function generateTodayTasks() {
+    if (!canGenerateTasks || sending || generatingTasks) return;
+
+    setGeneratingTasks(true);
+    addMessage({ role: 'user', content: t('generateTasks') });
+    try {
+      const result = await generateAiTasksFromInbox(locale === 'it' ? 'it' : 'en');
+      if (!result.ok) {
+        const content =
+          result.error === 'openai_not_configured'
+            ? t('errorConfiguration')
+            : result.error === 'gmail_not_connected' || result.error === 'gmail_reconnect_required'
+              ? t('errorGmail')
+              : result.error === 'rate_limited'
+                ? t('errorRateLimited')
+                : t('taskGenerationFailed');
+        addMessage({ role: 'assistant', content, failed: true });
+        return;
+      }
+
+      addMessage({
+        role: 'assistant',
+        content: result.tasks.length
+          ? t('tasksGenerated', { count: result.tasks.length })
+          : t('noTasksGenerated'),
+        actionHref: '/admin/tasks',
+        actionLabel: t('openTasks'),
+      });
+    } catch {
+      addMessage({ role: 'assistant', content: t('taskGenerationFailed'), failed: true });
+    } finally {
+      setGeneratingTasks(false);
+    }
+  }
+
+  function onKeyDown(event: React.KeyboardEvent) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
       void send();
-    } else if (e.key === 'Escape') {
+    } else if (event.key === 'Escape') {
       setOpen(false);
     }
   }
 
   return (
     <>
-      {/* Launcher */}
       <button
+        type="button"
         onClick={() => setOpen(true)}
         aria-label={t('open')}
         className={cn(
-          'fixed bottom-5 right-5 z-40 flex h-12 items-center gap-2 rounded-full bg-primary px-4',
-          'text-sm font-medium text-primary-foreground shadow-lg transition-transform',
-          'hover:scale-105 active:scale-95',
-          open && 'pointer-events-none opacity-0',
+          'group fixed bottom-4 right-4 z-40 flex items-center gap-2 transition-all',
+          'hover:-translate-y-1 active:translate-y-0',
+          open && 'pointer-events-none translate-y-3 opacity-0',
         )}
       >
-        <Sparkles className="h-4 w-4" />
-        <span className="hidden sm:inline">{t('name')}</span>
+        <span className="hidden rounded-full border bg-background/95 px-3 py-2 text-sm font-semibold text-foreground shadow-lg backdrop-blur sm:block">
+          {t('askMe')}
+        </span>
+        <span className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-[1.6rem] border-2 border-primary/20 bg-white shadow-xl ring-4 ring-background/80">
+          <Image src={MASCOT_SRC} alt="" width={80} height={80} className="h-[78px] w-[78px] object-contain" />
+          <span className="absolute bottom-1.5 right-1.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
+        </span>
       </button>
 
       <AnimatePresence>
         {open && (
           <motion.div
-            className="fixed inset-0 z-50 flex justify-end"
+            className="pointer-events-none fixed inset-0 z-50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <div
-              className="absolute inset-0 bg-brand-navy/50 backdrop-blur-sm"
+            <button
+              type="button"
+              aria-label={t('close')}
+              className="pointer-events-auto absolute inset-0 bg-brand-navy/45 backdrop-blur-sm sm:bg-brand-navy/15"
               onClick={() => setOpen(false)}
             />
             <motion.aside
               role="dialog"
               aria-modal="true"
               aria-label={t('name')}
-              className="relative flex h-full w-full max-w-md flex-col border-l bg-popover shadow-2xl"
-              initial={{ x: 24, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 24, opacity: 0 }}
+              className="pointer-events-auto absolute bottom-0 right-0 flex h-full w-full flex-col overflow-hidden border bg-popover shadow-2xl sm:bottom-4 sm:right-4 sm:h-[min(720px,calc(100vh-2rem))] sm:max-w-md sm:rounded-2xl"
+              initial={{ y: 20, x: 20, opacity: 0, scale: 0.98 }}
+              animate={{ y: 0, x: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 20, x: 20, opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             >
-              <header className="flex items-center gap-2 border-b px-4 py-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Sparkles className="h-4 w-4" />
+              <header className="relative flex items-center gap-3 overflow-hidden border-b bg-brand-navy px-4 py-3 text-white">
+                <div className="absolute inset-y-0 right-0 w-36 bg-[radial-gradient(circle_at_center,rgba(14,165,233,0.26),transparent_70%)]" />
+                <span className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white ring-2 ring-white/20">
+                  <Image src={MASCOT_SRC} alt="" width={44} height={44} className="h-11 w-11 object-contain" />
                 </span>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{t('name')}</p>
-                  <p className="truncate text-2xs text-muted-foreground">{t('tagline')}</p>
+                <div className="relative min-w-0">
+                  <p className="truncate text-sm font-semibold">{t('name')}</p>
+                  <p className="flex items-center gap-1.5 truncate text-2xs text-white/70">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    {t('tagline')}
+                  </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setOpen(false)}
                   aria-label={t('close')}
-                  className="ml-auto rounded p-1 text-muted-foreground hover:bg-accent"
+                  className="relative ml-auto rounded-lg p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </header>
 
-              <div ref={scrollRef} className="scrollbar-thin flex-1 space-y-3 overflow-y-auto p-4">
+              <div ref={scrollRef} className="scrollbar-thin flex-1 space-y-3 overflow-y-auto bg-muted/20 p-4">
                 {messages.length === 0 ? (
-                  <Welcome />
+                  <Welcome
+                    canGenerateTasks={canGenerateTasks}
+                    generatingTasks={generatingTasks}
+                    onPrompt={(prompt) => void send(prompt)}
+                    onGenerateTasks={() => void generateTodayTasks()}
+                  />
                 ) : (
                   messages.map((message) => <Bubble key={message.id} message={message} />)
                 )}
-                {sending && (
-                  <div className="flex gap-1.5 px-1 py-2" aria-label={t('thinking')}>
-                    {[0, 1, 2].map((i) => (
-                      <span
-                        key={i}
-                        className="h-1.5 w-1.5 animate-pulse rounded-full bg-muted-foreground/60"
-                        style={{ animationDelay: `${i * 0.15}s` }}
-                      />
-                    ))}
+                {(sending || generatingTasks) && (
+                  <div className="flex items-center gap-2 px-1 py-2 text-xs text-muted-foreground" aria-label={t('thinking')}>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                    {generatingTasks ? t('analyzingInbox') : t('thinking')}
                   </div>
                 )}
               </div>
 
-              <div className="border-t p-3">
-                <div className="flex items-end gap-2 rounded-lg border bg-background px-3 py-2 focus-within:ring-1 focus-within:ring-ring">
+              <div className="border-t bg-background p-3">
+                <div className="flex items-end gap-2 rounded-xl border bg-background px-3 py-2 shadow-sm focus-within:ring-1 focus-within:ring-ring">
                   <textarea
                     ref={inputRef}
                     rows={1}
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    onChange={(event) => setInput(event.target.value)}
                     onKeyDown={onKeyDown}
                     placeholder={t('placeholder')}
-                    className="max-h-32 flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                    disabled={sending || generatingTasks}
+                    className="max-h-32 min-h-7 flex-1 resize-none bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
                   />
                   <button
+                    type="button"
                     onClick={() => void send()}
-                    disabled={!input.trim() || sending}
+                    disabled={!input.trim() || sending || generatingTasks}
                     aria-label={t('send')}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground transition-opacity disabled:opacity-40"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all hover:brightness-105 disabled:opacity-40"
                   >
                     <ArrowUp className="h-4 w-4" />
                   </button>
@@ -240,49 +284,100 @@ export function Amina() {
   );
 }
 
-function Welcome() {
+function Welcome({
+  canGenerateTasks,
+  generatingTasks,
+  onPrompt,
+  onGenerateTasks,
+}: {
+  canGenerateTasks: boolean;
+  generatingTasks: boolean;
+  onPrompt: (prompt: string) => void;
+  onGenerateTasks: () => void;
+}) {
   const t = useTranslations('Amina');
   const examples = ['example1', 'example2', 'example3'] as const;
+
   return (
-    <div className="px-1 py-6">
-      <p className="text-sm font-medium text-foreground">{t('welcomeTitle')}</p>
-      <p className="mt-1 text-sm text-muted-foreground">{t('welcomeBody')}</p>
-      <p className="mt-4 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="py-2">
+      <div className="mx-auto mb-3 flex h-28 w-28 items-center justify-center overflow-hidden rounded-[2rem] bg-gradient-to-b from-sky-50 to-white shadow-sm ring-1 ring-primary/10">
+        <Image src={MASCOT_SRC} alt="" width={112} height={112} className="h-28 w-28 object-contain" priority />
+      </div>
+      <div className="text-center">
+        <p className="text-base font-semibold text-foreground">{t('welcomeTitle')}</p>
+        <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">{t('welcomeBody')}</p>
+      </div>
+
+      {canGenerateTasks && (
+        <button
+          type="button"
+          onClick={onGenerateTasks}
+          disabled={generatingTasks}
+          className="mt-5 flex w-full items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-3 text-left transition-colors hover:bg-primary/10 disabled:opacity-60"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            {generatingTasks ? <Loader2 className="h-4 w-4 animate-spin" /> : <ListTodo className="h-4 w-4" />}
+          </span>
+          <span>
+            <span className="block text-sm font-semibold text-foreground">{t('generateTasks')}</span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">{t('generateTasksHint')}</span>
+          </span>
+        </button>
+      )}
+
+      <p className="mt-5 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
         {t('examplesTitle')}
       </p>
-      <ul className="mt-2 space-y-1.5">
-        {examples.map((key) => (
-          <li key={key} className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-            {t(key)}
-          </li>
-        ))}
-      </ul>
+      <div className="mt-2 space-y-2">
+        {examples.map((key) => {
+          const prompt = t(key);
+          return (
+            <button
+              type="button"
+              key={key}
+              onClick={() => onPrompt(prompt)}
+              className="flex w-full items-center gap-2 rounded-xl border bg-background px-3 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+            >
+              <Bot className="h-4 w-4 shrink-0 text-primary" />
+              {prompt}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 function Bubble({ message }: { message: ChatMessage }) {
-  const t = useTranslations('Amina');
   const isUser = message.role === 'user';
 
   return (
-    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
+    <div className={cn('flex items-end gap-2', isUser ? 'justify-end' : 'justify-start')}>
+      {!isUser && (
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-white">
+          <Image src={MASCOT_SRC} alt="" width={28} height={28} className="h-7 w-7 object-contain" />
+        </span>
+      )}
       <div
         className={cn(
-          'max-w-[85%] rounded-lg px-3 py-2 text-sm',
+          'max-w-[82%] rounded-2xl px-3 py-2 text-sm shadow-sm',
           isUser
-            ? 'bg-primary text-primary-foreground'
+            ? 'rounded-br-md bg-primary text-primary-foreground'
             : message.failed
-              ? 'bg-destructive/10 text-destructive'
-              : 'bg-muted text-foreground',
+              ? 'rounded-bl-md border border-destructive/20 bg-destructive/10 text-destructive'
+              : 'rounded-bl-md border bg-background text-foreground',
         )}
       >
-        <p className="whitespace-pre-wrap break-words">{message.content}</p>
+        <p className="whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
 
-        {message.stubbed && (
-          <p className="mt-2 inline-flex rounded bg-background/60 px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
-            {t('previewBadge')}
-          </p>
+        {message.actionHref && message.actionLabel && (
+          <Link
+            href={message.actionHref}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/15"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            {message.actionLabel}
+          </Link>
         )}
 
         {message.citations && message.citations.length > 0 && (
@@ -290,7 +385,7 @@ function Bubble({ message }: { message: ChatMessage }) {
             {message.citations.map((citation) => (
               <li key={citation.id} className="text-2xs text-muted-foreground">
                 {citation.sourceUrl ? (
-                  <a href={citation.sourceUrl} className="underline underline-offset-2">
+                  <a href={citation.sourceUrl} target="_blank" rel="noreferrer" className="underline underline-offset-2">
                     {citation.label ?? citation.targetType}
                   </a>
                 ) : (

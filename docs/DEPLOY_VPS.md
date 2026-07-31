@@ -186,7 +186,9 @@ the bucket, or add it to your backup job.
 
 - **External portal login + registration provisioning** are built but exercise
   them end-to-end (with two different company accounts) before inviting clients.
-- **Amina, the AI assistant**, is hidden until its model runtime is wired; set
-  `NEXT_PUBLIC_ASSISTANT_ENABLED=true` and `ANTHROPIC_API_KEY` when it ships.
+- **Amina, the AI assistant**, is visible to authenticated users and uses the
+  configured AI provider. For the free Groq tier, set `AI_PROVIDER=groq`,
+  `GROQ_API_KEY` and `GROQ_MODEL=openai/gpt-oss-20b` on the host;
+  live CRM/Drive retrieval remains disabled until its permission-filtered layer ships.
 - Harden the container (it already runs as non-root; consider a read-only rootfs
   and dropped capabilities).

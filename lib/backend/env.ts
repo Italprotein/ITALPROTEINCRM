@@ -19,6 +19,8 @@ type OptionalEnvKey =
   | 'ANTHROPIC_API_KEY'
   | 'OPENAI_API_KEY'
   | 'OPENAI_MODEL'
+  | 'GROQ_API_KEY'
+  | 'GROQ_MODEL'
   | 'AI_MODEL'
   | 'AI_ASSISTANT_NAME'
   | 'AI_VECTOR_STORE_URL'
@@ -91,7 +93,7 @@ export function getBackendEnv() {
       replyTo: readEnv('GMAIL_REPLY_TO') ?? 'ad@italprotein.com',
     },
     ai: {
-      provider: readEnv('AI_PROVIDER') ?? 'anthropic',
+      provider: readEnv('AI_PROVIDER') ?? 'openai',
       apiKey: readEnv('ANTHROPIC_API_KEY'),
       model: readEnv('AI_MODEL') ?? 'claude-opus-4-8',
       assistantName: readEnv('AI_ASSISTANT_NAME') ?? 'Amina',
@@ -100,6 +102,10 @@ export function getBackendEnv() {
     openai: {
       apiKey: readEnv('OPENAI_API_KEY'),
       model: readEnv('OPENAI_MODEL') ?? 'gpt-5.6-sol',
+    },
+    groq: {
+      apiKey: readEnv('GROQ_API_KEY'),
+      model: readEnv('GROQ_MODEL') ?? 'openai/gpt-oss-20b',
     },
     storage: {
       bucket: readEnv('OBJECT_STORAGE_BUCKET'),

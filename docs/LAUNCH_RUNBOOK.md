@@ -55,10 +55,14 @@ Needed for Gmail sync/send, password-reset emails, and account-invite emails.
 
 ---
 
-## Phase 4 — Anthropic API key (AI assistant "Amina")  **[MANUAL]**
+## Phase 4 — AI provider key (assistant and task automation)  **[MANUAL]**
 
-- **Where:** <https://console.anthropic.com> → Settings → API Keys → Create Key.
-- **Value:** `ANTHROPIC_API_KEY`. (Amina UI isn't wired yet, so this is not launch-blocking — set it when you build the assistant.)
+- **Free option:** <https://console.groq.com/keys> → Create API Key.
+- **Values:** `AI_PROVIDER=groq`, `GROQ_API_KEY` and
+  `GROQ_MODEL=openai/gpt-oss-20b`. These power Amina chat, inbox-to-task
+  generation, and personalized Gmail drafts.
+- **Optional paid fallback:** use `AI_PROVIDER=openai`, `OPENAI_API_KEY` and
+  `OPENAI_MODEL` instead.
 
 ---
 
@@ -78,7 +82,9 @@ GOOGLE_CLIENT_SECRET=<from Phase 3>
 GOOGLE_REDIRECT_URI=https://<your-domain>/api/auth/google/callback
 GMAIL_SENDER_EMAIL=ad@italprotein.com
 GMAIL_REPLY_TO=ad@italprotein.com
-ANTHROPIC_API_KEY=<from Phase 4, optional for launch>
+AI_PROVIDER=groq
+GROQ_API_KEY=<from Phase 4>
+GROQ_MODEL=openai/gpt-oss-20b
 ```
 
 Public (non-secret) `NEXT_PUBLIC_*` site/contact values are already correct in the templates — confirm they match the real site.
@@ -211,7 +217,7 @@ The remaining **[CLAUDE]** tasks are ordered by launch impact:
 - E-signature provider (`ESIGN_*`) for the NDA flow.
 - Object storage bucket (`OBJECT_STORAGE_*`), carrier tracking, payments, AI vector store.
 
-**Deferred until data/permissions are production-safe:** Google Drive/Docs, and the Amina chatbot (role-aware retrieval).
+**Deferred until data/permissions are production-safe:** permission-filtered Google Drive/Docs and live CRM retrieval inside Amina. The authenticated chat UI and model call are active without retrieval.
 
 ---
 
@@ -226,7 +232,7 @@ The remaining **[CLAUDE]** tasks are ordered by launch impact:
 | `GOOGLE_TOKEN_ENC_KEY` | generate | high |
 | `CRON_SECRET` | generate | high |
 | `GOOGLE_CLIENT_ID` / `_SECRET` / `_REDIRECT_URI` | Google Cloud (Phase 3) | high (Gmail) |
-| `ANTHROPIC_API_KEY` | Anthropic console (Phase 4) | low (Amina later) |
+| `AI_PROVIDER` / `GROQ_API_KEY` / `GROQ_MODEL` | GroqCloud (Phase 4) | high (Amina and AI tasks) |
 | `GOOGLE_DRIVE_ROOT_FOLDER_ID` / `GOOGLE_SHARED_DRIVE_ID` | Google Drive URLs | low (Drive later) |
 | `OBJECT_STORAGE_*` / `ESIGN_*` / `CARRIER_*` / `PAYMENTS_*` | chosen vendors | low (when built) |
 | `SEED_SUPERADMIN_PASSWORD` | generate (seed shell) | medium |

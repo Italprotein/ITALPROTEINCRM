@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 
 import { generatePersonalizedReply, generateTaskCandidates, isCrmTaskAiConfigured } from "@/lib/ai/crm-task-ai";
+import { getAiProviderName } from "@/lib/ai/provider";
 import { getBackendEnv } from "@/lib/backend/env";
 import {
   buildRawEmail,
@@ -103,7 +104,13 @@ export async function generateAiTasksFromInbox(
       })
     : [];
   const alreadyTracked = new Set(existing.map((task) => task.relatedId).filter(Boolean));
-  const available = inbound.filter((email) => !alreadyTracked.has(email.id)).slice(0, 60);
+  const freeTierMode = getAiProviderName() === "groq";
+  // Groq's free plan has a much smaller per-minute token allowance. The latest
+  // six untracked messages provide a useful daily pass without sending a batch
+  // that is likely to be rejected before the model can create any tasks.
+  const available = inbound
+    .filter((email) => !alreadyTracked.has(email.id))
+    .slice(0, freeTierMode ? 6 : 60);
   if (!available.length) return { ok: true, tasks: [], consideredEmails: 0 };
 
   try {
@@ -120,7 +127,7 @@ export async function generateAiTasksFromInbox(
         fromName: email.fromName,
         subject: email.subject,
         companyName: email.lead?.companyName,
-        body: (email.bodyText ?? "").slice(0, 6_000),
+        body: (email.bodyText ?? "").slice(0, freeTierMode ? 2_400 : 6_000),
       })),
     });
 

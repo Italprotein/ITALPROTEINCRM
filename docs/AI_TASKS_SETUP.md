@@ -4,22 +4,34 @@ The Tasks page can now analyze the signed-in member's assigned Gmail messages, c
 
 ## Required APIs and manual setup
 
-### 1. OpenAI Responses API
+### 1. AI provider
 
-1. Create an OpenAI API project and API key in the OpenAI Platform.
-2. Add billing/credits for that API project.
-3. Add these production environment variables:
+The default configuration uses Groq's free API tier:
 
 ```env
+AI_PROVIDER=groq
+GROQ_API_KEY=your-server-side-key
+GROQ_MODEL=openai/gpt-oss-20b
+```
+
+Create the key at <https://console.groq.com/keys>, add the variables to the
+production environment, and redeploy the CRM. The free-tier task pass analyzes
+the latest six untracked assigned emails and truncates long bodies to stay within
+the provider's per-minute token allowance.
+
+OpenAI remains an optional paid fallback:
+
+```env
+AI_PROVIDER=openai
 OPENAI_API_KEY=your-server-side-key
 OPENAI_MODEL=gpt-5.6-sol
 ```
 
-4. Redeploy the CRM.
+Provider keys must remain server-side.
 
-The key must remain server-side. A ChatGPT subscription and ChatGPT's personal Gmail connector do not provide an API key and cannot be reused by this CRM.
+The selected provider powers the floating Amina assistant inside authenticated CRM and portal shells. Amina stores conversation turns for audit. The chat does not yet receive live CRM or Drive records; current-data questions are routed back to the relevant CRM section instead of being guessed.
 
-The CRM sends only the recent messages assigned to the current member and existing task titles to the model. Responses are requested with `store: false` and constrained with a JSON schema before any task is written.
+The CRM sends only recent messages assigned to the current member and existing task titles to the model. Task output is constrained with a strict JSON schema and validated again with Zod before any task is written.
 
 ### 2. Gmail API and OAuth consent
 

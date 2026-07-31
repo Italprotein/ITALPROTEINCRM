@@ -1,5 +1,5 @@
 import type { DocumentAccessLevel, Role } from '@/lib/types';
-import { getBackendEnv } from '@/lib/backend/env';
+import { getAiProviderClient, isAiProviderConfigured } from './provider';
 import {
   assistantPolicies,
   assistantProfile,
@@ -10,13 +10,14 @@ import {
 /*
  * Amina runtime — the single seam between the CRM and the model.
  *
- * Everything around this file is real: `/api/assistant` authenticates the caller,
- * resolves the audience from their role, rate-limits, persists the turn to
- * AssistantThread/AssistantMessage and writes an AuditEvent. Only
- * `generateAssistantReply` is stubbed — see the TODO below for what to fill in.
+ * The API route authenticates the caller, resolves the audience from their role,
+ * rate-limits, persists the turn and writes an AuditEvent. This module only builds
+ * the permission-aware instructions and calls the configured AI provider.
+ *
+ * CRM/Drive retrieval remains deliberately separate: until a permission-filtered
+ * retrieval layer supplies records, the model is told it has no live data to inspect.
  */
 
-/** Mirrors the AssistantCitationTargetType enum in prisma/schema.prisma. */
 export type AssistantCitationTargetType =
   | 'company'
   | 'contact'
@@ -34,7 +35,6 @@ export type AssistantCitationTargetType =
   | 'meeting'
   | 'google_drive_file';
 
-/** A source the assistant wants to attach to an answer. Persisted as AssistantCitation. */
 export interface AssistantCitationDraft {
   targetType: AssistantCitationTargetType;
   targetId?: string;
@@ -51,13 +51,9 @@ export interface AssistantTurn {
 
 export interface AssistantRuntimeInput {
   audience: AssistantAudience;
-  /** UI locale — Amina answers in the language the user is reading. */
   locale: string;
-  /** Prior turns of this thread, oldest first. Excludes the incoming message. */
   history: AssistantTurn[];
-  /** The message being answered. */
   message: string;
-  /** Set for portal/internal audiences; scopes every answer to this company. */
   companyId?: string | null;
   companyName?: string | null;
   actorRole?: Role;
@@ -68,13 +64,12 @@ export interface AssistantReply {
   citations: AssistantCitationDraft[];
   model: string | null;
   usage: { inputTokens: number; outputTokens: number } | null;
-  /** True while the model call is not wired up — the UI labels these replies. */
+  /** Kept for API compatibility with the existing UI. */
   stubbed: boolean;
 }
 
-/** Whether a real model call is possible: provider configured and key present. */
 export function isAssistantConfigured(): boolean {
-  return Boolean(getBackendEnv().ai.apiKey);
+  return isAiProviderConfigured();
 }
 
 export function policyFor(audience: AssistantAudience): AssistantPolicy {
@@ -82,9 +77,8 @@ export function policyFor(audience: AssistantAudience): AssistantPolicy {
 }
 
 /**
- * Builds the system prompt from the audience policy. The policy — not the prompt —
- * is the security boundary: the route filters what data reaches this function, and
- * the prompt only restates those limits for the model.
+ * The policy is restated to the model, but prompt text is not the security boundary.
+ * The route and future retrieval tools must enforce the same limits server-side.
  */
 export function buildSystemPrompt(input: {
   audience: AssistantAudience;
@@ -103,17 +97,17 @@ export function buildSystemPrompt(input: {
 
   const lines = [
     `You are ${name} (${modeName}) — ${assistantProfile.publicTagline}`,
-    `You support Italprotein Srl and its Proamina® protein sweetener business.`,
+    'You support Italprotein Srl and its Proamina® protein sweetener business.',
     '',
     `Answer in ${input.locale === 'it' ? 'Italian' : 'English'} unless the user writes in the other language.`,
     '',
     'Scope and limits for this conversation:',
     ...policy.notes.map((note) => `- ${note}`),
-    `- Document access levels you may draw on: ${policy.allowedDocumentLevels.join(', ')}.`,
-    `- CRM record lookups: ${policy.canUseCrmTools ? 'permitted' : 'not permitted'}.`,
-    `- Google Drive lookups: ${policy.canUseGoogleDriveTools ? 'permitted' : 'not permitted'}.`,
-    `- Internal commercial data (pricing strategy, margins, investor material): ${
-      policy.canRevealInternalCommercialData ? 'may be discussed' : 'must never be revealed'
+    `- Document access levels: ${policy.allowedDocumentLevels.join(', ')}.`,
+    `- CRM tools are ${policy.canUseCrmTools ? 'permitted by policy when connected' : 'not permitted'}.`,
+    `- Google Drive tools are ${policy.canUseGoogleDriveTools ? 'permitted by policy when connected' : 'not permitted'}.`,
+    `- Internal commercial data ${
+      policy.canRevealInternalCommercialData ? 'may be discussed when supplied by an authorized tool' : 'must never be revealed'
     }.`,
   ];
 
@@ -129,90 +123,77 @@ export function buildSystemPrompt(input: {
 
   lines.push(
     '',
-    'Cite the record or document behind any factual claim about CRM data.',
-    'If a question falls outside the limits above, say so plainly and route the user to the right team instead of guessing.',
-    'Never invent a shipment status, a document, a price or an NDA state. If you do not know, say you do not know.',
+    'This chat request does not currently include live CRM, Gmail, Google Drive, shipment or NDA records. Never imply that you inspected them.',
+    'When asked for current company data, explain that live retrieval is not connected in chat yet and direct the user to the relevant CRM section.',
+    "The separate Generate today's tasks action can analyze the signed-in member's assigned Gmail messages after an explicit click.",
+    'Use concise plain text. Avoid Markdown headings, tables and code fences.',
+    'If a question falls outside these limits, say so plainly instead of guessing.',
+    'Never invent a shipment status, document, price, commitment or NDA state.',
   );
 
   return lines.join('\n');
 }
 
-/**
- * TODO(amina): replace the stub below with a real Claude call. This is the only
- * place that needs to change — the route, persistence, auditing and UI are done.
- *
- * The env layer already resolves everything needed (see lib/backend/env.ts):
- *   const { apiKey, model } = getBackendEnv().ai;   // model defaults to claude-opus-4-8
- *
- *   import Anthropic from '@anthropic-ai/sdk';      // already a dependency
- *   const client = new Anthropic({ apiKey });
- *   const stream = client.messages.stream({
- *     model,
- *     max_tokens: 4096,
- *     system: buildSystemPrompt(input),
- *     thinking: { type: 'adaptive' },               // must be set explicitly on Opus 4.8
- *     output_config: { effort: 'medium' },
- *     messages: [...input.history, { role: 'user', content: input.message }],
- *   });
- *   const message = await stream.finalMessage();
- *
- * Before turning it on, two things still need designing:
- *   1. Retrieval — feed the model only records the audience policy allows. The route
- *      already resolves the policy; the CRM lookup layer is what's missing.
- *   2. Tools — AssistantMessage.toolCallStatus models a confirm-before-mutate flow
- *      ('proposed' -> 'awaiting_confirmation' -> 'confirmed' -> 'executed'). Mutating
- *      tools must stay behind that gate and write an AuditEvent.
- */
 export async function generateAssistantReply(
   input: AssistantRuntimeInput,
 ): Promise<AssistantReply> {
-  const { model } = getBackendEnv().ai;
-  const policy = policyFor(input.audience);
+  const configured = getAiProviderClient();
+  if (!configured) throw new Error('AI_PROVIDER_NOT_CONFIGURED');
 
-  // Keeps the signature honest as an async boundary and keeps callers await-correct.
-  await Promise.resolve();
+  if (configured.provider === 'groq') {
+    const response = await configured.client.chat.completions.create({
+      model: configured.model,
+      reasoning_effort: 'low',
+      messages: [
+        { role: 'system', content: buildSystemPrompt(input) },
+        ...input.history.map((turn) => ({ role: turn.role, content: turn.content })),
+        { role: 'user', content: input.message },
+      ],
+      max_completion_tokens: 900,
+    });
+    const text = response.choices[0]?.message.content?.trim();
+    if (!text) throw new Error('EMPTY_ASSISTANT_REPLY');
 
-  const configured = isAssistantConfigured();
-  const text = configured
-    ? stubReply(input, policy, model)
-    : stubReply(input, policy, null);
+    return {
+      text,
+      citations: [],
+      model: configured.model,
+      usage: response.usage
+        ? {
+            inputTokens: response.usage.prompt_tokens,
+            outputTokens: response.usage.completion_tokens,
+          }
+        : null,
+      stubbed: false,
+    };
+  }
+
+  const response = await configured.client.responses.create({
+    model: configured.model,
+    store: false,
+    reasoning: { effort: 'low' },
+    instructions: buildSystemPrompt(input),
+    input: [
+      ...input.history.map((turn) => ({ role: turn.role, content: turn.content })),
+      { role: 'user' as const, content: input.message },
+    ],
+    max_output_tokens: 900,
+    text: { verbosity: 'low' },
+  });
+
+  const text = response.output_text.trim();
+  if (!text) throw new Error('EMPTY_ASSISTANT_REPLY');
 
   return {
     text,
     citations: [],
-    model: null,
-    usage: null,
-    stubbed: true,
+    model: configured.model,
+    usage: response.usage
+      ? {
+          inputTokens: response.usage.input_tokens,
+          outputTokens: response.usage.output_tokens,
+        }
+      : null,
+    stubbed: false,
   };
-}
-
-function stubReply(
-  input: AssistantRuntimeInput,
-  policy: AssistantPolicy,
-  model: string | null,
-): string {
-  const it = input.locale === 'it';
-  const name = assistantProfile.name;
-
-  const head = it
-    ? `Sono ${name}, ma non sono ancora collegata al modello.`
-    : `I'm ${name}, but I'm not connected to the model yet.`;
-
-  const body = it
-    ? `L'interfaccia, i permessi e la cronologia funzionano: questa conversazione è stata salvata e verificata per il tuo profilo di accesso "${input.audience}". Manca solo la chiamata al modello.`
-    : `The interface, permissions and history all work: this conversation was saved and checked against your "${input.audience}" access profile. Only the model call is missing.`;
-
-  const config = model
-    ? it
-      ? `Il modello configurato è ${model}.`
-      : `The configured model is ${model}.`
-    : it
-      ? 'Nessuna ANTHROPIC_API_KEY configurata.'
-      : 'No ANTHROPIC_API_KEY is configured.';
-
-  const scope = it
-    ? `In questa modalità potrò consultare: ${policy.allowedDocumentLevels.join(', ')}.`
-    : `In this mode I will be able to draw on: ${policy.allowedDocumentLevels.join(', ')}.`;
-
-  return [head, body, config, scope].join('\n\n');
 }

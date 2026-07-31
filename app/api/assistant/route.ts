@@ -19,7 +19,7 @@ export const maxDuration = 60;
  *   - a thread can only be resumed by the identity + audience + company that owns it;
  *   - every turn is persisted and audited.
  *
- * The model call itself is still stubbed — see lib/ai/assistant-runtime.ts.
+ * The model call uses the configured provider through lib/ai/assistant-runtime.ts.
  */
 
 const BodySchema = z.object({
@@ -32,8 +32,8 @@ const BodySchema = z.object({
 const HISTORY_LIMIT = 20;
 
 /**
- * The public (marketing) assistant is not exposed on the site yet and the model
- * call is still stubbed, so anonymous access buys nothing and costs something:
+ * The public (marketing) assistant is not exposed on the site yet, so anonymous
+ * access would only create unauthenticated model spend and persisted threads:
  * an unauthenticated POST creates assistant threads and messages in the
  * database from anyone on the internet — and would become real model spend the
  * moment the runtime is wired. Refuse anonymous callers until that ships.
@@ -103,15 +103,29 @@ export async function POST(request: Request) {
     data: { threadId: thread.id, role: 'user', content: body.message },
   });
 
-  const reply = await generateAssistantReply({
-    audience: actor.audience,
-    locale: body.locale,
-    history,
-    message: body.message,
-    companyId: actor.companyId,
-    companyName,
-    actorRole: actor.role ?? undefined,
-  });
+  let reply;
+  try {
+    reply = await generateAssistantReply({
+      audience: actor.audience,
+      locale: body.locale,
+      history,
+      message: body.message,
+      companyId: actor.companyId,
+      companyName,
+      actorRole: actor.role ?? undefined,
+    });
+  } catch (error) {
+    const providerStatus = statusFromError(error);
+    const code = error instanceof Error ? error.message : '';
+
+    if (code === 'AI_PROVIDER_NOT_CONFIGURED' || providerStatus === 401 || providerStatus === 403) {
+      return NextResponse.json({ error: 'assistant_not_configured' }, { status: 503 });
+    }
+    if (providerStatus === 429) {
+      return NextResponse.json({ error: 'provider_rate_limited' }, { status: 429 });
+    }
+    return NextResponse.json({ error: 'assistant_generation_failed' }, { status: 502 });
+  }
 
   const assistantMessage = await prisma.assistantMessage.create({
     data: {
@@ -229,4 +243,10 @@ async function loadCompanyName(companyId: string): Promise<string | null> {
   });
   if (!company) return null;
   return company.tradingName ?? company.legalName;
+}
+
+function statusFromError(error: unknown): number | null {
+  if (!error || typeof error !== 'object' || !('status' in error)) return null;
+  const status = (error as { status?: unknown }).status;
+  return typeof status === 'number' ? status : null;
 }
