@@ -23,24 +23,41 @@ function words(value: string): string[] {
 
 function companyForFolder(
   folderName: string,
-  companies: { id: string; legalName: string; tradingName: string | null }[],
+  companies: { id: string; legalName: string; tradingName: string | null; createdAt: Date }[],
 ) {
   const compactFolder = normalize(folderName);
   const folderWords = new Set(words(folderName));
+  const folderKey = [...folderWords].sort().join("");
+  const knownAliases: Record<string, string> = {
+    bledaralbania: "Contatto Privato (Bledar)",
+    prontofoods: "Pronto / Ristora",
+  };
+  const aliased = knownAliases[compactFolder];
+  if (aliased) {
+    const match = companies.find((company) => company.legalName === aliased);
+    if (match) return match;
+  }
   const ranked = companies.map((company) => {
     const names = [company.legalName, company.tradingName].filter(Boolean) as string[];
-    const direct = names.some((name) => {
+    const score = Math.max(...names.map((name) => {
       const compact = normalize(name);
-      return compact.length >= 4 && (compactFolder.includes(compact) || compact.includes(compactFolder));
-    });
-    const overlap = Math.max(...names.map((name) => {
       const nameWords = new Set(words(name));
       const shared = [...folderWords].filter((word) => nameWords.has(word)).length;
-      return shared / Math.max(1, Math.min(folderWords.size, nameWords.size));
+      const overlap = shared / Math.max(1, Math.min(folderWords.size, nameWords.size));
+      const nameKey = [...nameWords].sort().join("");
+      if (compact === compactFolder) return 4;
+      if (nameKey && nameKey === folderKey) return 3.5;
+      if (compact.length >= 4 && compactFolder.length >= 4 && (compactFolder.includes(compact) || compact.includes(compactFolder))) {
+        return 2 + overlap + shared / 100;
+      }
+      return overlap + shared / 100;
     }));
-    return { company, score: direct ? 2 : overlap };
-  }).sort((a, b) => b.score - a.score);
-  return ranked[0] && ranked[0].score >= 0.6 && ranked[0].score > (ranked[1]?.score ?? 0)
+    return { company, score };
+  }).sort((a, b) => b.score - a.score || a.company.createdAt.getTime() - b.company.createdAt.getTime());
+  const sameNamedDuplicate = ranked[0] && ranked[1] &&
+    normalize(ranked[0].company.legalName) === normalize(ranked[1].company.legalName);
+  return ranked[0] && ranked[0].score >= 0.5 &&
+    (ranked[0].score > (ranked[1]?.score ?? 0) || sameNamedDuplicate)
     ? ranked[0].company
     : undefined;
 }
@@ -68,7 +85,7 @@ export async function syncLatestDriveNdas(actorId: string) {
   const rootId = process.env.GOOGLE_DRIVE_INDUSTRIAL_CLIENTS_FOLDER_ID ?? DEFAULT_ROOT;
   const [folders, companies] = await Promise.all([
     listDriveFolder(rootId),
-    prisma.company.findMany({ select: { id: true, legalName: true, tradingName: true } }),
+    prisma.company.findMany({ select: { id: true, legalName: true, tradingName: true, createdAt: true } }),
   ]);
   let synced = 0;
   const skipped: string[] = [];
