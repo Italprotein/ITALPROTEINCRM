@@ -472,6 +472,9 @@ export default function LandingPage() {
             </a>
           </div>
         </div>
+        <div className="container mt-8 border-t border-white/10 pt-6 text-center text-xs tracking-wide text-slate-400">
+          Creato Da : Amine , con {'<3'}
+        </div>
       </footer>
     </div>
   );
