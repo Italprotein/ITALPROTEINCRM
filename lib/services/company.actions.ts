@@ -83,11 +83,61 @@ export async function updateCompany(id: string, patch: Partial<Company>): Promis
   return companyToDTO(row);
 }
 
+/**
+ * Prefix for the "this company still holds records worth keeping" refusal.
+ *
+ * A plain Error, not a subclass: a "use server" module may only export async
+ * functions, and a custom error class would not survive the server-action
+ * boundary as its own type anyway — only the message crosses. The client
+ * matches on this prefix.
+ */
+const DELETE_BLOCKED = "COMPANY_DELETE_BLOCKED";
+
 export async function removeCompany(id: string): Promise<void> {
   // No `company.delete` action exists; deletion is at least as privileged as
   // editing, and `company.edit` is internal-only, which is the intent here.
   await requireAction("company.edit");
-  await prisma.company.delete({ where: { id } }).catch(() => undefined);
+
+  // Financial records outlive the company relationship — an issued invoice is
+  // an accounting fact, not a CRM detail. Refuse rather than destroy them.
+  const [quotes, orders, invoices] = await Promise.all([
+    prisma.quote.count({ where: { companyId: id } }),
+    prisma.order.count({ where: { companyId: id } }),
+    prisma.invoice.count({ where: { companyId: id } }),
+  ]);
+  const blocking: string[] = [];
+  if (quotes) blocking.push(`${quotes} quote(s)`);
+  if (orders) blocking.push(`${orders} order(s)`);
+  if (invoices) blocking.push(`${invoices} invoice(s)`);
+  if (blocking.length) throw new Error(`${DELETE_BLOCKED}: ${blocking.join(", ")}`);
+
+  // Everything else belongs to the company and goes with it. Most of these
+  // relations have no ON DELETE CASCADE, so a single related row — one draft
+  // sample request was enough — made the delete fail. That failure used to be
+  // swallowed, so the UI reported success while the row stayed in the database.
+  await prisma.$transaction([
+    prisma.supportMessage.deleteMany({ where: { supportRequest: { companyId: id } } }),
+    prisma.supportRequest.deleteMany({ where: { companyId: id } }),
+    prisma.attachment.deleteMany({ where: { document: { companyId: id } } }),
+    prisma.googleDriveFileLink.deleteMany({ where: { companyId: id } }),
+    prisma.documentAccessEvent.deleteMany({ where: { document: { companyId: id } } }),
+    prisma.document.deleteMany({ where: { companyId: id } }),
+    prisma.nDA.deleteMany({ where: { companyId: id } }),
+    prisma.feedback.deleteMany({ where: { companyId: id } }),
+    prisma.applicationProject.deleteMany({ where: { companyId: id } }),
+    prisma.shipment.deleteMany({ where: { companyId: id } }),
+    prisma.sampleRequest.deleteMany({ where: { companyId: id } }),
+    prisma.opportunity.deleteMany({ where: { companyId: id } }),
+    prisma.meeting.deleteMany({ where: { companyId: id } }),
+    prisma.task.deleteMany({ where: { companyId: id } }),
+    prisma.activity.deleteMany({ where: { companyId: id } }),
+    prisma.notification.deleteMany({ where: { companyId: id } }),
+    prisma.assistantThread.deleteMany({ where: { companyId: id } }),
+    prisma.contact.deleteMany({ where: { companyId: id } }),
+    prisma.company.delete({ where: { id } }),
+  ]);
+  // Anything still referencing the company (audit events, email logs) keeps its
+  // history with a null link, which is the point of an audit trail.
 }
 
 export async function countCompanies(): Promise<number> {

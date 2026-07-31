@@ -578,7 +578,9 @@
     "placeholderTaskTitle": "Segui i campioni",
     "fieldDueDate": "Data di scadenza",
     "updateFailedTitle": "Salvataggio non riuscito",
-    "updateFailedDescription": "La modifica è stata annullata. Riprova."
+    "updateFailedDescription": "La modifica è stata annullata. Riprova.",
+    "deleteBlockedTitle": "Impossibile eliminare questa azienda",
+    "deleteBlockedDescription": "“{name}” ha ancora {reasons}. I documenti contabili vengono conservati, quindi l’azienda non può essere rimossa."
   },
   "AdminCompanyDetail": {
     "unassigned": "Non assegnato",

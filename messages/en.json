@@ -578,7 +578,9 @@
     "placeholderTaskTitle": "Follow up on samples",
     "fieldDueDate": "Due date",
     "updateFailedTitle": "Could not save",
-    "updateFailedDescription": "The change was reverted. Please try again."
+    "updateFailedDescription": "The change was reverted. Please try again.",
+    "deleteBlockedTitle": "Cannot delete this company",
+    "deleteBlockedDescription": "“{name}” still has {reasons}. Financial records are kept, so the company cannot be removed."
   },
   "AdminCompanyDetail": {
     "unassigned": "Unassigned",

@@ -528,14 +528,18 @@ export function DataTable<T>(props: DataTableProps<T>): React.JSX.Element {
         </div>
       ) : null}
 
-      {/* ── table ── */}
+      {/* ── table ──
+          min-h-0 matters: a flex child defaults to min-height:auto, which lets
+          it grow past its parent instead of scrolling inside it. Without it the
+          table's own scrollbar ends up below the fold on a full-height page. */}
       <div
         className={cn(
+          'min-h-0 flex-1',
           density === 'compact' ? 'density-compact' : 'density-comfortable',
           mobileCard ? 'hidden md:block' : 'block',
         )}
       >
-        <Table>
+        <Table containerClassName="max-h-full h-full">
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               {selectable ? (

@@ -214,9 +214,22 @@ export default function CompaniesPage() {
     try {
       await companyService.remove(c.id);
       toast({ variant: 'success', title: t('toastDeletedTitle'), description: t('toastDeletedDescription', { name }) });
-    } catch {
+    } catch (error) {
       setRows(prev ?? null); // roll back the optimistic removal
-      toast({ variant: 'danger', title: t('toastActionFailedTitle'), description: t('toastActionFailedDescription') });
+      // A company holding quotes, orders or invoices is refused rather than
+      // destroyed — say which, instead of a generic failure.
+      const message = error instanceof Error ? error.message : '';
+      const blocked = message.includes('COMPANY_DELETE_BLOCKED');
+      toast({
+        variant: 'danger',
+        title: blocked ? t('deleteBlockedTitle') : t('toastActionFailedTitle'),
+        description: blocked
+          ? t('deleteBlockedDescription', {
+              name,
+              reasons: message.split('COMPANY_DELETE_BLOCKED:')[1]?.trim() ?? '',
+            })
+          : t('toastActionFailedDescription'),
+      });
     }
   }
 
@@ -635,9 +648,12 @@ export default function CompaniesPage() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+    // Full-height app layout: the header and the KPI bar are fixed rails and the
+    // table fills whatever is left, so its horizontal scrollbar always sits at
+    // the bottom of the viewport instead of below the fold. 4rem is the topbar.
+    <div className="flex h-[calc(100vh-4rem)] flex-col gap-4 overflow-hidden p-4 sm:p-6 lg:p-8">
       <PageHeader
-        sticky
+        className="shrink-0"
         title={t('pageTitle')}
         subtitle={t('pageSubtitle')}
         actions={
@@ -668,6 +684,7 @@ export default function CompaniesPage() {
       {/* Table first — it is the work surface. The KPI row is a summary, so it
           sits below rather than pushing the list off screen on every visit. */}
       <DataTable<Company>
+        className="min-h-0 flex-1"
         data={filtered}
         columns={columns}
         getRowId={(c) => c.id}
@@ -694,7 +711,7 @@ export default function CompaniesPage() {
 
       {/* Summary of the whole book of business — below the list, since the list
           is what people come here to work with. */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid shrink-0 grid-cols-2 gap-4 lg:grid-cols-5">
         <StatCard label={t('statTotalCompanies')} value={stats?.total ?? 0} icon={Building2} tone="gold" />
         <StatCard label={t('statActive')} value={stats?.active ?? 0} icon={ActivityIcon} tone="info" delay={0.05} />
         <StatCard label={t('statCustomers')} value={stats?.customers ?? 0} icon={CheckCircle2} tone="success" delay={0.1} />

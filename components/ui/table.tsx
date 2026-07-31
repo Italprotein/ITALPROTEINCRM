@@ -10,12 +10,15 @@ const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement> & { containerClassName?: string }
 >(({ className, containerClassName, ...props }, ref) => (
-  // The scroll area is bounded to the viewport rather than growing with the row
-  // count. With 400+ rows an unbounded container puts the horizontal scrollbar
-  // below every row, so reading a right-hand column meant scrolling to the
-  // bottom of the page first. Capping the height keeps that scrollbar on screen,
-  // and the sticky header below keeps column names visible while you scroll.
-  // Pass containerClassName="max-h-none" to opt a short table back out.
+  // The scroll area is bounded rather than growing with the row count: with
+  // 400+ rows an unbounded container puts the horizontal scrollbar below every
+  // row, so reading a right-hand column meant scrolling to the bottom of the
+  // page first. Bounded, the scrollbar stays at the bottom of the box and the
+  // sticky header keeps column names visible.
+  //
+  // The viewport-based cap is only a fallback for pages that scroll normally;
+  // on a full-height page DataTable overrides it with h-full so the box ends
+  // exactly where the viewport does. Pass "max-h-none" to opt out entirely.
   <div
     className={cn(
       'relative w-full overflow-auto scrollbar-always',
