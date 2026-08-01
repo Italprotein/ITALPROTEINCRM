@@ -40,6 +40,8 @@ import {
   type AssistantMutationKind,
 } from './assistant-intent';
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export interface AssistantToolContext {
   actorUserId?: string;
   actorRole?: Role;
@@ -576,10 +578,10 @@ export function buildAssistantTools(context: AssistantToolContext): {
         description: z.string().trim().max(2_500).optional(),
         type: z.enum(['follow_up', 'call', 'email', 'prepare_nda', 'prepare_sample', 'rnd_review', 'logistics', 'finance', 'meeting', 'other']).default('other'),
         priority: z.enum(['low', 'medium', 'high', 'urgent']).default('medium'),
-        dueDate: z.string().datetime({ offset: true }).optional(),
+        dueDate: z.string().trim().max(80).optional(),
         companyId: z.string().trim().min(1).optional(),
         companyName: z.string().trim().min(1).max(160).optional(),
-        ownerEmail: z.string().email().optional(),
+        ownerEmail: z.string().trim().max(320).optional(),
       }),
       execute: async (input) => {
         assertMutationIntent(context, 'task');
@@ -587,10 +589,18 @@ export function buildAssistantTools(context: AssistantToolContext): {
         if ((input.companyId || input.companyName) && !company) {
           return { error: 'company_not_found' };
         }
+        if (input.dueDate && !Number.isFinite(new Date(input.dueDate).getTime())) {
+          return { error: 'invalid_due_date' };
+        }
         let ownerId = context.actorUserId!;
         if (input.ownerEmail) {
+          if (!EMAIL_RE.test(input.ownerEmail)) return { error: 'invalid_owner_email' };
           const owner = await prisma.user.findFirst({
-            where: { email: input.ownerEmail.toLocaleLowerCase(), kind: 'internal', status: 'active' },
+            where: {
+              email: { equals: input.ownerEmail, mode: 'insensitive' },
+              kind: 'internal',
+              status: 'active',
+            },
             select: { id: true },
           });
           if (!owner) return { error: 'owner_not_found' };
@@ -655,19 +665,30 @@ export function buildAssistantTools(context: AssistantToolContext): {
       inputSchema: z.object({
         title: z.string().trim().min(1).max(240),
         type: z.enum(['video_call', 'phone_call', 'on_site', 'event', 'technical_call']).default('video_call'),
-        start: z.string().datetime({ offset: true }),
-        end: z.string().datetime({ offset: true }).optional(),
+        start: z.string().trim().min(1).max(80),
+        end: z.string().trim().max(80).optional(),
         location: z.string().trim().max(300).optional(),
         agenda: z.string().trim().max(2_500).optional(),
         companyId: z.string().trim().min(1).optional(),
         companyName: z.string().trim().min(1).max(160).optional(),
-        notifyEmails: z.array(z.string().email()).max(30).default([]),
+        notifyEmails: z.array(z.string().trim().max(320)).max(30).default([]),
       }),
       execute: async (input) => {
         assertMutationIntent(context, 'meeting');
         const company = await resolveCompany(context, input);
         if ((input.companyId || input.companyName) && !company) {
           return { error: 'company_not_found' };
+        }
+        const startsAt = new Date(input.start);
+        const endsAt = input.end ? new Date(input.end) : undefined;
+        if (
+          !Number.isFinite(startsAt.getTime()) ||
+          (endsAt && (!Number.isFinite(endsAt.getTime()) || endsAt <= startsAt))
+        ) {
+          return { error: 'invalid_meeting_dates' };
+        }
+        if (!input.notifyEmails.every((email) => EMAIL_RE.test(email))) {
+          return { error: 'invalid_notification_email' };
         }
         const recipients = input.notifyEmails.length
           ? await prisma.user.findMany({
