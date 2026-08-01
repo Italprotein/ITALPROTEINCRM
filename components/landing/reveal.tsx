@@ -5,13 +5,16 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * Scroll-entry reveal without framer-motion. One IntersectionObserver per
- * element, disconnected after it fires, and a plain CSS transition — so the
- * landing page ships no animation library and nothing keeps running once the
- * reveal has settled. Honours `prefers-reduced-motion` by showing immediately.
+ * Scroll-entry reveal without an animation library. One IntersectionObserver
+ * per element, disconnected after it fires, and a plain CSS transition — so
+ * nothing keeps running once the reveal has settled.
+ *
+ * Reduced motion is handled entirely by the `motion-safe:` variants below: the
+ * hidden state never applies for those users, so the content is visible from
+ * first paint whether or not the observer ever fires.
  *
  * Deliberately not used above the fold: the hero renders as static HTML so it
- * paints on first frame instead of waiting for hydration.
+ * paints on the first frame instead of waiting for hydration.
  */
 export function Reveal({
   children,
@@ -28,10 +31,6 @@ export function Reveal({
   React.useEffect(() => {
     const node = ref.current;
     if (!node) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setShown(true);
-      return;
-    }
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry.isIntersecting) return;
