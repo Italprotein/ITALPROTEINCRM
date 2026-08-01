@@ -74,7 +74,7 @@ import { cn, initials } from '@/lib/utils';
 import { canView } from '@/lib/permissions';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
-import { AmineDashboard } from '@/components/dashboard/amine-dashboard';
+import { OperationalOverviewDashboard } from '@/components/dashboard/operational-overview';
 import type {
   Activity,
   ActivityType,
@@ -715,7 +715,7 @@ export default function OverviewPage() {
   const { account, ready } = useSession();
   if (!ready) return null;
   if (account?.email?.toLowerCase() === AMINE_EMAIL) {
-    return <AmineDashboard />;
+    return <OperationalOverviewDashboard />;
   }
   return <StandardOverview showRegistrations={Boolean(account && canView(account.role, 'registrations'))} />;
 }
