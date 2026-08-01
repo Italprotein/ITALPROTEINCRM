@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { Building2, ChevronDown, ClipboardEdit, LogIn, ShieldCheck } from 'lucide-react';
 import { Link } from '@/lib/i18n/navigation';

@@ -1,7 +1,4 @@
-'use client';
-
 import Image from 'next/image';
-import { motion } from 'framer-motion';
 
 /* Collaborators — logos only, no names (provided in assets/Images). */
 const LOGOS = [
@@ -29,11 +26,9 @@ export function PartnerMarquee() {
       <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background to-transparent" aria-hidden />
       <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-background to-transparent" aria-hidden />
 
-      <motion.div
-        className="flex w-max gap-5"
-        animate={{ x: ['0%', '-50%'] }}
-        transition={{ duration: 90, repeat: Infinity, ease: 'linear' }}
-      >
+      {/* CSS keyframes rather than a motion library: this is the only motion
+          left on the page that repeats, and it costs nothing to hydrate. */}
+      <div className="flex w-max gap-5 motion-safe:animate-marquee">
         {TRACK.map((logo, i) => (
           <div
             key={i}
@@ -48,7 +43,7 @@ export function PartnerMarquee() {
             />
           </div>
         ))}
-      </motion.div>
+      </div>
     </div>
   );
 }
