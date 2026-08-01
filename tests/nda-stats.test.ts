@@ -65,6 +65,14 @@ describe("current register row per company", () => {
     expect(currentNdasOf([older, newer])).toEqual([newer]);
   });
 
+  it("picks deterministically when two rows share a creation date", () => {
+    const a = nda("a", "acme", "2026-04-01", "sent");
+    const b = nda("b", "acme", "2026-04-01", "fully_signed");
+
+    // Same answer regardless of the order the rows arrive in.
+    expect(currentNdasOf([a, b])).toEqual(currentNdasOf([b, a]));
+  });
+
   it("counts a company with three register rows once", () => {
     const rows = [
       nda("a", "acme", "2026-01-10", "fully_signed"),

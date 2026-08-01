@@ -23,13 +23,20 @@ export const NDA_AWAITING_STATUSES: NDAStatus[] = [
 const SENT_STATUSES: NDAStatus[] = [...NDA_AWAITING_STATUSES, "fully_signed"];
 
 /**
- * Newest register row per company, matching the ordering `currentNdaByCompany`
- * gets from Prisma. The fixture-backed mock services have no database to order
- * for them, so they reduce here instead and reach the same answer.
+ * Newest register row per company, for the fixture-backed mock services which
+ * have no database to order for them.
+ *
+ * Not identical to the Prisma ordering: `currentNdaByCompany` sorts on
+ * `updatedAt` first, and the NDA DTO carries no `updatedAt` field, so this
+ * falls back to `createdAt` with an id tiebreak. The two modes can therefore
+ * disagree on which row is current for a company whose rows were edited out of
+ * creation order — a mock-data nuance, not something either mode gets wrong.
  */
 export function currentNdasOf(all: readonly NDA[]): NDA[] {
   const ordered = [...all].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    (a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ||
+      b.id.localeCompare(a.id),
   );
   return selectCurrentNdasWithFile(
     ordered,
