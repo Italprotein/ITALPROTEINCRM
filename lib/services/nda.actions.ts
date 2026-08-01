@@ -11,6 +11,7 @@ import {
 } from "@/lib/backend/session";
 import type { NDA, NDAStatus } from "@/lib/types";
 import { syncCompanyNdaStatus } from "@/lib/backend/nda-status-sync";
+import { selectCurrentNdasWithFile } from "@/lib/nda-current";
 import { ndaToDTO, ndaWriteData } from "./nda.mapper";
 
 // External users see only their own company's NDAs; internal users see all.
@@ -32,7 +33,16 @@ async function companyScopeWhere(): Promise<Prisma.CompanyWhereInput> {
 // the DTO can present `versions` and `signedFiles`.
 const INCLUDE = {
   versions: { orderBy: { versionDate: "asc" } },
-  signedFile: true,
+  signedFile: {
+    include: {
+      attachments: {
+        where: { OR: [{ bytes: { not: null } }, { storageKey: { not: null } }] },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { id: true },
+      },
+    },
+  },
 } satisfies Prisma.NDAInclude;
 
 // Statuses whose entry would fire an external email / e-signature request. Not yet
@@ -56,12 +66,14 @@ export async function listNdas(): Promise<NDA[]> {
     include: INCLUDE,
     orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
   });
-  const seenCompanies = new Set<string>();
-  return rows.flatMap((row) => {
-    if (seenCompanies.has(row.companyId)) return [];
-    seenCompanies.add(row.companyId);
-    return [ndaToDTO(row)];
-  });
+  return selectCurrentNdasWithFile(
+    rows,
+    (row) => row.companyId,
+    (row) => Boolean(row.signedFile?.attachments[0]),
+    (row) => (row.signedFile?.uploadedAt ?? row.signedFile?.createdAt)?.getTime() ?? 0,
+  ).map(({ current, fileSource }) =>
+    ndaToDTO({ ...current, signedFile: fileSource?.signedFile ?? null }),
+  );
 }
 
 export async function getNda(id: string): Promise<NDA | undefined> {

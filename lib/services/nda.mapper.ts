@@ -17,7 +17,7 @@ const asJson = (v: unknown): Prisma.InputJsonValue => v as Prisma.InputJsonValue
 // Row shape produced by the actions query (NDA plus its included relations).
 export type PrismaNDAWithRelations = PrismaNDA & {
   versions?: PrismaDocumentVersion[];
-  signedFile?: PrismaDocument | null;
+  signedFile?: (PrismaDocument & { attachments?: Array<{ id: string }> }) | null;
 };
 
 /** DocumentVersion relation row -> NDAVersion DTO entry. */
@@ -52,6 +52,13 @@ function documentToAttachment(d: PrismaDocument): AttachmentRef {
 
 /** Prisma NDA row (with relations) -> NDA DTO. */
 export function ndaToDTO(n: PrismaNDAWithRelations): NDA {
+  // When attachment availability was selected, expose a download only for a
+  // document that can actually be served by /api/attachments/[id].
+  const downloadableSignedFile =
+    n.signedFile &&
+    (n.signedFile.attachments === undefined || n.signedFile.attachments.length > 0)
+      ? n.signedFile
+      : null;
   return {
     id: n.id,
     reference: n.reference,
@@ -72,7 +79,9 @@ export function ndaToDTO(n: PrismaNDAWithRelations): NDA {
     permittedSubDistributors: undef(n.permittedSubDistributors),
     reminderDates: n.reminderDates.map((d) => d.toISOString()),
     versions: (n.versions ?? []).map(versionToDTO),
-    signedFiles: n.signedFile ? [documentToAttachment(n.signedFile)] : undefined,
+    signedFiles: downloadableSignedFile
+      ? [documentToAttachment(downloadableSignedFile)]
+      : undefined,
     // amendmentFiles has no dedicated column; not denormalized on read.
     amendmentFiles: undefined,
     accessLevelUnlocked: undef(n.accessLevelUnlocked as DocumentAccessLevel | null),
