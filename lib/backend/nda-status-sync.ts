@@ -2,23 +2,41 @@ import { randomUUID } from "node:crypto";
 
 import type { Prisma, NDAStatus } from "@/lib/generated/prisma/client";
 
+import { reconcileNdaStatus } from "@/lib/nda-status";
+
 const CURRENT_ORDER = [
   { updatedAt: "desc" as const },
   { createdAt: "desc" as const },
   { id: "desc" as const },
 ];
 
-/** Materialise the current register row on Company for fast lists and portal gates. */
+/**
+ * Materialise the current register row on Company for fast lists and portal gates.
+ *
+ * `neverRegress` is for background auto-filing (Gmail sync, document upload):
+ * an inbound email must never walk a company backwards out of a status a staff
+ * member asserted, because this field gates portal document access. Explicit
+ * register edits leave it off and mirror the register exactly.
+ */
 export async function syncCompanyNdaStatus(
   tx: Prisma.TransactionClient,
   companyId: string,
+  opts: { neverRegress?: boolean } = {},
 ): Promise<NDAStatus> {
   const current = await tx.nDA.findFirst({
     where: { companyId },
     orderBy: CURRENT_ORDER,
     select: { status: true },
   });
-  const status = current?.status ?? "not_required";
+  const registerStatus = current?.status ?? "not_required";
+  let status = registerStatus;
+  if (opts.neverRegress) {
+    const company = await tx.company.findUnique({
+      where: { id: companyId },
+      select: { ndaStatus: true },
+    });
+    status = reconcileNdaStatus(company?.ndaStatus ?? null, registerStatus);
+  }
   await tx.company.update({ where: { id: companyId }, data: { ndaStatus: status } });
   return status;
 }
