@@ -187,7 +187,7 @@ export default function PortalSamplesPage() {
             onClick={(e) => e.stopPropagation()}
             title="Track this shipment"
           >
-            <Link href={`/portal/samples/${s.id}`}>
+            <Link href={`/portal/samples/${s.id}`} aria-label="Track this shipment">
               <Truck className="h-4 w-4" />
               <span className="hidden sm:inline">Track</span>
             </Link>
@@ -203,6 +203,7 @@ export default function PortalSamplesPage() {
             }}
             className="text-danger hover:text-danger"
             title="Cancel this request"
+            aria-label="Cancel this request"
           >
             <XCircle className="h-4 w-4" />
             <span className="hidden sm:inline">Cancel</span>
@@ -272,7 +273,7 @@ export default function PortalSamplesPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-9 w-64" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-28" />
           ))}
@@ -317,7 +318,7 @@ export default function PortalSamplesPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total requests" value={stats.total} icon={FlaskConical} tone="default" delay={0} />
         <StatCard
           label="In progress"

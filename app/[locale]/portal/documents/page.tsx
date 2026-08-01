@@ -204,13 +204,13 @@ export default function PortalDocumentsPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-9 w-56" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
         <Skeleton className="h-12 w-full" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-32" />
           ))}
@@ -252,7 +252,7 @@ export default function PortalDocumentsPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Available documents" value={docs.length} icon={FileText} tone="default" hint="Shared with your company" />
         <StatCard label="Technical files" value={technicalCount} icon={FlaskConical} tone="info" hint="Data sheets & guides" />
         <StatCard label="Regulatory & certificates" value={regulatoryCount} icon={ShieldCheck} tone="success" hint="Compliance documents" />
@@ -276,7 +276,7 @@ export default function PortalDocumentsPage() {
 
       {/* Toolbar: search + category filter + view toggle */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-xs">
+        <div className="relative w-full sm:w-64">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
@@ -286,9 +286,9 @@ export default function PortalDocumentsPage() {
             aria-label="Search documents"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 sm:w-auto">
           <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as DocumentCategory | 'all')}>
-            <SelectTrigger className="w-[200px]" aria-label="Filter by category">
+            <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filter by category">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent>
@@ -300,7 +300,7 @@ export default function PortalDocumentsPage() {
               ))}
             </SelectContent>
           </Select>
-          <div className="flex items-center rounded-md border p-0.5">
+          <div className="flex shrink-0 items-center rounded-md border p-0.5">
             <Button
               type="button"
               variant={view === 'grid' ? 'secondary' : 'ghost'}
@@ -366,7 +366,7 @@ export default function PortalDocumentsPage() {
                 </div>
 
                 {view === 'grid' ? (
-                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {items.map((doc) => (
                       <DocumentCard
                         key={doc.id}
@@ -503,12 +503,12 @@ function DocumentRow({
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {requiresSignature ? (
-          <Button size="sm" variant="gold" onClick={onSign}>
-            <PenLine className="h-4 w-4" /> Review &amp; sign
+          <Button size="sm" variant="gold" onClick={onSign} aria-label="Review and sign">
+            <PenLine className="h-4 w-4" /> <span className="hidden sm:inline">Review &amp; sign</span>
           </Button>
         ) : (
-          <Button size="sm" variant="outline" onClick={() => downloadDoc(doc)}>
-            <Download className="h-4 w-4" /> Download
+          <Button size="sm" variant="outline" onClick={() => downloadDoc(doc)} aria-label="Download">
+            <Download className="h-4 w-4" /> <span className="hidden sm:inline">Download</span>
           </Button>
         )}
         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onPreview} aria-label="Preview">

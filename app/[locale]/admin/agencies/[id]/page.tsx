@@ -101,7 +101,7 @@ export default function AgencyDetailPage() {
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         <Skeleton className="h-9 w-64" />
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-28 w-full rounded-lg" />
           ))}
@@ -192,7 +192,7 @@ export default function AgencyDetailPage() {
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t('companiesIntroduced')} value={a.meta.companiesIntroducedIds.length} icon={Building2} tone="info" />
         <StatCard label={t('activeLeads')} value={a.meta.activeLeads} icon={Handshake} tone="gold" delay={0.05} />
         <StatCard
@@ -219,14 +219,14 @@ export default function AgencyDetailPage() {
 
         {/* ── Overview ── */}
         <TabsContent value="overview">
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="text-base">{t('partnershipProfile')}</CardTitle>
                 {a.description && <CardDescription>{a.description}</CardDescription>}
               </CardHeader>
               <CardContent className="space-y-5">
-                <dl className="grid gap-4 sm:grid-cols-2">
+                <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Fact icon={MapPin} label={t('territory')} value={a.meta.territory} />
                   <Fact icon={Handshake} label={t('partnerType')} value={humanize(a.meta.agencyType)} />
                   <Fact
@@ -431,7 +431,7 @@ export default function AgencyDetailPage() {
               {contacts.length === 0 ? (
                 <EmptyState icon={Users} title={t('noContactsTitle')} description={t('noContactsDescription')} />
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {contacts.map((c) => (
                     <div key={c.id} className="rounded-lg border bg-card p-4">
                       <div className="flex items-start justify-between gap-2">
@@ -446,9 +446,9 @@ export default function AgencyDetailPage() {
                       <div className="mt-3 space-y-1.5 text-sm">
                         <a
                           href={`mailto:${c.email}`}
-                          className="inline-flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                          className="inline-flex max-w-full items-center gap-1.5 break-all text-muted-foreground transition-colors hover:text-foreground"
                         >
-                          <Mail className="h-3.5 w-3.5" />
+                          <Mail className="h-3.5 w-3.5 shrink-0" />
                           {c.email}
                         </a>
                         {c.phone && (

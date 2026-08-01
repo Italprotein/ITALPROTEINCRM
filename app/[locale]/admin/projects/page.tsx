@@ -216,8 +216,8 @@ export default function ProjectsPage() {
       sortValue: (p) => p.name,
       cell: (p) => (
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-foreground">{p.name}</p>
-          {p.brandName ? <p className="truncate text-xs text-muted-foreground">{p.brandName}</p> : null}
+          <p className="truncate text-sm font-medium text-foreground" title={p.name}>{p.name}</p>
+          {p.brandName ? <p className="truncate text-xs text-muted-foreground" title={p.brandName}>{p.brandName}</p> : null}
         </div>
       ),
     },
@@ -237,7 +237,9 @@ export default function ProjectsPage() {
             className="flex items-center gap-2 text-left hover:underline"
           >
             {c ? <span className="text-base leading-none">{flagEmoji(c.countryCode)}</span> : null}
-            <span className="truncate text-sm font-medium text-foreground">{companyName(p.companyId)}</span>
+            <span className="truncate text-sm font-medium text-foreground" title={companyName(p.companyId)}>
+              {companyName(p.companyId)}
+            </span>
           </button>
         );
       },
@@ -318,7 +320,7 @@ export default function ProjectsPage() {
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2">
       <Select value={fStage} onValueChange={setFStage}>
-        <SelectTrigger className="h-9 w-[170px]">
+        <SelectTrigger className="h-9 w-full sm:w-[170px]">
           <SelectValue placeholder={t('filterStagePlaceholder')} />
         </SelectTrigger>
         <SelectContent>
@@ -332,7 +334,7 @@ export default function ProjectsPage() {
       </Select>
 
       <Select value={fCategory} onValueChange={setFCategory}>
-        <SelectTrigger className="h-9 w-[170px]">
+        <SelectTrigger className="h-9 w-full sm:w-[170px]">
           <SelectValue placeholder={t('filterCategoryPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
@@ -390,8 +392,10 @@ export default function ProjectsPage() {
       <Card className="p-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">{p.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{companyName(p.companyId)}</p>
+            <p className="truncate text-sm font-semibold text-foreground" title={p.name}>{p.name}</p>
+            <p className="truncate text-xs text-muted-foreground" title={companyName(p.companyId)}>
+              {companyName(p.companyId)}
+            </p>
           </div>
           {p.currentResult ? <StatusBadge kind="feedbackResult" value={p.currentResult} /> : null}
         </div>
@@ -430,7 +434,7 @@ export default function ProjectsPage() {
       />
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t('kpiTotal')} value={stats?.total ?? 0} icon={FlaskConical} tone="gold" delay={0} />
         <StatCard
           label={t('kpiActive')}

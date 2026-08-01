@@ -263,7 +263,7 @@ export default function RegistrationsPage() {
       <PageHeader title={t('pageTitle')} subtitle={t('pageSubtitle')} />
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
         <StatCard label={t('statTotal')} value={stats?.total ?? 0} icon={Inbox} tone="gold" />
         <StatCard label={t('statPending')} value={stats?.pending ?? 0} icon={Clock} tone="warning" delay={0.05} />
         <StatCard label={t('statMoreInfo')} value={stats?.moreInfo ?? 0} icon={Info} tone="info" delay={0.1} />
@@ -273,7 +273,7 @@ export default function RegistrationsPage() {
 
       {/* Status tabs */}
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+        <TabsList className="max-w-full justify-start overflow-x-auto scrollbar-thin">
           <TabsTrigger value="all">{t('tabAll')}</TabsTrigger>
           <TabsTrigger value="pending">{t('tabPending')}</TabsTrigger>
           <TabsTrigger value="more_info">{t('tabMoreInfo')}</TabsTrigger>
@@ -331,7 +331,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return (
     <div className="space-y-0.5">
       <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <div className="text-sm text-foreground">{children}</div>
+      <div className="break-words text-sm text-foreground">{children}</div>
     </div>
   );
 }
@@ -501,7 +501,7 @@ function ReviewPanel({
             {/* Company */}
             <section className="space-y-3">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('sectionCompany')}</h4>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {r.tradingName ? <Field label={t('fieldTradingName')}>{r.tradingName}</Field> : null}
                 <Field label={t('fieldType')}>
                   <StatusBadge kind="companyType" value={r.companyType} />
@@ -520,8 +520,8 @@ function ReviewPanel({
                 {r.registrationNumber ? <Field label={t('fieldRegNumber')}>{r.registrationNumber}</Field> : null}
                 {r.website ? (
                   <Field label={t('fieldWebsite')}>
-                    <span className="inline-flex items-center gap-1 text-info">
-                      <Globe className="h-3.5 w-3.5" />
+                    <span className="inline-flex max-w-full items-center gap-1 break-all text-info">
+                      <Globe className="h-3.5 w-3.5 shrink-0" />
                       {r.website}
                     </span>
                   </Field>
@@ -543,14 +543,14 @@ function ReviewPanel({
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {t('sectionPrimaryContact')}
               </h4>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label={t('fieldName')}>
                   {r.contactFirstName} {r.contactLastName}
                 </Field>
                 {r.contactJobTitle ? <Field label={t('fieldJobTitle')}>{r.contactJobTitle}</Field> : null}
                 <Field label={t('fieldEmail')}>
-                  <span className="inline-flex items-center gap-1 text-info">
-                    <Mail className="h-3.5 w-3.5" />
+                  <span className="inline-flex max-w-full items-center gap-1 break-all text-info">
+                    <Mail className="h-3.5 w-3.5 shrink-0" />
                     {r.contactEmail}
                   </span>
                 </Field>

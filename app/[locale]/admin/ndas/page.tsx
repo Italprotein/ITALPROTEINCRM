@@ -322,7 +322,7 @@ export default function NdasPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <span className="text-base leading-none">{flagEmoji(c.countryCode)}</span>
-            <span className="truncate">{c.tradingName || c.legalName}</span>
+            <span className="truncate" title={c.tradingName || c.legalName}>{c.tradingName || c.legalName}</span>
           </Link>
         );
       },
@@ -369,8 +369,8 @@ export default function NdasPage() {
         if (!n.expiryDate) return <span className="text-sm text-muted-foreground">—</span>;
         const { soon, days } = expiringWindow(n.expiryDate);
         return (
-          <span className="inline-flex items-center justify-end gap-1.5 whitespace-nowrap">
-            <span className={cn('text-sm', soon ? 'font-medium text-warning' : 'text-muted-foreground')}>
+          <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
+            <span className={cn('whitespace-nowrap text-sm', soon ? 'font-medium text-warning' : 'text-muted-foreground')}>
               {formatDate(n.expiryDate, locale)}
             </span>
             {soon ? (
@@ -402,7 +402,7 @@ export default function NdasPage() {
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2">
       <Select value={fStatus} onValueChange={setFStatus}>
-        <SelectTrigger className="h-9 w-[180px]">
+        <SelectTrigger className="h-9 w-full sm:w-[180px]">
           <SelectValue placeholder={t('filterStatusPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
@@ -416,7 +416,7 @@ export default function NdasPage() {
       </Select>
 
       <Select value={fType} onValueChange={setFType}>
-        <SelectTrigger className="h-9 w-[180px]">
+        <SelectTrigger className="h-9 w-full sm:w-[180px]">
           <SelectValue placeholder={t('filterTypePlaceholder')} />
         </SelectTrigger>
         <SelectContent>
@@ -509,7 +509,9 @@ export default function NdasPage() {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="font-mono text-sm font-semibold text-foreground">{n.reference}</p>
-            <p className="truncate text-xs text-muted-foreground">{companyName(n.companyId)}</p>
+            <p className="truncate text-xs text-muted-foreground" title={companyName(n.companyId)}>
+              {companyName(n.companyId)}
+            </p>
           </div>
           <StatusBadge kind="ndaStatus" value={n.status} />
         </div>
@@ -557,7 +559,7 @@ export default function NdasPage() {
       />
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard label={t('kpiTotalNdas')} value={stats?.total ?? 0} icon={FileSignature} tone="gold" />
         <StatCard label={t('kpiAwaitingSignature')} value={stats?.awaitingSignature ?? 0} icon={Clock} tone="warning" delay={0.05} />
         <StatCard label={t('kpiFullySigned')} value={stats?.signed ?? 0} icon={CheckCircle2} tone="success" delay={0.1} />
@@ -679,9 +681,9 @@ function nextVersion(n: NDA): string {
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="space-y-0.5">
+    <div className="min-w-0 space-y-0.5">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <div className="text-sm font-medium text-foreground">{value ?? '—'}</div>
+      <div className="break-words text-sm font-medium text-foreground">{value ?? '—'}</div>
     </div>
   );
 }
@@ -778,7 +780,7 @@ function DetailSheet({
               ) : null}
 
               {/* Key facts */}
-              <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg border bg-muted/40 p-3">
+              <div className="mt-4 grid grid-cols-1 gap-3 rounded-lg border bg-muted/40 p-3 sm:grid-cols-2">
                 <DetailRow label={t('detailDatePrepared')} value={formatDate(nda.datePrepared, locale)} />
                 <DetailRow label={t('detailDateSent')} value={formatDate(nda.dateSent, locale)} />
                 <DetailRow label={t('detailEffectiveDate')} value={formatDate(nda.effectiveDate, locale)} />
@@ -869,7 +871,7 @@ function DetailSheet({
                       >
                         <span className="flex min-w-0 items-center gap-2">
                           <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="truncate">{f.name}</span>
+                          <span className="truncate" title={f.name}>{f.name}</span>
                         </span>
                         <Button variant="ghost" size="icon-sm" aria-label={t('downloadAriaLabel')} onClick={() => onDownload(nda)}>
                           <Download />
@@ -1034,7 +1036,7 @@ function CreateNdaDialog({
           <DialogDescription>{t('createDialogDescription')}</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
             <Label>{t('fieldCompanyRequired')}</Label>
             <Select value={companyId} onValueChange={setCompanyId}>
@@ -1225,7 +1227,7 @@ function UploadNdaDialog({
           <DialogDescription>{t('uploadDialogDescription')}</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
             <Label>{t('fieldCompanyRequired')}</Label>
             <Select value={companyId} onValueChange={setCompanyId}>

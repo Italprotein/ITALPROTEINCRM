@@ -257,12 +257,12 @@ export default function PortalRequestsPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-9 w-72" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
-        <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
           <Skeleton className="h-[28rem]" />
           <Skeleton className="h-[28rem]" />
         </div>
@@ -297,7 +297,7 @@ export default function PortalRequestsPage() {
       />
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Open" value={stats.open} icon={Inbox} tone="info" hint="Being handled by our team" />
         <StatCard
           label="Waiting on you"
@@ -339,7 +339,7 @@ export default function PortalRequestsPage() {
         />
       ) : (
         <FadeIn>
-          <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
             {/* LEFT — thread list */}
             <Card className={cn('overflow-hidden', selected && 'hidden lg:block')}>
               <div className="flex items-center justify-between border-b px-4 py-3">
@@ -686,7 +686,7 @@ function ComposeDialog({
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Category</Label>
               <Select value={category} onValueChange={(v) => setCategory(v as SupportCategory)}>

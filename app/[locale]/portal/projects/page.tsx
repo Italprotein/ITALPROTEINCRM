@@ -59,12 +59,12 @@ export default function PortalProjectsPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-9 w-72" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-44" />
           ))}
@@ -101,7 +101,7 @@ export default function PortalProjectsPage() {
         subtitle="Your co-development work with Italprotein, from concept through to launch."
       />
 
-      <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StaggerItem>
           <StatCard label="Active projects" value={activeCount} icon={FlaskConical} tone="info" hint="In development with our team" />
         </StaggerItem>
@@ -135,7 +135,7 @@ export default function PortalProjectsPage() {
                   description="There are no development projects on record for your company right now."
                 />
               ) : (
-                <Stagger className="grid gap-4 md:grid-cols-2">
+                <Stagger className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   {projects.map((project) => (
                     <StaggerItem key={project.id}>
                       <ProjectCard project={project} locale={locale} />
@@ -153,7 +153,7 @@ export default function PortalProjectsPage() {
                   description="Products developed with Proamina will appear here as your projects progress."
                 />
               ) : (
-                <Stagger className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Stagger className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {products.map((product) => (
                     <StaggerItem key={product.id}>
                       <ProductCard product={product} />

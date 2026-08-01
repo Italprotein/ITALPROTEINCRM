@@ -250,7 +250,7 @@ export function MfaSetup() {
           {/* ── Enrolled: manage ── */}
           {status.enrolled && (
             <div className="space-y-4">
-              <dl className="grid gap-2 text-sm sm:grid-cols-2">
+              <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                 <div className="flex justify-between rounded-lg border p-3">
                   <dt className="text-muted-foreground">Recovery codes left</dt>
                   <dd className="font-medium tabular">{status.backupCodesRemaining}</dd>

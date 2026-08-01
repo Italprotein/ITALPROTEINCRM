@@ -25,6 +25,7 @@ import { humanize } from '@/lib/labels';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { EmptyState } from '@/components/shared/empty-state';
 import { CHART_COLORS } from '@/lib/chart-colors';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
@@ -209,7 +210,7 @@ export default function AgenciesPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t('statTotalPartners')} value={stats?.total ?? 0} icon={Handshake} tone="gold" delay={0} />
         <StatCard
           label={t('statActiveAgreements')}
@@ -254,15 +255,13 @@ export default function AgenciesPage() {
         </div>
 
         {myLeads === null ? (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => <div key={i} className="skeleton h-16 w-full rounded-lg" />)}
           </div>
         ) : myLeads.length === 0 ? (
-          <p className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
-            {t('myLeadsEmpty')}
-          </p>
+          <EmptyState icon={Mail} title={t('myLeadsEmpty')} className="py-8" />
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {myLeads.map((lead) => (
               <div key={lead.id} className="group flex items-center justify-between gap-2 rounded-lg border bg-muted/20 p-3">
                 <div className="min-w-0">
@@ -276,7 +275,7 @@ export default function AgenciesPage() {
                   variant="ghost"
                   size="icon-sm"
                   aria-label={t('myLeadsRemove')}
-                  className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                  className="shrink-0 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 max-sm:opacity-100"
                   onClick={() => removeLead(lead.id)}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -377,7 +376,7 @@ export default function AgenciesPage() {
                 </div>
               </dl>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-3 max-[360px]:grid-cols-1">
                 <div className="rounded-lg border bg-muted/30 p-3 text-center">
                   <p className="text-lg font-bold tabular">{preview.meta.companiesIntroducedIds.length}</p>
                   <p className="text-2xs text-muted-foreground">{t('colIntroduced')}</p>

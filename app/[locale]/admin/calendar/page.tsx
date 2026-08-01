@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { Link } from '@/lib/i18n/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
+import { EmptyState } from '@/components/shared/empty-state';
 import { PriorityBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -105,7 +106,7 @@ export default function CalendarPage() {
         actions={session && canEdit(session.role, 'calendar') ? (
           <Button variant="gold" size="sm" className="gap-1.5" onClick={() => setScheduleOpen(true)}>
             <Plus className="h-4 w-4" />
-            Schedule call
+            {t('scheduleCall')}
           </Button>
         ) : undefined}
       />
@@ -115,10 +116,10 @@ export default function CalendarPage() {
         <StatCard label={t('statMeetingsCompleted')} value={stats.completed} icon={CalendarDays} tone="success" delay={0.05} />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_320px]">
         {/* Month grid */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
             <CardTitle className="text-base">{format(month, 'MMMM yyyy')}</CardTitle>
             <div className="flex items-center gap-1">
               <Button variant="outline" size="icon-sm" onClick={() => setMonth((m) => subMonths(m, 1))} aria-label={t('previousMonth')}><ChevronLeft /></Button>
@@ -139,20 +140,28 @@ export default function CalendarPage() {
                   <button
                     key={d.toISOString()}
                     onClick={() => setSelected(d)}
-                    className={cn('min-h-[84px] bg-card p-1.5 text-left align-top transition-colors hover:bg-muted/40', !inMonth && 'bg-muted/20 text-muted-foreground')}
+                    className={cn('min-h-[52px] bg-card p-1 text-left align-top transition-colors hover:bg-muted/40 sm:min-h-[84px] sm:p-1.5', !inMonth && 'bg-muted/20 text-muted-foreground')}
                   >
-                    <span className={cn('inline-flex h-6 w-6 items-center justify-center rounded-full text-xs', isToday && 'bg-brand-gold font-bold text-brand-navy')}>{format(d, 'd')}</span>
-                    <div className="mt-1 space-y-0.5">
+                    <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full text-xs sm:h-6 sm:w-6', isToday && 'bg-brand-gold font-bold text-brand-navy')}>{format(d, 'd')}</span>
+                    {/* Below sm: event chips collapse to per-source dots */}
+                    {ms.length + gs.length + ts.length > 0 && (
+                      <span aria-hidden className="mt-1 flex flex-wrap items-center gap-0.5 sm:hidden">
+                        {ms.length > 0 && <span className="h-1.5 w-1.5 rounded-full bg-info" />}
+                        {gs.length > 0 && <span className="h-1.5 w-1.5 rounded-full bg-brand-teal" />}
+                        {ts.length > 0 && <span className="h-1.5 w-1.5 rounded-full bg-warning" />}
+                      </span>
+                    )}
+                    <div className="mt-1 hidden space-y-0.5 sm:block">
                       {ms.slice(0, 2).map((m) => (
-                        <div key={m.id} className="truncate rounded bg-info-subtle px-1 py-0.5 text-2xs text-info">{format(parseISO(m.start), 'HH:mm')} {m.title}</div>
+                        <div key={m.id} title={m.title} className="truncate rounded bg-info-subtle px-1 py-0.5 text-2xs text-info">{format(parseISO(m.start), 'HH:mm')} {m.title}</div>
                       ))}
                       {gs.slice(0, 2 - Math.min(ms.length, 2)).map((event) => (
-                        <div key={`google-${event.id}`} className="truncate rounded bg-brand-teal/10 px-1 py-0.5 text-2xs text-brand-teal">
+                        <div key={`google-${event.id}`} title={event.summary} className="truncate rounded bg-brand-teal/10 px-1 py-0.5 text-2xs text-brand-teal">
                           {event.allDay ? '' : `${format(parseISO(event.start), 'HH:mm')} `}{event.summary}
                         </div>
                       ))}
                       {ts.slice(0, 2 - Math.min(ms.length + gs.length, 2)).map((t) => (
-                        <div key={t.id} className="truncate rounded bg-warning-subtle px-1 py-0.5 text-2xs text-warning-foreground">⏰ {t.title}</div>
+                        <div key={t.id} title={t.title} className="truncate rounded bg-warning-subtle px-1 py-0.5 text-2xs text-warning-foreground">⏰ {t.title}</div>
                       ))}
                       {ms.length + gs.length + ts.length > 2 && <div className="px-1 text-2xs text-muted-foreground">{t('moreCount', { count: ms.length + gs.length + ts.length - 2 })}</div>}
                     </div>
@@ -160,7 +169,7 @@ export default function CalendarPage() {
                 );
               })}
             </div>
-            <div className="mt-3 flex items-center gap-4 text-2xs text-muted-foreground">
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-2xs text-muted-foreground">
               <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-info-subtle ring-1 ring-info/40" /> {t('legendMeeting')}</span>
               <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-warning-subtle ring-1 ring-warning/40" /> {t('legendTaskDue')}</span>
             </div>
@@ -175,14 +184,14 @@ export default function CalendarPage() {
             {meetings === null ? (
               Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-14 w-full" />)
             ) : upcoming.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">{t('noUpcomingMeetings')}</p>
+              <EmptyState title={t('noUpcomingMeetings')} className="py-6" />
             ) : upcoming.map((m) => {
               const Icon = mIcon(m.type);
               return (
                 <div key={m.id} className="flex gap-3 rounded-lg border p-2.5">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-navy/5 text-brand-navy"><Icon className="h-4 w-4" /></span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{m.title}</p>
+                    <p className="truncate text-sm font-medium" title={m.title}>{m.title}</p>
                     <p className="text-xs text-muted-foreground">{formatRelative(m.start)} · {companyName(m.companyId)}</p>
                     <Badge variant="muted" className="mt-1">{getLabel('meetingType', m.type)}</Badge>
                   </div>
@@ -205,7 +214,7 @@ export default function CalendarPage() {
               <SheetHeader><SheetTitle>{format(selected, 'EEEE d MMMM yyyy')}</SheetTitle><SheetDescription>{t('dayDetailSummary', { meetings: meetingsOn(selected).length, tasks: tasksOn(selected).length })}</SheetDescription></SheetHeader>
               <div className="space-y-3">
                 {meetingsOn(selected).length === 0 && tasksOn(selected).length === 0 && (
-                  <p className="py-8 text-center text-sm text-muted-foreground">{t('nothingScheduled')}</p>
+                  <EmptyState title={t('nothingScheduled')} className="py-8" />
                 )}
                 {meetingsOn(selected).map((m) => {
                   const Icon = mIcon(m.type);

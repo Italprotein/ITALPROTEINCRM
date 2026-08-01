@@ -505,7 +505,9 @@ export function DataTable<T>(props: DataTableProps<T>): React.JSX.Element {
 
       {/* ── mobile cards ── */}
       {mobileCard ? (
-        <div className="flex flex-col gap-3 md:hidden">
+        // min-h-0 + overflow: in a bounded-height page shell the card list
+        // scrolls like the table does, instead of clipping its tail rows.
+        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto md:hidden">
           {loading ? (
             Array.from({ length: Math.min(pageSize, 6) }).map((_, i) => (
               <div key={i} className="skeleton h-24 w-full rounded-lg" />

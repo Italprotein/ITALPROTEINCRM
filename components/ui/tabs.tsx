@@ -14,6 +14,9 @@ const TabsList = React.forwardRef<
     ref={ref}
     className={cn(
       'inline-flex h-10 items-center justify-start gap-1 rounded-lg bg-muted p-1 text-muted-foreground',
+      // Wide tab sets (the company profile has 14) scroll sideways instead of
+      // overflowing the viewport on small screens.
+      'max-w-full overflow-x-auto scrollbar-thin',
       className,
     )}
     {...props}

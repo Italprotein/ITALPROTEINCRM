@@ -88,17 +88,17 @@ export default function AuditPage() {
     },
     { key: 'action', header: t('colAction'), sortValue: (r) => r.action, cell: (r) => <Badge variant="secondary" className="font-mono text-2xs">{r.action}</Badge> },
     { key: 'entity', header: t('colEntity'), sortValue: (r) => r.entity, cell: (r) => <span className="text-sm capitalize text-muted-foreground">{r.entity.replace(/_/g, ' ')}</span>, hideable: true },
-    { key: 'summary', header: t('colSummary'), cell: (r) => <span className="text-sm">{r.summary}</span> },
+    { key: 'summary', header: t('colSummary'), cell: (r) => <span className="block max-w-md truncate text-sm" title={r.summary}>{r.summary}</span> },
   ];
 
   const toolbar = (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
       <Select value={fActor} onValueChange={setFActor}>
-        <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder={t('filterActorPlaceholder')} /></SelectTrigger>
+        <SelectTrigger className="h-9 w-full sm:w-[160px]"><SelectValue placeholder={t('filterActorPlaceholder')} /></SelectTrigger>
         <SelectContent><SelectItem value={ALL}>{t('allActors')}</SelectItem>{actors.map((a) => <SelectItem key={a} value={a}>{actorName(a)}</SelectItem>)}</SelectContent>
       </Select>
       <Select value={fAction} onValueChange={setFAction}>
-        <SelectTrigger className="h-9 w-[170px]"><SelectValue placeholder={t('filterActionPlaceholder')} /></SelectTrigger>
+        <SelectTrigger className="h-9 w-full sm:w-[170px]"><SelectValue placeholder={t('filterActionPlaceholder')} /></SelectTrigger>
         <SelectContent><SelectItem value={ALL}>{t('allActions')}</SelectItem>{actions.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
       </Select>
     </div>
@@ -108,7 +108,7 @@ export default function AuditPage() {
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label={t('statTotalEvents')} value={stats.total} icon={ScrollText} tone="gold" />
         <StatCard label={t('statEventsToday')} value={stats.today} icon={CalendarClock} tone="info" delay={0.05} />
         <StatCard label={t('statDistinctActors')} value={stats.actors} icon={Users} tone="success" delay={0.1} />

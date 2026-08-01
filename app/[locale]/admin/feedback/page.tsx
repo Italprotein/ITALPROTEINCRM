@@ -372,9 +372,9 @@ export default function FeedbackPage() {
 
   /* ── toolbar ── */
   const toolbar = (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
       <Select value={fStatus} onValueChange={setFStatus}>
-        <SelectTrigger className="h-9 w-[170px]">
+        <SelectTrigger className="h-9 w-full sm:w-[170px]">
           <SelectValue placeholder={t('filterStatusPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
@@ -388,7 +388,7 @@ export default function FeedbackPage() {
       </Select>
 
       <Select value={fResult} onValueChange={setFResult}>
-        <SelectTrigger className="h-9 w-[150px]">
+        <SelectTrigger className="h-9 w-full sm:w-[150px]">
           <SelectValue placeholder={t('filterResultPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
@@ -402,7 +402,7 @@ export default function FeedbackPage() {
       </Select>
 
       <Select value={fApplication} onValueChange={setFApplication}>
-        <SelectTrigger className="h-9 w-[170px]">
+        <SelectTrigger className="h-9 w-full sm:w-[170px]">
           <SelectValue placeholder={t('filterApplicationPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
@@ -504,7 +504,7 @@ export default function FeedbackPage() {
       />
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard label={t('kpiTotalFeedback')} value={stats?.total ?? 0} icon={MessageSquareQuote} tone="gold" />
         <StatCard label={t('kpiOpen')} value={stats?.open ?? 0} icon={CircleDot} tone="warning" delay={0.05} />
         <StatCard
@@ -811,7 +811,7 @@ function ReviewSheet({
               {/* Reply box */}
               {canReply ? (
               <div className="mt-4 space-y-2 rounded-lg border bg-card p-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <Label htmlFor="reply" className="text-sm font-medium">
                     {t('addReplyLabel')}
                   </Label>

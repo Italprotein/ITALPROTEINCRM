@@ -201,7 +201,7 @@ export default function SampleDetailPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-9 w-72" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-28" />
           ))}
@@ -272,7 +272,7 @@ export default function SampleDetailPage() {
       />
 
       {/* Summary cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Requested quantity"
           value={formatQuantity(sample.requestedQuantity, sample.unit)}
@@ -385,7 +385,7 @@ export default function SampleDetailPage() {
           {shipment ? (
             <>
               <Separator />
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <DetailItem label="Courier" value={shipment.courier ?? '—'} icon={Truck} />
                 <DetailItem
                   label="Tracking number"
@@ -479,7 +479,7 @@ export default function SampleDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Status history */}
         <Card>
           <CardHeader>
@@ -647,7 +647,7 @@ function DetailItem({
       </span>
       <div className="min-w-0">
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        <p className="text-sm font-medium text-foreground">{value}</p>
+        <p className="break-words text-sm font-medium text-foreground">{value}</p>
       </div>
     </div>
   );

@@ -435,7 +435,7 @@ export default function NewSampleRequestPage() {
 
               {step === 1 && (
                 <div className="space-y-5">
-                  <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div className="space-y-2 sm:col-span-2">
                       <Label htmlFor="quantity">
                         Requested quantity <span className="text-danger">*</span>
@@ -520,7 +520,7 @@ export default function NewSampleRequestPage() {
                     {showError('line1') && <p className="text-xs text-danger">{stepErrors.line1}</p>}
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div className="space-y-2">
                       <Label htmlFor="city">
                         City <span className="text-danger">*</span>

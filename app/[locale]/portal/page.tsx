@@ -229,7 +229,7 @@ export default function PortalDashboard() {
 
       {/* 2 ── Stat cards */}
       <StaggerItem>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="NDA status"
             value={getLabel('ndaStatus', company.ndaStatus)}
@@ -304,7 +304,7 @@ export default function PortalDashboard() {
 
       {/* 3 + 4 ── Profile completion & Pending actions */}
       <StaggerItem>
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Profile completion */}
           <Card>
             <CardHeader>
@@ -318,7 +318,7 @@ export default function PortalDashboard() {
             </CardHeader>
             <CardContent className="space-y-4">
               <Progress value={profile.percent} />
-              <ul className="grid gap-2 sm:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {profile.items.map((item) => (
                   <li key={item.label} className="flex items-center gap-2 text-sm">
                     {item.done ? (
@@ -371,8 +371,8 @@ export default function PortalDashboard() {
                           <a.icon className="h-4 w-4" />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium">{a.title}</span>
-                          <span className="block truncate text-xs text-muted-foreground">{a.subtitle}</span>
+                          <span className="block truncate text-sm font-medium" title={a.title}>{a.title}</span>
+                          <span className="block truncate text-xs text-muted-foreground" title={a.subtitle}>{a.subtitle}</span>
                         </span>
                         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                       </Link>
@@ -387,7 +387,7 @@ export default function PortalDashboard() {
 
       {/* 5 ── Active samples & Latest shipment */}
       <StaggerItem>
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Active sample requests */}
           <Card>
             <CardHeader>
@@ -422,7 +422,7 @@ export default function PortalDashboard() {
                       >
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-2">
-                            <span className="truncate text-sm font-medium">{s.requestedProduct}</span>
+                            <span className="truncate text-sm font-medium" title={s.requestedProduct}>{s.requestedProduct}</span>
                             <Badge variant="outline" className="shrink-0 font-mono text-[10px]">{s.reference}</Badge>
                           </span>
                           <span className="mt-0.5 block truncate text-xs text-muted-foreground">
@@ -462,7 +462,7 @@ export default function PortalDashboard() {
 
       {/* 6 ── Activity, Meetings, Documents, Support */}
       <StaggerItem>
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {/* Recent activity */}
           <Card className="lg:col-span-2">
             <CardHeader>
@@ -510,7 +510,7 @@ export default function PortalDashboard() {
                           <CalendarClock className="h-4 w-4" />
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium">{m.title}</span>
+                          <span className="block truncate text-sm font-medium" title={m.title}>{m.title}</span>
                           <span className="block text-xs text-muted-foreground">
                             {formatDateTime(m.start)} · {getLabel('meetingType', m.type)}
                           </span>
@@ -537,7 +537,7 @@ export default function PortalDashboard() {
                     {openSupport.slice(0, 3).map((r) => (
                       <li key={r.id} className="flex items-center justify-between gap-2">
                         <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium">{r.subject}</span>
+                          <span className="block truncate text-sm font-medium" title={r.subject}>{r.subject}</span>
                           <span className="block text-xs text-muted-foreground">{r.reference}</span>
                         </span>
                         <StatusBadge kind="supportStatus" value={r.status} />
@@ -582,7 +582,7 @@ export default function PortalDashboard() {
                 }
               />
             ) : (
-              <ul className="grid gap-2 sm:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {[...documents]
                   .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())
                   .slice(0, 4)
@@ -596,7 +596,7 @@ export default function PortalDashboard() {
                           <FileText className="h-4 w-4" />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium">{d.name}</span>
+                          <span className="block truncate text-sm font-medium" title={d.name}>{d.name}</span>
                           <span className="block truncate text-xs text-muted-foreground">
                             {getLabel('documentCategory', d.category)} · {d.fileType.toUpperCase()} · {formatDate(d.uploadedAt)}
                           </span>
@@ -616,7 +616,7 @@ export default function PortalDashboard() {
           <CardHeader>
             <CardTitle className="text-base">Quick actions</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {quickActions.map((a) =>
               a.enabled ? (
                 <Button
@@ -815,20 +815,20 @@ function DashboardSkeleton() {
         </div>
         <Skeleton className="h-12 w-48 rounded-full" />
       </div>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <Skeleton key={i} className="h-28" />
         ))}
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Skeleton className="h-64" />
         <Skeleton className="h-64" />
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Skeleton className="h-56" />
         <Skeleton className="h-56" />
       </div>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Skeleton className="h-56 lg:col-span-2" />
         <Skeleton className="h-56" />
       </div>

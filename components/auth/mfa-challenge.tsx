@@ -95,7 +95,7 @@ export function MfaChallenge() {
               className="h-12 w-full rounded-lg border bg-background px-4 font-mono uppercase tracking-widest outline-none focus:border-brand-gold focus:ring-2 focus:ring-brand-gold/20"
             />
           ) : (
-            <div className="grid grid-cols-6 gap-2">
+            <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
               {digits.map((digit, index) => (
                 <input
                   key={index}
@@ -118,7 +118,7 @@ export function MfaChallenge() {
                     }
                   }}
                   maxLength={1}
-                  className="h-12 min-w-0 rounded-lg border bg-background text-center text-xl font-semibold tabular outline-none focus:border-brand-gold focus:ring-2 focus:ring-brand-gold/20 sm:h-14"
+                  className="h-12 min-w-0 rounded-lg border bg-background px-0 text-center text-lg font-semibold tabular outline-none focus:border-brand-gold focus:ring-2 focus:ring-brand-gold/20 sm:h-14 sm:text-xl"
                 />
               ))}
             </div>

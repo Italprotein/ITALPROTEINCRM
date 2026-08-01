@@ -215,7 +215,7 @@ export default function ShipmentDetailPage() {
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-24 w-full" />
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <Skeleton className="h-64 lg:col-span-2" />
           <Skeleton className="h-64" />
         </div>
@@ -355,7 +355,7 @@ export default function ShipmentDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Left column */}
         <div className="space-y-4 lg:col-span-2">
           {/* Courier & tracking */}
@@ -363,7 +363,7 @@ export default function ShipmentDetailPage() {
             <CardHeader>
               <CardTitle className="text-base">{t('courierTracking')}</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
+            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field icon={Truck} label={t('courier')} value={shipment.courier ?? '—'} />
               <Field icon={Truck} label={t('service')} value={shipment.service ?? '—'} />
               <div className="space-y-1">
@@ -408,7 +408,7 @@ export default function ShipmentDetailPage() {
             <CardHeader>
               <CardTitle className="text-base">{t('packageDetails')}</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Field icon={Boxes} label={t('packages')} value={shipment.packageCount != null ? String(shipment.packageCount) : '—'} />
               <Field icon={Weight} label={t('weight')} value={shipment.weightKg != null ? `${shipment.weightKg} kg` : '—'} />
               <Field icon={Package} label={t('dimensions')} value={shipment.dimensions ?? '—'} />

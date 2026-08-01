@@ -344,7 +344,7 @@ export default function FinancePage() {
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2">
       <Select value={fKind} onValueChange={setFKind}>
-        <SelectTrigger className="h-9 w-[150px]">
+        <SelectTrigger className="h-9 w-full sm:w-[150px]">
           <SelectValue placeholder={t('filterKindPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
@@ -358,7 +358,7 @@ export default function FinancePage() {
       </Select>
 
       <Select value={fStatus} onValueChange={setFStatus}>
-        <SelectTrigger className="h-9 w-[170px]">
+        <SelectTrigger className="h-9 w-full sm:w-[170px]">
           <SelectValue placeholder={t('filterStatusPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
@@ -423,7 +423,9 @@ export default function FinancePage() {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="font-medium text-foreground">{d.reference}</p>
-            <p className="truncate text-xs text-muted-foreground">{companyName(d.companyId)}</p>
+            <p className="truncate text-xs text-muted-foreground" title={companyName(d.companyId)}>
+              {companyName(d.companyId)}
+            </p>
           </div>
           <StatusBadge kind="financeDocKind" value={d.kind} />
         </div>
@@ -457,7 +459,7 @@ export default function FinancePage() {
       />
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard
           label={t('kpiRevenueLabel')}
           value={stats?.revenue ?? 0}
@@ -621,7 +623,9 @@ function DocumentSheet({
                 <TableBody>
                   {doc.lineItems.map((li) => (
                     <TableRow key={li.id}>
-                      <TableCell className="font-medium text-foreground">{li.productName}</TableCell>
+                      <TableCell className="max-w-[14rem] truncate font-medium text-foreground" title={li.productName}>
+                        {li.productName}
+                      </TableCell>
                       <TableCell className="text-right tabular">
                         {formatNumber(li.quantity, locale)} {li.unit}
                       </TableCell>
@@ -818,7 +822,7 @@ function CreateQuoteDialog({
           <DialogDescription>{t('dialogDescription')}</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>{t('fieldCompany')}</Label>
             <Select value={companyId} onValueChange={setCompanyId}>

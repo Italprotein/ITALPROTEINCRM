@@ -433,7 +433,7 @@ export default function PortalProfilePage() {
       <div className="space-y-6">
         <Skeleton className="h-9 w-72" />
         <Skeleton className="h-16 w-full" />
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-28" />
           ))}
@@ -508,7 +508,7 @@ export default function PortalProfilePage() {
         </Card>
       </FadeIn>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Contacts" value={contacts.length} icon={Users} tone="info" delay={0.02} />
         <StatCard
           label="Documents shared"
@@ -541,7 +541,7 @@ export default function PortalProfilePage() {
           title="Company details"
           description="Your registered company information."
         >
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field
               label="Legal name"
               required
@@ -628,7 +628,7 @@ export default function PortalProfilePage() {
           <div className="space-y-5">
             <div>
               <p className="mb-2 text-sm font-semibold">Headquarters</p>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Address line">
                   <Input
                     value={form.hqLine1}
@@ -676,7 +676,7 @@ export default function PortalProfilePage() {
                 </label>
               </div>
               {!form.billingSameAsHq && (
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field label="Address line">
                     <Input
                       value={form.billingLine1}
@@ -716,7 +716,7 @@ export default function PortalProfilePage() {
               <p className="mb-2 text-xs text-muted-foreground">
                 Default destination for sample deliveries.
               </p>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Address line">
                   <Input
                     value={form.shippingLine1}
@@ -756,7 +756,7 @@ export default function PortalProfilePage() {
           title="Profile & preferences"
           description="How you'd like us to work with you."
         >
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Preferred language">
               <Select
                 value={form.preferredLanguage}
@@ -821,7 +821,7 @@ export default function PortalProfilePage() {
             <p className="mt-1 text-xs text-muted-foreground">
               Pick the categories you develop or sell — we tailor samples and documents to these.
             </p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {APPLICATION_CATEGORIES.map((cat) => {
                 const checked = form.applicationInterests.includes(cat);
                 return (
@@ -848,7 +848,7 @@ export default function PortalProfilePage() {
           title="Logistics"
           description="Help us deliver your samples smoothly."
         >
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Preferred courier">
               <Input
                 value={form.preferredCourier}
@@ -858,7 +858,7 @@ export default function PortalProfilePage() {
               />
             </Field>
           </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Delivery instructions">
               <Textarea
                 value={form.deliveryInstructions}
@@ -878,6 +878,26 @@ export default function PortalProfilePage() {
           </div>
         </Section>
       </form>
+
+      {/* Mobile save bar — keeps Save/Reset reachable while editing a long form. */}
+      {canEdit && dirty && (
+        <div className="sticky bottom-3 z-20 flex items-center justify-end gap-2 rounded-lg border bg-background/95 p-3 shadow-lg backdrop-blur sm:hidden">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setResetOpen(true)}
+            disabled={submitting}
+          >
+            <RotateCcw className="h-4 w-4" />
+            Reset
+          </Button>
+          <Button type="submit" form="profile-form" variant="gold" size="sm" disabled={submitting}>
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {submitting ? 'Saving…' : 'Save changes'}
+          </Button>
+        </div>
+      )}
 
       {/* Contacts */}
       <ContactsSection
@@ -1076,7 +1096,7 @@ function ContactsSection({
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4">
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="ct-first">
                       First name <span className="text-danger">*</span>
@@ -1121,7 +1141,7 @@ function ContactsSection({
                     <p className="text-xs text-danger">Enter a valid email address.</p>
                   )}
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="ct-title">Job title</Label>
                     <Input
@@ -1197,10 +1217,10 @@ function ContactsSection({
                 </div>
                 <a
                   href={`mailto:${c.email}`}
-                  className="inline-flex items-center gap-1.5 text-sm text-brand-navy hover:underline"
+                  className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-sm text-brand-navy hover:underline"
                 >
-                  <Mail className="h-3.5 w-3.5" />
-                  {c.email}
+                  <Mail className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate" title={c.email}>{c.email}</span>
                 </a>
               </li>
             ))}

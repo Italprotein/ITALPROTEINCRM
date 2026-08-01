@@ -72,7 +72,7 @@ export default function ProductsPage() {
         actions={canCreate ? <Button variant="gold" onClick={() => setCreateOpen(true)}><Plus /> {t('addProduct')}</Button> : null}
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t('totalProducts')} value={stats?.total ?? 0} icon={Boxes} tone="gold" />
         <StatCard label={t('launched')} value={stats?.launched ?? 0} icon={Rocket} tone="success" delay={0.05} />
         <StatCard label={t('inDevelopment')} value={stats?.inDevelopment ?? 0} icon={FlaskConical} tone="warning" delay={0.1} />
@@ -82,19 +82,19 @@ export default function ProductsPage() {
       <Card>
         <CardContent className="p-4">
             <div className="mb-4 flex flex-wrap items-center gap-2">
-              <div className="relative flex-1 min-w-[180px]">
+              <div className="relative w-full sm:w-64">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('searchPlaceholder')} className="pl-8" />
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('searchPlaceholder')} className="h-9 pl-8" />
               </div>
               <Select value={fStatus} onValueChange={setFStatus}>
-                <SelectTrigger className="h-10 w-[150px]"><SelectValue placeholder={t('statusPlaceholder')} /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full sm:w-[150px]"><SelectValue placeholder={t('statusPlaceholder')} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL}>{t('allStatuses')}</SelectItem>
                   {STATUSES.map((s) => <SelectItem key={s} value={s}>{getLabel('productStatus', s)}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={fCat} onValueChange={setFCat}>
-                <SelectTrigger className="h-10 w-[150px]"><SelectValue placeholder={t('applicationPlaceholder')} /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full sm:w-[150px]"><SelectValue placeholder={t('applicationPlaceholder')} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL}>{t('allApplications')}</SelectItem>
                   {APPLICATION_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{getLabel('applicationCategory', c)}</SelectItem>)}
@@ -103,11 +103,11 @@ export default function ProductsPage() {
             </div>
 
             {rows === null ? (
-              <div className="grid gap-3 sm:grid-cols-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-28" />)}</div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-28" />)}</div>
             ) : filtered.length === 0 ? (
               <EmptyState icon={Boxes} title={t('emptyTitle')} description={t('emptyDescription')} />
             ) : (
-              <Stagger className="grid gap-3 sm:grid-cols-2">
+              <Stagger className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {filtered.map((p) => {
                   const c = companyMap.get(p.companyId ?? '');
                   return (
@@ -124,9 +124,9 @@ export default function ProductsPage() {
                           {p.market && <Badge variant="muted">{p.market}</Badge>}
                         </div>
                         {p.proaminaDosage && <p className="mt-2 text-xs text-muted-foreground">{t('dosageLabel')} <span className="font-medium text-foreground">{p.proaminaDosage}</span></p>}
-                        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                          {c ? <Link href={`/admin/companies/${c.id}`} className="font-medium text-foreground hover:text-brand-teal hover:underline">{c.tradingName || c.legalName}</Link> : <span>—</span>}
-                          <span>{formatDate(p.createdAt)}</span>
+                        <div className="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                          {c ? <Link href={`/admin/companies/${c.id}`} title={c.tradingName || c.legalName} className="min-w-0 truncate font-medium text-foreground hover:text-brand-teal hover:underline">{c.tradingName || c.legalName}</Link> : <span>—</span>}
+                          <span className="shrink-0 whitespace-nowrap">{formatDate(p.createdAt)}</span>
                         </div>
                       </div>
                     </StaggerItem>
@@ -183,7 +183,7 @@ function AddProductDialog({ open, onOpenChange, companies, onCreated }: {
           <DialogTitle>{t('dialogTitle')}</DialogTitle>
           <DialogDescription>{t('dialogDescription')}</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="pn">{t('productNameLabel')}</Label><Input id="pn" value={name} onChange={(e) => setName(e.target.value)} /></div>
           <div className="space-y-1.5"><Label>{t('companyLabel')}</Label>
             <Select value={companyId} onValueChange={setCompanyId}>

@@ -185,7 +185,7 @@ export function RegisterForm() {
 
       <div className="space-y-4">
         <Section icon={Building2} title={t.secCompany}>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Field id="legalName" label={t.legalName} required>
                 <Input id="legalName" value={legalName} onChange={(e) => setLegalName(e.target.value)} />
@@ -219,7 +219,7 @@ export function RegisterForm() {
         </Section>
 
         <Section icon={User} title={t.secContact}>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field id="firstName" label={t.firstName} required>
               <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
             </Field>

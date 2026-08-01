@@ -31,6 +31,7 @@ import {
 
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
+import { EmptyState } from '@/components/shared/empty-state';
 import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
 import { Stagger, StaggerItem } from '@/components/shared/motion';
 import {
@@ -311,9 +312,9 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
 
   /* ── header actions ── */
   const headerActions = (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
       <Select value={range} onValueChange={setRange}>
-        <SelectTrigger className="w-[150px]">
+        <SelectTrigger className="w-full sm:w-[150px]">
           <SelectValue placeholder={t('dateRange')} />
         </SelectTrigger>
         <SelectContent>
@@ -340,13 +341,13 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
 
       {/* ── KPI ROW ── */}
       {loading ? (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-[104px] rounded-lg" />
           ))}
         </div>
       ) : (
-        <Stagger className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StaggerItem>
             <StatCard label={t('kpiTotalCompanies')} value={data.companyStats.total} icon={Building2} tone="gold" href="/admin/companies" />
           </StaggerItem>
@@ -377,7 +378,7 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
       )}
 
       {/* ── CHARTS GRID ── */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
           title={t('companyAcquisition')}
           description={t('companyAcquisitionDescription')}
@@ -424,7 +425,7 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
       </div>
 
       {/* ── CONVERSION + SHIPMENT BREAKDOWN ── */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
           title={t('ndaConversionFunnel')}
           description={t('ndaConversionFunnelDescription')}
@@ -445,7 +446,7 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
       </div>
 
       {/* ── BOTTOM GRID: activity / tasks / alerts ── */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Recent activity */}
         <Card className="flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -470,7 +471,7 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
                 ))}
               </div>
             ) : data.recentActivity.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">{t('noRecentActivity')}</p>
+              <EmptyState title={t('noRecentActivity')} className="py-8" />
             ) : (
               <ol className="relative space-y-4 before:absolute before:left-4 before:top-1 before:h-[calc(100%-1rem)] before:w-px before:bg-border">
                 {data.recentActivity.map((a) => {
@@ -481,7 +482,7 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
                         <Icon className="h-3.5 w-3.5" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">{a.title}</p>
+                        <p className="truncate text-sm font-medium text-foreground" title={a.title}>{a.title}</p>
                         <div className="mt-1 flex flex-wrap items-center gap-2">
                           <StatusBadge kind="activityType" value={a.type} />
                           <span className="text-xs text-muted-foreground">{formatRelative(a.at)}</span>
@@ -513,7 +514,7 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
                 ))}
               </div>
             ) : data.upcomingTasks.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">{t('noUpcomingTasks')}</p>
+              <EmptyState title={t('noUpcomingTasks')} className="py-8" />
             ) : (
               <ul className="space-y-2">
                 {data.upcomingTasks.slice(0, 6).map((task) => {
@@ -525,7 +526,7 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
                         className="flex items-start gap-3 rounded-md border bg-card p-2.5 transition-colors hover:bg-muted/60"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">{task.title}</p>
+                          <p className="truncate text-sm font-medium text-foreground" title={task.title}>{task.title}</p>
                           <p className="mt-0.5 truncate text-xs text-muted-foreground">
                             {company ? company.tradingName ?? company.legalName : getLabel('taskType', task.type)}
                             {task.dueDate && <span> · {t('dueDate', { date: formatDate(task.dueDate) })}</span>}
@@ -583,8 +584,8 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
                           )}
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">{al.title}</p>
-                          <p className="mt-0.5 truncate text-xs text-muted-foreground">{al.meta}</p>
+                          <p className="truncate text-sm font-medium text-foreground" title={al.title}>{al.title}</p>
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground" title={al.meta}>{al.meta}</p>
                         </div>
                       </Link>
                     </li>
@@ -597,7 +598,7 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
       </div>
 
       {/* ── RECENTLY CONTACTED + TEAM WORKLOAD ── */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Recently contacted companies */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -616,7 +617,7 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
                 ))}
               </div>
             ) : recentCompanies.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">{t('noActivityYet')}</p>
+              <EmptyState title={t('noActivityYet')} className="py-8" />
             ) : (
               <Table>
                 <TableHeader>
@@ -644,7 +645,7 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
                           >
                             {c.initials}
                           </span>
-                          <span className="truncate font-medium text-foreground">{c.tradingName ?? c.legalName}</span>
+                          <span className="truncate font-medium text-foreground" title={c.tradingName ?? c.legalName}>{c.tradingName ?? c.legalName}</span>
                         </div>
                       </TableCell>
                       <TableCell>

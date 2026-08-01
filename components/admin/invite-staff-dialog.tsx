@@ -95,7 +95,7 @@ export function InviteStaffDialog({
           <DialogDescription>{t('inviteDialogDescription')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="invite-first-name">{t('firstNameLabel')}</Label>
               <Input

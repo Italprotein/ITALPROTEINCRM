@@ -152,7 +152,7 @@ export default function UsersPage() {
         subtitle={t('subtitle')}
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t('statTotalStaff')} value={stats?.total ?? 0} icon={UserCog} tone="gold" />
         <StatCard label={t('statActive')} value={stats?.active ?? 0} icon={UserCheck} tone="success" delay={0.05} />
         <StatCard label={t('statInvited')} value={stats?.invited ?? 0} icon={MailPlus} tone="info" delay={0.1} />
@@ -172,7 +172,7 @@ export default function UsersPage() {
           <CardTitle>{t('permissionOverview')}</CardTitle>
           <p className="text-sm text-muted-foreground">{t('permissionOverviewDescription')}</p>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {ROLES.map((r) => {
             const p = PERMISSIONS[r];
             const full = INTERNAL_SECTIONS.filter((s) => p.sections[s] === 'full').length;

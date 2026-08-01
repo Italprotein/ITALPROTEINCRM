@@ -408,9 +408,10 @@ export default function TasksPage() {
       cell: (t) => (
         <span
           className={cn(
-            'text-sm font-medium text-foreground transition-all',
+            'block max-w-md truncate text-sm font-medium text-foreground transition-all',
             t.status === 'done' && 'text-muted-foreground line-through',
           )}
+          title={t.title}
         >
           {t.title}
         </span>
@@ -440,7 +441,7 @@ export default function TasksPage() {
             className="flex items-center gap-2 text-left hover:underline"
           >
             <span className="text-base leading-none">{flagEmoji(c.countryCode)}</span>
-            <span className="truncate text-sm font-medium text-foreground">
+            <span className="truncate text-sm font-medium text-foreground" title={c.tradingName || c.legalName}>
               {c.tradingName || c.legalName}
             </span>
           </button>
@@ -629,7 +630,7 @@ export default function TasksPage() {
       />
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard label={t('statOpen')} value={stats?.open ?? 0} icon={ListTodo} tone="info" />
         <StatCard label={t('statOverdue')} value={stats?.overdue ?? 0} icon={AlertTriangle} tone="danger" delay={0.05} />
         <StatCard label={t('statDueToday')} value={stats?.dueToday ?? 0} icon={CalendarClock} tone="warning" delay={0.1} />
@@ -1026,7 +1027,7 @@ function CreateTaskDialog({
           <DialogDescription>{t('dialogDescription')}</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="task-title">{t('labelTitle')}</Label>
             <Input

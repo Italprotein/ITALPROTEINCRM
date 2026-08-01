@@ -49,7 +49,9 @@ const SheetContent = React.forwardRef<
     <SheetPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed z-50 flex w-full max-w-md flex-col gap-4 bg-card p-6 text-card-foreground shadow-lg',
+        // overflow-y-auto by default: sheets hold variable-length detail
+        // content, and a page that forgets to pass it gets clipped rows.
+        'fixed z-50 flex w-full max-w-md flex-col gap-4 overflow-y-auto bg-card p-6 text-card-foreground shadow-lg',
         'duration-300 ease-in-out',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=open]:duration-300 data-[state=closed]:duration-200',

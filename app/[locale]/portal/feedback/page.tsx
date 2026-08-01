@@ -114,7 +114,7 @@ export default function PortalFeedbackPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-9 w-72" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-28" />
           ))}
@@ -180,7 +180,7 @@ export default function PortalFeedbackPage() {
       />
 
       {/* Stat cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total submitted" value={total} icon={Inbox} tone="info" delay={0} />
         <StatCard
           label="Under review"
@@ -244,7 +244,10 @@ export default function PortalFeedbackPage() {
                           <StatusBadge kind="feedbackResult" value={f.overallResult} />
                         )}
                       </div>
-                      <p className="truncate text-sm font-semibold text-foreground">
+                      <p
+                        className="truncate text-sm font-semibold text-foreground"
+                        title={f.productProjectName ?? getLabel('applicationCategory', f.applicationCategory)}
+                      >
                         {f.productProjectName ?? getLabel('applicationCategory', f.applicationCategory)}
                       </p>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -337,7 +340,7 @@ export default function PortalFeedbackPage() {
                 {/* Sensory & technical detail */}
                 <div className="space-y-4">
                   <p className="text-sm font-semibold text-foreground">Sensory & technical notes</p>
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <DetailRow label="Taste & aroma" value={selected.tasteAroma} />
                     <DetailRow label="Solubility" value={selected.solubility} />
                     <DetailRow label="Processing behaviour" value={selected.processingBehaviour} />

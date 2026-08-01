@@ -91,14 +91,14 @@ export default function SettingsPage() {
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label={t('statModulesEnabled')} value={MODULE_COUNT} icon={SlidersHorizontal} tone="gold" />
         <StatCard label={t('statTeamMembers')} value={counts?.team ?? 0} icon={Users2} tone="info" delay={0.05} />
         <StatCard label={t('statDataRecords')} value={counts?.records ?? 0} icon={Database} tone="success" delay={0.1} />
       </div>
 
       <Tabs defaultValue="general">
-        <TabsList>
+        <TabsList className="h-auto w-full flex-wrap justify-start sm:w-auto">
           <TabsTrigger value="general"><Building2 className="mr-1.5 h-4 w-4" /> {t('tabGeneral')}</TabsTrigger>
           {isApi && <TabsTrigger value="security"><ShieldCheck className="mr-1.5 h-4 w-4" /> {t('tabSecurity')}</TabsTrigger>}
           {isApi && <TabsTrigger value="integrations"><Mail className="mr-1.5 h-4 w-4" /> {t('tabIntegrations')}</TabsTrigger>}
@@ -110,7 +110,7 @@ export default function SettingsPage() {
         <TabsContent value="general">
           <Card>
             <CardHeader><CardTitle>{t('organisation')}</CardTitle></CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
+            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="org">{t('organisationName')}</Label><Input id="org" value={orgName} onChange={(e) => setOrgName(e.target.value)} /></div>
               <div className="space-y-1.5"><Label>{t('defaultCurrency')}</Label>
                 <Select value={currency} onValueChange={setCurrency}><SelectTrigger><SelectValue /></SelectTrigger>
@@ -146,7 +146,7 @@ export default function SettingsPage() {
                     <ShieldCheck className="h-4 w-4 shrink-0 text-success" />
                     <p className="text-sm font-medium text-foreground">{t('gmailConnected', { email: gmail.email ?? '' })}</p>
                   </div>
-                  <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground sm:grid-cols-2">
                     <p>{gmail.lastSyncedAt ? t('gmailLastSync', { time: formatRelative(gmail.lastSyncedAt) }) : t('gmailNeverSynced')}</p>
                     <p>{t('gmailInboxCount', { count: gmail.inboxCount ?? 0 })}</p>
                   </div>
@@ -197,7 +197,7 @@ export default function SettingsPage() {
             <CardHeader><CardTitle>{t('emailTriggers')}</CardTitle><p className="text-sm text-muted-foreground">{t('emailTriggersDescription')}</p></CardHeader>
             <CardContent className="divide-y">
               {NOTIF_PREFS.map((l, i) => (
-                <div key={l} className="flex items-center justify-between py-3"><Label className="font-normal">{t(l)}</Label><Switch defaultChecked={i < 6} /></div>
+                <div key={l} className="flex items-center justify-between gap-4 py-3"><Label className="font-normal">{t(l)}</Label><Switch defaultChecked={i < 6} /></div>
               ))}
               <div className="pt-3"><Button variant="gold" onClick={save} disabled={saving}><Save /> {saving ? t('saving') : t('savePreferences')}</Button></div>
             </CardContent>

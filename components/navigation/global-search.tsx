@@ -165,10 +165,12 @@ export function GlobalSearch() {
       {/* Trigger (replaces the old mock search box) */}
       <button
         onClick={() => setOpen(true)}
-        className="group flex h-9 max-w-md flex-1 items-center gap-2 rounded-lg border bg-muted/40 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted"
+        // min-w-0: without it the flex item refuses to shrink below its label,
+        // which pushed the whole topbar 269px past a phone viewport.
+        className="group flex h-9 min-w-0 max-w-md flex-1 items-center gap-2 rounded-lg border bg-muted/40 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted"
         aria-label="Open search"
       >
-        <Search className="h-4 w-4" />
+        <Search className="h-4 w-4 shrink-0" />
         <span className="truncate">Search companies, samples, NDAs, tracking…</span>
         <span className="ml-auto hidden items-center gap-1 sm:flex">
           <kbd className="kbd">⌘</kbd><kbd className="kbd">K</kbd>

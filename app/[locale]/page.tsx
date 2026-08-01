@@ -119,7 +119,7 @@ function ProductCard({
         transition={{ type: 'spring', stiffness: 350, damping: 22 }}
         className="group h-full"
       >
-        <Link href={href} className="relative flex h-full flex-col rounded-2xl border bg-card p-7 shadow-sm">
+        <Link href={href} className="relative flex h-full flex-col rounded-2xl border bg-card p-6 shadow-sm sm:p-7">
           {accent && (
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-brand-gold/5 via-transparent to-brand-teal/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" aria-hidden />
           )}
@@ -148,7 +148,7 @@ function StatCard({ target, suffix, label, index }: { target: number; suffix: st
       transition={{ delay: index * 0.1, duration: 0.5, ease }}
       className="flex flex-col items-center gap-1 text-center"
     >
-      <p className="font-display text-4xl font-bold text-brand-goldDark">
+      <p className="font-display text-3xl font-bold text-brand-goldDark sm:text-4xl">
         <Counter target={target} suffix={suffix} />
       </p>
       <p className="text-sm text-muted-foreground">{label}</p>
@@ -200,7 +200,7 @@ export default function LandingPage() {
           aria-hidden
         />
 
-        <div className="container relative grid gap-12 py-24 lg:grid-cols-2 lg:items-center lg:py-32">
+        <div className="container relative grid grid-cols-1 gap-12 py-16 sm:py-24 lg:grid-cols-2 lg:items-center lg:py-32">
           {/* Copy */}
           <div>
             <motion.div initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
@@ -296,7 +296,7 @@ export default function LandingPage() {
       {/* ── Stats strip ───────────────────────────────────────────── */}
       <section className="border-b bg-brand-cream/40">
         <div className="container py-12">
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 sm:gap-8">
             <StatCard target={36} suffix="+" label="Active partners" index={0} />
             <StatCard target={100} suffix="%" label="Protein sweetener" index={1} />
             <StatCard target={12} suffix="" label="Countries reached" index={2} />
@@ -306,11 +306,11 @@ export default function LandingPage() {
       </section>
 
       {/* ── 360° radar ────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-brand-navy py-24 text-white">
+      <section className="relative overflow-hidden bg-brand-navy py-16 text-white sm:py-24">
         <FloatOrb className="h-96 w-96 -left-24 top-0 bg-brand-gold/10" delay={0} dur={11} />
         <FloatOrb className="h-80 w-80 right-0 bottom-0 bg-brand-teal/12" delay={2.5} dur={9} />
         <div className="absolute inset-0 bg-grid opacity-[0.05]" aria-hidden />
-        <div className="container relative grid gap-14 lg:grid-cols-2 lg:items-center">
+        <div className="container relative grid grid-cols-1 gap-10 lg:grid-cols-2 lg:items-center lg:gap-14">
           <div>
             <FadeUp>
               <Badge className="mb-5 border-0 bg-white/10 text-brand-goldLight">
@@ -341,11 +341,11 @@ export default function LandingPage() {
         <div className="container">
           {/* max-w-none keeps the existing full-width layout; the left padding
               is the gutter the beam's rail lives in (md+ only). */}
-          <TracingBeam className="max-w-none py-24 md:pl-20">
+          <TracingBeam className="max-w-none py-16 sm:py-24 md:pl-20">
             <FadeUp>
               <p className="font-display text-xs font-semibold uppercase tracking-widest text-brand-goldDark">{t('productsTitle')}</p>
             </FadeUp>
-            <div className="mt-6 grid gap-6 md:grid-cols-2">
+            <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
               <ProductCard
                 href="/team-login"
                 icon={<Building2 className="h-5 w-5" />}
@@ -367,9 +367,9 @@ export default function LandingPage() {
 
             {/* Features grid (portal-focused) */}
             <FadeUp>
-              <h2 className="mt-20 font-display text-2xl font-bold tracking-tight sm:text-3xl">{t('featuresTitle')}</h2>
+              <h2 className="mt-14 font-display text-2xl font-bold tracking-tight sm:mt-20 sm:text-3xl">{t('featuresTitle')}</h2>
             </FadeUp>
-            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {features.map((f, i) => {
                 const Icon = FEATURE_ICONS[i] ?? FlaskConical;
                 return (
@@ -392,7 +392,7 @@ export default function LandingPage() {
       </div>
 
       {/* ── Partners marquee ──────────────────────────────────────── */}
-      <section className="border-b bg-background py-20">
+      <section className="border-b bg-background py-16 sm:py-20">
         <div className="container">
           <FadeUp>
             <div className="text-center">
@@ -407,7 +407,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── CTA banner ────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-brand-navy py-24 text-white">
+      <section className="relative overflow-hidden bg-brand-navy py-16 text-white sm:py-24">
         <FloatOrb className="h-96 w-96 -left-20 -top-20 bg-brand-gold/10" delay={0} dur={11} />
         <FloatOrb className="h-72 w-72 right-0 bottom-0 bg-brand-teal/15" delay={3} dur={9} />
         <div className="absolute inset-0 bg-grid opacity-[0.06]" aria-hidden />
@@ -443,7 +443,7 @@ export default function LandingPage() {
             <Logo tone="light" href="/" />
             <p className="max-w-xl text-xs leading-relaxed">{t('footerNote')}</p>
           </div>
-          <div className="grid gap-2 text-xs sm:grid-cols-3 lg:min-w-[34rem]">
+          <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-3 lg:min-w-[34rem]">
             <a
               href={siteContact.emailHref}
               className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-slate-300 transition-colors hover:border-brand-gold/50 hover:text-brand-gold"

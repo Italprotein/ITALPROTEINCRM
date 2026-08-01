@@ -425,9 +425,9 @@ export default function CompaniesPage() {
 
   /* ── toolbar (filters) ── */
   const toolbar = (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
       <Select value={fType} onValueChange={setFType}>
-        <SelectTrigger className="h-9 w-[150px]">
+        <SelectTrigger className="h-9 w-full sm:w-[150px]">
           <SelectValue placeholder={t('colType')} />
         </SelectTrigger>
         <SelectContent>
@@ -441,7 +441,7 @@ export default function CompaniesPage() {
       </Select>
 
       <Select value={fCountry} onValueChange={setFCountry}>
-        <SelectTrigger className="h-9 w-[160px]">
+        <SelectTrigger className="h-9 w-full sm:w-[160px]">
           <SelectValue placeholder={t('colCountry')} />
         </SelectTrigger>
         <SelectContent>
@@ -455,7 +455,7 @@ export default function CompaniesPage() {
       </Select>
 
       <Select value={fStage} onValueChange={setFStage}>
-        <SelectTrigger className="h-9 w-[170px]">
+        <SelectTrigger className="h-9 w-full sm:w-[170px]">
           <SelectValue placeholder={t('colStage')} />
         </SelectTrigger>
         <SelectContent>
@@ -469,7 +469,7 @@ export default function CompaniesPage() {
       </Select>
 
       <Select value={fPriority} onValueChange={setFPriority}>
-        <SelectTrigger className="h-9 w-[140px]">
+        <SelectTrigger className="h-9 w-full sm:w-[140px]">
           <SelectValue placeholder={t('colPriority')} />
         </SelectTrigger>
         <SelectContent>
@@ -648,10 +648,12 @@ export default function CompaniesPage() {
   }
 
   return (
-    // Full-height app layout: the header and the KPI bar are fixed rails and the
-    // table fills whatever is left, so its horizontal scrollbar always sits at
-    // the bottom of the viewport instead of below the fold. 4rem is the topbar.
-    <div className="flex h-[calc(100vh-4rem)] flex-col gap-4 overflow-hidden p-4 sm:p-6 lg:p-8">
+    // Full-height app layout from md up: the header and the KPI bar are fixed
+    // rails and the table fills whatever is left, so its horizontal scrollbar
+    // always sits at the bottom of the viewport instead of below the fold.
+    // Below md the table renders as cards with no inner scroll region, so the
+    // page flows and scrolls normally there. 4rem is the topbar.
+    <div className="flex flex-col gap-4 p-4 sm:p-6 md:h-[calc(100vh-4rem)] md:overflow-hidden lg:p-8">
       <PageHeader
         className="shrink-0"
         title={t('pageTitle')}
@@ -711,7 +713,7 @@ export default function CompaniesPage() {
 
       {/* Summary of the whole book of business — below the list, since the list
           is what people come here to work with. */}
-      <div className="grid shrink-0 grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid shrink-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label={t('statTotalCompanies')} value={stats?.total ?? 0} icon={Building2} tone="gold" />
         <StatCard label={t('statActive')} value={stats?.active ?? 0} icon={ActivityIcon} tone="info" delay={0.05} />
         <StatCard label={t('statCustomers')} value={stats?.customers ?? 0} icon={CheckCircle2} tone="success" delay={0.1} />
@@ -838,7 +840,7 @@ function CreateCompanyDialog({
           <DialogDescription>{t('createDialogDescription')}</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="legalName">{t('fieldLegalName')}</Label>
             <Input id="legalName" value={legalName} onChange={(e) => setLegalName(e.target.value)} placeholder={t('placeholderLegalName')} />

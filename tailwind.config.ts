@@ -22,7 +22,8 @@ const config: Config = {
   theme: {
     container: {
       center: true,
-      padding: '2rem',
+      // Tighter gutter on phones; the flat 2rem ate a fifth of a 320px screen.
+      padding: { DEFAULT: '1rem', sm: '1.5rem', lg: '2rem' },
       screens: { '2xl': '1440px' },
     },
     extend: {

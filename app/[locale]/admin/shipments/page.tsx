@@ -42,6 +42,7 @@ import { useRouter } from '@/lib/i18n/navigation';
 
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
+import { EmptyState } from '@/components/shared/empty-state';
 import { DataTable, type Column } from '@/components/ui/data-table';
 
 import { Button } from '@/components/ui/button';
@@ -221,7 +222,7 @@ export default function ShipmentsPage() {
       cell: (s) => (
         <div className="min-w-0">
           <p className="font-medium text-foreground">{s.reference}</p>
-          <p className="truncate text-xs text-muted-foreground">{s.recipient}</p>
+          <p className="truncate text-xs text-muted-foreground" title={s.recipient}>{s.recipient}</p>
         </div>
       ),
     },
@@ -251,7 +252,7 @@ export default function ShipmentsPage() {
       cell: (s) => (
         <div className="min-w-0">
           <p className="text-sm text-foreground">{s.courier ?? '—'}</p>
-          {s.service ? <p className="truncate text-xs text-muted-foreground">{s.service}</p> : null}
+          {s.service ? <p className="truncate text-xs text-muted-foreground" title={s.service}>{s.service}</p> : null}
         </div>
       ),
       hideable: true,
@@ -363,7 +364,7 @@ export default function ShipmentsPage() {
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2">
       <Select value={fStatus} onValueChange={setFStatus}>
-        <SelectTrigger className="h-9 w-[150px]">
+        <SelectTrigger className="h-9 w-full sm:w-[150px]">
           <SelectValue placeholder={t('colStatus')} />
         </SelectTrigger>
         <SelectContent>
@@ -377,7 +378,7 @@ export default function ShipmentsPage() {
       </Select>
 
       <Select value={fCourier} onValueChange={setFCourier}>
-        <SelectTrigger className="h-9 w-[160px]">
+        <SelectTrigger className="h-9 w-full sm:w-[160px]">
           <SelectValue placeholder={t('colCourier')} />
         </SelectTrigger>
         <SelectContent>
@@ -454,7 +455,9 @@ export default function ShipmentsPage() {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="font-medium text-foreground">{s.reference}</p>
-            <p className="truncate text-xs text-muted-foreground">{c?.tradingName || c?.legalName}</p>
+            <p className="truncate text-xs text-muted-foreground" title={c?.tradingName || c?.legalName}>
+              {c?.tradingName || c?.legalName}
+            </p>
           </div>
           <ShipmentStatusCell shipment={s} />
         </div>
@@ -494,7 +497,7 @@ export default function ShipmentsPage() {
           <Badge variant="secondary">{courierUpdates.length}</Badge>
         </div>
         {courierUpdates.length ? (
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
             {courierUpdates.slice(0, 12).map((update) => (
               <div key={update.messageId} className="rounded-lg border p-3">
                 <div className="flex items-center justify-between gap-2">
@@ -503,19 +506,19 @@ export default function ShipmentsPage() {
                     {update.status.replaceAll('_', ' ')}
                   </Badge>
                 </div>
-                <p className="mt-1 font-mono text-sm">{update.trackingNumber}</p>
+                <p className="mt-1 truncate font-mono text-sm" title={update.trackingNumber}>{update.trackingNumber}</p>
                 <p className="mt-1 truncate text-xs text-muted-foreground" title={update.subject}>{update.subject}</p>
                 <p className="mt-2 text-2xs text-muted-foreground">{formatDate(update.occurredAt, locale)}</p>
               </div>
             ))}
           </div>
         ) : (
-          <p className="rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground">No courier messages have been synced yet.</p>
+          <EmptyState icon={Truck} title="No courier messages have been synced yet." className="py-10" />
         )}
       </Card>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Companies shipped to" value={stats?.companiesShipped ?? 0} icon={Truck} tone="gold" />
         <StatCard label="In transit" value={stats?.inTransit ?? 0} icon={PlaneTakeoff} tone="info" delay={0.05} />
         <StatCard label="At customs" value={stats?.customs ?? 0} icon={ShieldAlert} tone="warning" delay={0.1} />
@@ -693,7 +696,7 @@ function CreateShipmentDialog({
           <DialogDescription>Create a logistics record for a sample dispatch.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Company *</Label>
             <Select

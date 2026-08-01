@@ -108,7 +108,7 @@ export default function ActivitiesPage() {
         actions={canLogActivity ? <Button variant="gold" onClick={() => setLogOpen(true)}><Plus /> {t('logActivity')}</Button> : undefined}
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t('statTotal')} value={stats?.total ?? 0} icon={ActivityIcon} tone="gold" />
         <StatCard label={t('statEmails')} value={byType.email ?? 0} icon={Mail} tone="info" delay={0.05} />
         <StatCard label={t('statCalls')} value={byType.call ?? 0} icon={Phone} tone="success" delay={0.1} />
@@ -117,13 +117,13 @@ export default function ActivitiesPage() {
 
       <Card>
         <CardContent className="p-4">
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <div className="relative flex-1 min-w-[180px]">
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative w-full sm:w-auto sm:min-w-[180px] sm:flex-1">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('searchPlaceholder')} className="pl-8" />
               </div>
               <Select value={fType} onValueChange={setFType}>
-                <SelectTrigger className="h-10 w-[170px]"><SelectValue placeholder={t('typePlaceholder')} /></SelectTrigger>
+                <SelectTrigger className="h-10 w-full sm:w-[170px]"><SelectValue placeholder={t('typePlaceholder')} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL}>{t('allTypes')}</SelectItem>
                   {TYPE_OPTIONS.map((t) => <SelectItem key={t} value={t}>{getLabel('activityType', t)}</SelectItem>)}
@@ -221,7 +221,7 @@ function LogActivityDialog({ open, onOpenChange, companies, onLogged }: {
           <DialogDescription>{t('dialogDescription')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5"><Label>{t('fieldType')}</Label>
               <Select value={type} onValueChange={(v) => setType(v as ActivityType)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>

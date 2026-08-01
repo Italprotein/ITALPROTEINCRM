@@ -213,7 +213,7 @@ export default function AnalyticsPage() {
         actions={
           <>
             <Select value={range} onValueChange={setRange}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <CalendarRange className="h-4 w-4 text-muted-foreground" />
                 <SelectValue placeholder={t('dateRangePlaceholder')} />
               </SelectTrigger>
@@ -234,7 +234,7 @@ export default function AnalyticsPage() {
       />
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard
           label={t('kpiAvgFirstContactToNdaLabel')}
           value={data?.avgFirstContactToNda ?? 0}
@@ -296,7 +296,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Chart grid */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
           title={t('companiesOverTimeTitle')}
           description={t('companiesOverTimeDescription')}
@@ -455,7 +455,9 @@ export default function AnalyticsPage() {
                 <TableBody>
                   {(data?.teamActivity ?? []).map((member) => (
                     <TableRow key={member.userId}>
-                      <TableCell className="font-medium">{member.name}</TableCell>
+                      <TableCell className="max-w-[14rem] truncate font-medium" title={member.name}>
+                        {member.name}
+                      </TableCell>
                       <TableCell>
                         <StatusBadge kind="role" value={member.role} />
                       </TableCell>

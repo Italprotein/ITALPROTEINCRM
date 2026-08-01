@@ -516,7 +516,7 @@ export default function NewFeedbackPage() {
             title="Test details"
             description="Which sample did you test, and in which application?"
           >
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="sample">Related sample</Label>
                 {testableSamples.length === 0 ? (
@@ -593,7 +593,7 @@ export default function NewFeedbackPage() {
             title="Overall evaluation"
             description="Your headline verdict on this sample."
           >
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>
                   Overall rating <span className="text-danger">*</span>
@@ -642,7 +642,7 @@ export default function NewFeedbackPage() {
               {SENSORY_FIELDS.map((field, i) => (
                 <React.Fragment key={field.key}>
                   {i > 0 && <Separator />}
-                  <div className="grid gap-3 sm:grid-cols-[200px_1fr] sm:items-start">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-[200px_1fr] sm:items-start">
                     <div className="space-y-2">
                       <Label className="text-sm">{field.label}</Label>
                       <ScalePicker
@@ -669,7 +669,7 @@ export default function NewFeedbackPage() {
             title="Objectives & targets"
             description="How did the sample perform against your formulation goals?"
           >
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="sugar">Sugar-reduction achieved (%)</Label>
                 <Input

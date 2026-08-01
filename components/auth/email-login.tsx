@@ -171,7 +171,7 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
   }, [isApi, workspace]);
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-[minmax(0,44%)_1fr]">
+    <div className="grid grid-cols-1 min-h-screen lg:grid-cols-[minmax(0,44%)_1fr]">
       {/* ── Brand panel ───────────────────────────────────────────── */}
       <aside className="relative hidden overflow-hidden bg-brand-navy text-white lg:flex lg:flex-col lg:justify-between lg:p-10">
         {isTeam ? (
@@ -248,10 +248,6 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="mb-8 lg:hidden">
-              <Logo tone="dark" href="/" />
-            </div>
-
             <Badge variant={isTeam ? 'gold' : 'secondary'} className="mb-4">
               {isTeam ? <Lock className="h-3 w-3" /> : null}
               {t('eyebrow')}

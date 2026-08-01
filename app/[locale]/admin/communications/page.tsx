@@ -145,7 +145,7 @@ export default function CommunicationsPage() {
       />
 
       <Tabs defaultValue="inbox">
-        <TabsList>
+        <TabsList className="max-w-full justify-start overflow-x-auto scrollbar-thin">
           <TabsTrigger value="inbox">{t('inboxTab', { count: inbox?.length ?? 0 })}</TabsTrigger>
           <TabsTrigger value="requests">{t('requestsTab', { count: stats.total })}</TabsTrigger>
           <TabsTrigger value="email">{t('emailLogTab', { count: emails.length })}</TabsTrigger>
@@ -222,7 +222,7 @@ export default function CommunicationsPage() {
 
         {/* ── Support requests (unchanged two-pane) ───────────────── */}
         <TabsContent value="requests">
-          <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[340px_1fr]">
             <Card className="overflow-hidden">
               <div className="max-h-[600px] divide-y overflow-y-auto scrollbar-thin">
                 {rows === null ? (
@@ -301,7 +301,7 @@ export default function CommunicationsPage() {
                     <TableRow><TableCell colSpan={4}><EmptyState icon={Mail} title={t('noEmailsLogged')} /></TableCell></TableRow>
                   ) : emails.map((e) => (
                     <TableRow key={e.id}>
-                      <TableCell className="font-medium text-foreground">{e.title}</TableCell>
+                      <TableCell className="max-w-[320px] truncate font-medium text-foreground" title={e.title}>{e.title}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{e.companyId ? companyName(e.companyId) : '—'}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{nameOf(e.byUserId, '—')}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{formatDate(e.at)}</TableCell>
@@ -320,8 +320,8 @@ export default function CommunicationsPage() {
           {openMessage && (
             <>
               <SheetHeader>
-                <SheetTitle className="pr-8">{openMessage.subject ?? '—'}</SheetTitle>
-                <SheetDescription>
+                <SheetTitle className="break-words pr-8">{openMessage.subject ?? '—'}</SheetTitle>
+                <SheetDescription className="break-all">
                   {(openMessage.fromName ? `${openMessage.fromName} · ` : '') + openMessage.fromAddress}
                   {' · '}{formatDate(openMessage.internalDate)}
                 </SheetDescription>

@@ -228,12 +228,12 @@ export default function SampleDetailPage() {
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         <Skeleton className="h-9 w-64" />
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <Skeleton className="h-80 w-full lg:col-span-2" />
           <Skeleton className="h-80 w-full" />
         </div>
@@ -316,7 +316,7 @@ export default function SampleDetailPage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           icon={Package}
           label={t('requestedApproved')}
@@ -351,7 +351,7 @@ export default function SampleDetailPage() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* LEFT: timeline + docs */}
         <div className="space-y-6 lg:col-span-2">
           {/* Status timeline */}
@@ -401,9 +401,14 @@ export default function SampleDetailPage() {
                           checked={checked}
                           onCheckedChange={() => toggleDoc(doc)}
                         />
-                        <Label htmlFor={id} className="flex flex-1 items-center gap-2 font-normal">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span className={checked ? 'text-muted-foreground line-through' : 'text-foreground'}>{doc}</span>
+                        <Label htmlFor={id} className="flex min-w-0 flex-1 items-center gap-2 font-normal">
+                          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span
+                            title={doc}
+                            className={checked ? 'truncate text-muted-foreground line-through' : 'truncate text-foreground'}
+                          >
+                            {doc}
+                          </span>
                         </Label>
                         {checked ? (
                           <Badge variant="success" className="text-2xs">
@@ -609,8 +614,8 @@ function SummaryCard({
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-right text-sm font-medium text-foreground">{value}</span>
+      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
+      <span className="min-w-0 break-words text-right text-sm font-medium text-foreground">{value}</span>
     </div>
   );
 }

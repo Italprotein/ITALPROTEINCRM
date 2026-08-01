@@ -222,7 +222,7 @@ export default function PipelinePage() {
         title="Pipeline"
         subtitle="Track every opportunity from first contact to repeat customer."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center rounded-lg border bg-card p-0.5">
               <Button
                 variant={view === 'board' ? 'secondary' : 'ghost'}
@@ -277,7 +277,7 @@ export default function PipelinePage() {
       </Card>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Open opportunities" value={stats.open} icon={Target} tone="info" />
         <StatCard
           label="Total pipeline value"
@@ -815,7 +815,7 @@ function CreateOpportunityDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label htmlFor="opp-stage">Stage</Label>
               <Select value={stage} onValueChange={(v) => setStage(v as PipelineStage)}>
@@ -844,7 +844,7 @@ function CreateOpportunityDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label htmlFor="opp-value">Expected value (EUR)</Label>
               <Input

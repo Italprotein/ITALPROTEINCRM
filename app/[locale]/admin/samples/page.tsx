@@ -280,7 +280,9 @@ export default function SamplesPage() {
             className="flex items-center gap-2 text-left hover:underline"
           >
             {c ? <span className="text-base leading-none">{flagEmoji(c.countryCode)}</span> : null}
-            <span className="truncate text-sm font-medium text-foreground">{companyName(s.companyId)}</span>
+            <span className="truncate text-sm font-medium text-foreground" title={companyName(s.companyId)}>
+              {companyName(s.companyId)}
+            </span>
           </button>
         );
       },
@@ -289,7 +291,11 @@ export default function SamplesPage() {
       key: 'product',
       header: 'Product',
       sortValue: (s) => s.requestedProduct,
-      cell: (s) => <span className="truncate text-sm text-muted-foreground">{s.requestedProduct}</span>,
+      cell: (s) => (
+        <span className="truncate text-sm text-muted-foreground" title={s.requestedProduct}>
+          {s.requestedProduct}
+        </span>
+      ),
       hideable: true,
     },
     {
@@ -368,7 +374,7 @@ export default function SamplesPage() {
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2">
       <Select value={fStatus} onValueChange={setFStatus}>
-        <SelectTrigger className="h-9 w-[160px]">
+        <SelectTrigger className="h-9 w-full sm:w-[160px]">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
@@ -382,7 +388,7 @@ export default function SamplesPage() {
       </Select>
 
       <Select value={fApp} onValueChange={setFApp}>
-        <SelectTrigger className="h-9 w-[160px]">
+        <SelectTrigger className="h-9 w-full sm:w-[160px]">
           <SelectValue placeholder="Application" />
         </SelectTrigger>
         <SelectContent>
@@ -396,7 +402,7 @@ export default function SamplesPage() {
       </Select>
 
       <Select value={fPriority} onValueChange={setFPriority}>
-        <SelectTrigger className="h-9 w-[140px]">
+        <SelectTrigger className="h-9 w-full sm:w-[140px]">
           <SelectValue placeholder="Priority" />
         </SelectTrigger>
         <SelectContent>
@@ -476,11 +482,15 @@ export default function SamplesPage() {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="font-mono text-sm font-semibold text-foreground">{s.reference}</p>
-            <p className="truncate text-xs text-muted-foreground">{companyName(s.companyId)}</p>
+            <p className="truncate text-xs text-muted-foreground" title={companyName(s.companyId)}>
+              {companyName(s.companyId)}
+            </p>
           </div>
           <PriorityBadge value={s.priority} />
         </div>
-        <p className="mt-2 truncate text-sm text-muted-foreground">{s.requestedProduct}</p>
+        <p className="mt-2 truncate text-sm text-muted-foreground" title={s.requestedProduct}>
+          {s.requestedProduct}
+        </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <StatusBadge kind="sampleStatus" value={s.status} />
           <StatusBadge kind="applicationCategory" value={s.applicationCategory} />
@@ -543,7 +553,7 @@ export default function SamplesPage() {
       />
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard label="Total requests" value={stats?.total ?? 0} icon={FlaskConical} tone="gold" />
         <StatCard label="Pending approval" value={stats?.pendingApproval ?? 0} icon={Clock} tone="warning" delay={0.05} />
         <StatCard label="Preparing" value={stats?.preparing ?? 0} icon={PackageOpen} tone="info" delay={0.1} />
@@ -648,8 +658,12 @@ function SampleBoard({
                     <span className="font-mono text-2xs font-semibold text-muted-foreground">{s.reference}</span>
                     <PriorityBadge value={s.priority} />
                   </div>
-                  <p className="mt-1 truncate text-sm font-medium text-foreground">{companyName(s.companyId)}</p>
-                  <p className="truncate text-xs text-muted-foreground">{s.requestedProduct}</p>
+                  <p className="mt-1 truncate text-sm font-medium text-foreground" title={companyName(s.companyId)}>
+                    {companyName(s.companyId)}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground" title={s.requestedProduct}>
+                    {s.requestedProduct}
+                  </p>
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <StatusBadge kind="applicationCategory" value={s.applicationCategory} />
                     <span className="text-2xs tabular text-muted-foreground">
@@ -769,7 +783,7 @@ function CreateSampleDialog({
           <DialogDescription>Create a sample request. It will be submitted for approval.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Company *</Label>
             <Select value={companyId} onValueChange={setCompanyId}>

@@ -557,9 +557,9 @@ export default function ContactsPage() {
   );
 
   const tableToolbar = (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
       <Select value={companyFilter} onValueChange={setCompanyFilter}>
-        <SelectTrigger className="h-9 w-[200px]">
+        <SelectTrigger className="h-9 w-full sm:w-[200px]">
           <SelectValue placeholder={t('companyPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
@@ -572,7 +572,7 @@ export default function ContactsPage() {
         </SelectContent>
       </Select>
       <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as RoleFlag)}>
-        <SelectTrigger className="h-9 w-[150px]">
+        <SelectTrigger className="h-9 w-full sm:w-[150px]">
           <SelectValue placeholder={t('rolePlaceholder')} />
         </SelectTrigger>
         <SelectContent>
@@ -599,7 +599,7 @@ export default function ContactsPage() {
       />
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label={t('statTotalLabel')}
           value={stats?.total ?? 0}
@@ -827,7 +827,7 @@ export default function ContactsPage() {
           </DialogHeader>
 
           <div className="grid gap-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="c-first">{t('firstNameLabel')}</Label>
                 <Input
@@ -882,7 +882,7 @@ export default function ContactsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="c-job">{t('jobTitleLabel')}</Label>
                 <Input
@@ -903,7 +903,7 @@ export default function ContactsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="c-phone">{t('phoneLabel')}</Label>
                 <Input

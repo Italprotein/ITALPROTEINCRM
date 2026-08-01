@@ -427,7 +427,7 @@ export default function CompanyProfilePage() {
       )}
 
       {/* ── summary cards ── */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {loading || !company ? (
           Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-[104px] rounded-lg" />)
         ) : (
@@ -499,7 +499,7 @@ export default function CompanyProfilePage() {
 
       {/* ── charts ── */}
       {!loading && data && (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <ChartCard
             title={t('relationshipFunnel')}
             description={t('relationshipFunnelDescription')}
@@ -526,7 +526,7 @@ export default function CompanyProfilePage() {
         <Skeleton className="h-96 w-full rounded-lg" />
       ) : (
         <Tabs defaultValue="overview" className="w-full">
-          <div className="overflow-x-auto pb-1">
+          <div className="overflow-x-auto pb-1 scrollbar-thin">
             <TabsList className="w-max">
               <TabsTrigger value="overview">{t('tabOverview')}</TabsTrigger>
               <TabsTrigger value="contacts">{t('tabContacts')}</TabsTrigger>
@@ -545,7 +545,7 @@ export default function CompanyProfilePage() {
 
           {/* ── OVERVIEW ── */}
           <TabsContent value="overview">
-            <div className="grid gap-4 lg:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
               <Card className="lg:col-span-3">
                 <CardHeader>
                   <CardTitle className="text-base">{t('engagementJourney')}</CardTitle>
@@ -559,14 +559,14 @@ export default function CompanyProfilePage() {
                   <CardTitle className="text-base">{t('keyFacts')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <dl className="grid grid-cols-2 gap-4">
+                  <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Fact label={t('marketsServed')}>
                       {company.marketsServed?.length ? company.marketsServed.join(', ') : '—'}
                     </Fact>
                     <Fact label={t('cooperationModel')}>
                       {company.cooperationModel ? getLabel('cooperationModel', company.cooperationModel) : '—'}
                     </Fact>
-                    <div className="col-span-2">
+                    <div className="sm:col-span-2">
                       <Fact label={t('applicationInterests')}>
                         {company.applicationInterests?.length ? (
                           <div className="mt-1 flex flex-wrap gap-1.5">
@@ -582,7 +582,7 @@ export default function CompanyProfilePage() {
                       </Fact>
                     </div>
                     {company.productCategories?.length ? (
-                      <div className="col-span-2">
+                      <div className="sm:col-span-2">
                         <Fact label={t('productCategories')}>
                           <div className="mt-1 flex flex-wrap gap-1.5">
                             {company.productCategories.map((c) => (
@@ -604,7 +604,7 @@ export default function CompanyProfilePage() {
                       {company.lastActivityAt ? formatRelative(company.lastActivityAt) : '—'}
                     </Fact>
                     {company.commercialNotes && (
-                      <div className="col-span-2">
+                      <div className="sm:col-span-2">
                         <Fact label={t('commercialNotes')}>{company.commercialNotes}</Fact>
                       </div>
                     )}
@@ -629,7 +629,7 @@ export default function CompanyProfilePage() {
             {data.contacts.length === 0 ? (
               <EmptyState icon={UserIcon} title={t('noContactsTitle')} description={t('noContactsDescription')} />
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {data.contacts.map((c) => (
                   <Card key={c.id}>
                     <CardContent className="space-y-3 p-4">
@@ -868,7 +868,7 @@ export default function CompanyProfilePage() {
             {data.documents.length === 0 ? (
               <EmptyState icon={FolderOpen} title={t('noDocumentsTitle')} description={t('noDocumentsDescription')} />
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {data.documents.map((doc) => {
                   const locked = (doc.accessLevel === 'post_nda' || doc.accessLevel === 'company_specific') && !ndaSigned;
                   return (
@@ -1027,7 +1027,7 @@ export default function CompanyProfilePage() {
             {data.feedback.length === 0 ? (
               <EmptyState icon={MessageSquareText} title={t('noFeedbackTitle')} description={t('noFeedbackDescription')} />
             ) : (
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {data.feedback.map((f) => (
                   <Card key={f.id}>
                     <CardContent className="space-y-3 p-5">
@@ -1068,7 +1068,7 @@ export default function CompanyProfilePage() {
             {data.projects.length === 0 ? (
               <EmptyState icon={FlaskConical} title={t('noProjectsTitle')} description={t('noProjectsDescription')} />
             ) : (
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {data.projects.map((p) => (
                   <Card key={p.id}>
                     <CardContent className="space-y-3 p-5">
@@ -1112,7 +1112,7 @@ export default function CompanyProfilePage() {
                   <CardTitle className="text-base">{t('commercialTerms')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                  <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <Fact label={t('cooperationModel')}>
                       {company.cooperationModel ? getLabel('cooperationModel', company.cooperationModel) : '—'}
                     </Fact>
@@ -1230,7 +1230,7 @@ export default function CompanyProfilePage() {
 
               <div>
                 <TabHeading title={t('shippingAddresses')} />
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {(company.shippingAddresses?.length ? company.shippingAddresses : [company.headquarters]).map(
                     (addr, i) => (
                       <Card key={i}>

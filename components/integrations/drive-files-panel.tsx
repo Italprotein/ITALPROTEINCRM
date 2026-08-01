@@ -14,6 +14,7 @@ import { formatDate } from '@/lib/formatting';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/shared/empty-state';
 import { toast } from '@/components/ui/use-toast';
 
 /*
@@ -124,7 +125,7 @@ export function DriveFilesPanel({ companyId, canEdit }: { companyId: string; can
       {linked === null ? (
         <div className="skeleton h-16 w-full" />
       ) : linked.length > 0 ? (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {linked.map((row) => (
             <Card key={row.id}>
               <CardContent className="flex items-center gap-3 p-3">
@@ -136,7 +137,7 @@ export function DriveFilesPanel({ companyId, canEdit }: { companyId: string; can
                   <p className="text-xs text-muted-foreground">{t('linkedOn', { date: formatDate(row.linkedAt) })}</p>
                 </div>
                 {row.webViewLink && (
-                  <Button variant="ghost" size="icon-sm" asChild aria-label={t('openInDrive')}>
+                  <Button variant="ghost" size="icon-sm" className="shrink-0" asChild aria-label={t('openInDrive')}>
                     <a href={row.webViewLink} target="_blank" rel="noopener noreferrer"><ExternalLink /></a>
                   </Button>
                 )}
@@ -144,6 +145,7 @@ export function DriveFilesPanel({ companyId, canEdit }: { companyId: string; can
                   <Button
                     variant="ghost"
                     size="icon-sm"
+                    className="shrink-0"
                     disabled={busyId === row.id}
                     onClick={() => unlink(row)}
                     aria-label={t('unlink')}
@@ -156,7 +158,7 @@ export function DriveFilesPanel({ companyId, canEdit }: { companyId: string; can
           ))}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">{t('noneLinked')}</p>
+        <EmptyState title={t('noneLinked')} className="py-6" />
       )}
 
       {canEdit && (
@@ -169,9 +171,9 @@ export function DriveFilesPanel({ companyId, canEdit }: { companyId: string; can
               value={term}
               onChange={(e) => setTerm(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className="h-9"
+              className="h-9 min-w-0 flex-1"
             />
-            <Button type="submit" size="sm" disabled={searching}>
+            <Button type="submit" size="sm" className="shrink-0" disabled={searching}>
               {searching ? <Loader2 className="animate-spin" /> : <Search />}
               {t('search')}
             </Button>
@@ -187,14 +189,14 @@ export function DriveFilesPanel({ companyId, canEdit }: { companyId: string; can
             ) : (
               <ul className="divide-y rounded-md border">
                 {results.map((file) => (
-                  <li key={file.id} className="flex items-center gap-3 p-2">
+                  <li key={file.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 p-2">
                     <span className="w-10 shrink-0 text-2xs font-semibold uppercase text-muted-foreground">
                       {kindOf(file.mimeType).slice(0, 4)}
                     </span>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 basis-32">
                       <p className="truncate text-sm" title={file.name}>{file.name}</p>
                       {file.modifiedTime && (
-                        <p className="text-2xs text-muted-foreground">
+                        <p className="truncate text-2xs text-muted-foreground">
                           {t('modifiedOn', { date: formatDate(file.modifiedTime) })}
                           {file.owner ? ` · ${file.owner}` : ''}
                         </p>
@@ -203,6 +205,7 @@ export function DriveFilesPanel({ companyId, canEdit }: { companyId: string; can
                     <Button
                       variant={linkedIds.has(file.id) ? 'ghost' : 'outline'}
                       size="sm"
+                      className="shrink-0"
                       disabled={busyId === file.id || linkedIds.has(file.id)}
                       onClick={() => link(file)}
                     >

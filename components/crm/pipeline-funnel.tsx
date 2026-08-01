@@ -75,7 +75,10 @@ export function PipelineFunnel({ companies }: { companies: Company[] }) {
 
           return (
             <div key={stage} className="flex items-center gap-3">
-              <span className="w-44 shrink-0 truncate text-right text-sm font-medium">
+              <span
+                className="w-24 shrink-0 truncate text-right text-sm font-medium sm:w-44"
+                title={getLabel('relationshipStage', stage)}
+              >
                 {getLabel('relationshipStage', stage)}
               </span>
 
@@ -92,7 +95,7 @@ export function PipelineFunnel({ companies }: { companies: Company[] }) {
                 </motion.div>
               </div>
 
-              <span className="w-28 shrink-0 text-xs text-muted-foreground tabular">
+              <span className="w-16 shrink-0 text-xs text-muted-foreground tabular sm:w-28">
                 {overallRate}%
                 {i > 0 && (
                   <span className={cn('ml-1.5', stepRate < 50 ? 'text-danger' : 'text-muted-foreground/70')}>
@@ -111,7 +114,7 @@ export function PipelineFunnel({ companies }: { companies: Company[] }) {
       </p>
 
       {/* Terminal outcomes sit outside the funnel: they are results, not steps. */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {TERMINAL.map(({ stage, icon: Icon, tone }) => {
           const count =
             stage === 'customer'

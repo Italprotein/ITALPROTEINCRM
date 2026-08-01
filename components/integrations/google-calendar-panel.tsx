@@ -10,6 +10,7 @@ import { Link } from '@/lib/i18n/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/shared/empty-state';
 
 /*
  * Google Calendar events for the shared ad@italprotein.com account, next to the
@@ -76,7 +77,7 @@ export function GoogleCalendarPanel({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
         <CardTitle className="flex items-center gap-2 text-base">
           <CalendarClock className="h-4 w-4 text-brand-teal" />
           {day ? t('titleForDay') : t('title')}
@@ -91,9 +92,7 @@ export function GoogleCalendarPanel({
         ) : effectiveState.error ? (
           <p className="text-sm text-muted-foreground">{effectiveState.error}</p>
         ) : shown.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">
-            {day ? t('noneThisDay') : t('noneUpcoming')}
-          </p>
+          <EmptyState title={day ? t('noneThisDay') : t('noneUpcoming')} className="py-6" />
         ) : (
           shown.map((event) => (
             <div key={event.id} className="rounded-lg border p-2.5">
@@ -113,7 +112,7 @@ export function GoogleCalendarPanel({
                   </a>
                 )}
               </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className="mt-0.5 truncate text-xs text-muted-foreground" title={event.location || undefined}>
                 {event.allDay
                   ? t('allDay', { date: format(parseISO(event.start), 'd MMM') })
                   : `${format(parseISO(event.start), 'd MMM HH:mm')}–${format(parseISO(event.end), 'HH:mm')}`}

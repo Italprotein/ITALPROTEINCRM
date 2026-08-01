@@ -3,6 +3,7 @@ import { Inter, Playfair_Display } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
+import { MotionConfig } from 'framer-motion';
 import { routing, type Locale } from '@/lib/i18n/routing';
 import { SessionProvider } from '@/components/providers/session-provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -64,7 +65,11 @@ export default async function LocaleLayout({
       <body className="min-h-screen bg-background font-sans text-foreground">
         <NextIntlClientProvider messages={messages}>
           <SessionProvider>
-            <TooltipProvider delayDuration={150}>{children}</TooltipProvider>
+            {/* reducedMotion="user": every framer-motion animation in the app
+                collapses to a fade for people with OS-level reduced motion. */}
+            <MotionConfig reducedMotion="user">
+              <TooltipProvider delayDuration={150}>{children}</TooltipProvider>
+            </MotionConfig>
             <Toaster />
           </SessionProvider>
         </NextIntlClientProvider>

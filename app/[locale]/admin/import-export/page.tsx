@@ -69,7 +69,7 @@ export default function DownloadDataPage() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader title="Download Data" subtitle="Download a current CSV copy of CRM records. Data upload has been removed from this area." />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <StatCard label="Available records" value={count} icon={Database} tone="gold" />
         <StatCard label="Download format" value="CSV" icon={Download} tone="success" delay={0.05} />
       </div>
@@ -77,16 +77,16 @@ export default function DownloadDataPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Download className="h-4 w-4" /> Download datasets</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2">
+        <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {DATASETS.map((dataset) => (
-            <div key={dataset.key} className="flex items-center justify-between rounded-xl border p-3">
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-navy/5 text-brand-navy">
+            <div key={dataset.key} className="flex items-center justify-between gap-3 rounded-xl border p-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-navy/5 text-brand-navy">
                   <FileSpreadsheet className="h-4 w-4" />
                 </span>
-                <span className="text-sm font-medium">{dataset.label}</span>
+                <span className="truncate text-sm font-medium" title={dataset.label}>{dataset.label}</span>
               </div>
-              <Button variant="outline" size="sm" onClick={() => void download(dataset)} disabled={downloading === dataset.key}>
+              <Button variant="outline" size="sm" className="shrink-0" onClick={() => void download(dataset)} disabled={downloading === dataset.key}>
                 <FileDown /> {downloading === dataset.key ? 'Preparing…' : 'Download'}
               </Button>
             </div>
