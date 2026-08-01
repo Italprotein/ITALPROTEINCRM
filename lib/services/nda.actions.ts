@@ -3,7 +3,6 @@
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
 import {
-  getCurrentUser,
   requireUser,
   requireInternal,
   requireAction,
@@ -11,23 +10,10 @@ import {
 } from "@/lib/backend/session";
 import type { NDA, NDAStatus } from "@/lib/types";
 import { syncCompanyNdaStatus } from "@/lib/backend/nda-status-sync";
+import { currentNdaByCompany, ndaScopeWhere } from "@/lib/backend/nda-current-status";
 import { selectCurrentNdasWithFile } from "@/lib/nda-current";
+import { ndaStatusTallies } from "@/lib/nda-stats";
 import { ndaToDTO, ndaWriteData } from "./nda.mapper";
-
-// External users see only their own company's NDAs; internal users see all.
-async function scopeWhere(): Promise<Prisma.NDAWhereInput> {
-  const user = await getCurrentUser();
-  if (!user) return { id: "__no_session__" };
-  if (user.kind === "external") return { companyId: user.companyId ?? "__no_company__" };
-  return {};
-}
-
-async function companyScopeWhere(): Promise<Prisma.CompanyWhereInput> {
-  const user = await getCurrentUser();
-  if (!user) return { id: "__no_session__" };
-  if (user.kind === "external") return { id: user.companyId ?? "__no_company__" };
-  return {};
-}
 
 // NDAs are read with their version history and the single signed-file document so
 // the DTO can present `versions` and `signedFiles`.
@@ -62,7 +48,7 @@ export async function listNdas(): Promise<NDA[]> {
   // Internal NDA register — no portal surface reads the unscoped list.
   await requireInternal();
   const rows = await prisma.nDA.findMany({
-    where: await scopeWhere(),
+    where: await ndaScopeWhere(),
     include: INCLUDE,
     orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
   });
@@ -80,7 +66,7 @@ export async function getNda(id: string): Promise<NDA | undefined> {
   // Scoped read: `scopeWhere()` already limits external users to their company.
   await requireUser();
   const rows = await prisma.nDA.findMany({
-    where: { AND: [await scopeWhere(), { id }] },
+    where: { AND: [await ndaScopeWhere(), { id }] },
     include: INCLUDE,
     take: 1,
   });
@@ -150,7 +136,7 @@ export async function ndasByCompany(companyId: string): Promise<NDA[]> {
   // `scopeWhere()` keeps external users inside their own company.
   await requireUser();
   const rows = await prisma.nDA.findMany({
-    where: { AND: [await scopeWhere(), { companyId }] },
+    where: { AND: [await ndaScopeWhere(), { companyId }] },
     include: INCLUDE,
     orderBy: { createdAt: "desc" },
   });
@@ -158,52 +144,18 @@ export async function ndasByCompany(companyId: string): Promise<NDA[]> {
 }
 
 export async function ndaStatistics() {
-  // Shared counts widget — keep at the authenticated bar (scoped by scopeWhere).
+  // Every count comes from the register, reduced to one current row per company.
+  // Company.ndaStatus is a cache and is deliberately not counted here — counting
+  // it separately is what let this page disagree with its own table.
   await requireUser();
-  const NOW = new Date();
-  const AWAITING: NDAStatus[] = [
-    "sent",
-    "under_review",
-    "changes_requested",
-    "approved",
-    "awaiting_italprotein_signature",
-    "awaiting_counterparty_signature",
-    "partially_signed",
-  ];
-  const [companies, ndas] = await Promise.all([
-    prisma.company.findMany({
-      where: await companyScopeWhere(),
-      select: { id: true, ndaStatus: true },
-    }),
-    prisma.nDA.findMany({
-      where: await scopeWhere(),
-      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
-      select: { companyId: true, expiryDate: true },
-    }),
-  ]);
-  const currentByCompany = new Map<string, (typeof ndas)[number]>();
-  for (const nda of ndas) {
-    if (!currentByCompany.has(nda.companyId)) currentByCompany.set(nda.companyId, nda);
-  }
-  const rows = companies
-    .filter((company) => company.ndaStatus && company.ndaStatus !== "not_required")
-    .map((company) => ({
-      status: company.ndaStatus as NDAStatus,
-      expiryDate: currentByCompany.get(company.id)?.expiryDate ?? null,
-    }));
-  const byStatus = {} as Record<NDAStatus, number>;
-  for (const r of rows) byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
-  const expiringSoon = rows.filter((r) => {
-    if (!r.expiryDate || r.status !== "fully_signed") return false;
-    const days = (r.expiryDate.getTime() - NOW.getTime()) / 86400000;
+  const now = new Date();
+  const current = await currentNdaByCompany(await ndaScopeWhere());
+  const rows = [...current.values()];
+  const tallies = ndaStatusTallies(rows.map((row) => row.status));
+  const expiringSoon = rows.filter((row) => {
+    if (!row.expiryDate || row.status !== "fully_signed") return false;
+    const days = (row.expiryDate.getTime() - now.getTime()) / 86400000;
     return days >= 0 && days <= 60;
   }).length;
-  return {
-    total: rows.length,
-    byStatus,
-    awaitingSignature: rows.filter((r) => AWAITING.includes(r.status)).length,
-    signed: rows.filter((r) => r.status === "fully_signed").length,
-    toPrepare: rows.filter((r) => r.status === "to_prepare" || r.status === "draft").length,
-    expiringSoon,
-  };
+  return { ...tallies, expiringSoon };
 }
