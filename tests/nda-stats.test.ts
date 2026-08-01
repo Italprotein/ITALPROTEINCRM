@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ndaFunnelCounts, ndaStatusTallies } from "@/lib/nda-stats";
+import type { NDA } from "@/lib/types";
+import { currentNdasOf, ndaFunnelCounts, ndaStatusTallies } from "@/lib/nda-stats";
 
 describe("NDA status tallies", () => {
   it("counts one entry per company across the lifecycle buckets", () => {
@@ -43,5 +44,35 @@ describe("NDA status tallies", () => {
       sent: 2,
       signed: 1,
     });
+  });
+});
+
+describe("current register row per company", () => {
+  const nda = (id: string, companyId: string, createdAt: string, status: NDA["status"]): NDA => ({
+    id,
+    reference: id.toUpperCase(),
+    companyId,
+    type: "mutual",
+    status,
+    versions: [],
+    createdAt,
+  });
+
+  it("keeps only the newest row for a company that has several", () => {
+    const older = nda("a", "acme", "2026-01-10", "sent");
+    const newer = nda("b", "acme", "2026-05-02", "fully_signed");
+
+    expect(currentNdasOf([older, newer])).toEqual([newer]);
+  });
+
+  it("counts a company with three register rows once", () => {
+    const rows = [
+      nda("a", "acme", "2026-01-10", "fully_signed"),
+      nda("b", "acme", "2026-03-10", "fully_signed"),
+      nda("c", "acme", "2026-05-10", "fully_signed"),
+      nda("d", "redbull", "2026-02-01", "fully_signed"),
+    ];
+
+    expect(ndaStatusTallies(currentNdasOf(rows).map((n) => n.status)).signed).toBe(2);
   });
 });

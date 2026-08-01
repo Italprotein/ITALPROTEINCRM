@@ -3,6 +3,7 @@ import { SAMPLE_STATUS_FLOW } from '@/lib/types';
 import {
   COMPANIES, AGENCY_COMPANIES, SAMPLES, SHIPMENTS, NDAS, TASKS, ACTIVITIES, STAFF, FEEDBACK,
 } from '@/fixtures';
+import { currentNdasOf, ndaFunnelCounts } from '@/lib/nda-stats';
 
 const ALL_COMPANIES = [...COMPANIES, ...AGENCY_COMPANIES];
 const NOW = new Date('2026-06-17T12:00:00Z');
@@ -58,9 +59,8 @@ export const analyticsService = {
   },
 
   async ndaFunnel() {
-    const prepared = NDAS.filter((n) => n.status !== 'not_required').length;
-    const sent = NDAS.filter((n) => !!n.dateSent || ['sent', 'under_review', 'changes_requested', 'approved', 'awaiting_italprotein_signature', 'awaiting_counterparty_signature', 'partially_signed', 'fully_signed'].includes(n.status)).length;
-    const signed = NDAS.filter((n) => n.status === 'fully_signed').length;
+    // Same reduction as the Prisma path: newest row per company, then tally.
+    const { prepared, sent, signed } = ndaFunnelCounts(currentNdasOf(NDAS).map((n) => n.status));
     return [
       { name: 'Prepared', value: prepared },
       { name: 'Sent', value: sent },

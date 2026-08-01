@@ -1,4 +1,5 @@
-import type { NDAStatus } from "@/lib/types";
+import type { NDA, NDAStatus } from "@/lib/types";
+import { selectCurrentNdasWithFile } from "@/lib/nda-current";
 
 /**
  * Every NDA count in the CRM is derived here, from the *current* register row
@@ -20,6 +21,23 @@ export const NDA_AWAITING_STATUSES: NDAStatus[] = [
 
 /** Reached "there is a signature on file", so the funnel counts it as sent too. */
 const SENT_STATUSES: NDAStatus[] = [...NDA_AWAITING_STATUSES, "fully_signed"];
+
+/**
+ * Newest register row per company, matching the ordering `currentNdaByCompany`
+ * gets from Prisma. The fixture-backed mock services have no database to order
+ * for them, so they reduce here instead and reach the same answer.
+ */
+export function currentNdasOf(all: readonly NDA[]): NDA[] {
+  const ordered = [...all].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+  return selectCurrentNdasWithFile(
+    ordered,
+    (n) => n.companyId,
+    () => false,
+    () => 0,
+  ).map((entry) => entry.current);
+}
 
 export interface NdaTallies {
   total: number;
