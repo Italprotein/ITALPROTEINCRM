@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { DRIVE_FOLDER_MIME, downloadDriveFile, listDriveFolder } from "./google-drive";
+import { syncCompanyNdaStatus } from "./nda-status-sync";
 
 const DEFAULT_ROOT = "1Nq5vcROWHTjmROZXzU-tD2RcJZMZoOuc";
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -152,6 +153,7 @@ export async function syncLatestDriveNdas(actorId: string) {
       } else {
         await tx.nDA.create({ data: { reference: `NDA-DRV-${company.id.slice(-10)}`, companyId: company.id, status: "under_review", reminderDates: [], signedFileId: document.id, createdById: actorId, updatedById: actorId } });
       }
+      await syncCompanyNdaStatus(tx, company.id);
     });
     synced += 1;
   }

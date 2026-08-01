@@ -10,6 +10,7 @@ import {
   requireSectionEdit,
 } from "@/lib/backend/session";
 import type { NDA, NDAStatus } from "@/lib/types";
+import { syncCompanyNdaStatus } from "@/lib/backend/nda-status-sync";
 import { ndaToDTO, ndaWriteData } from "./nda.mapper";
 
 // External users see only their own company's NDAs; internal users see all.
@@ -17,6 +18,13 @@ async function scopeWhere(): Promise<Prisma.NDAWhereInput> {
   const user = await getCurrentUser();
   if (!user) return { id: "__no_session__" };
   if (user.kind === "external") return { companyId: user.companyId ?? "__no_company__" };
+  return {};
+}
+
+async function companyScopeWhere(): Promise<Prisma.CompanyWhereInput> {
+  const user = await getCurrentUser();
+  if (!user) return { id: "__no_session__" };
+  if (user.kind === "external") return { id: user.companyId ?? "__no_company__" };
   return {};
 }
 
@@ -64,9 +72,13 @@ export async function getNda(id: string): Promise<NDA | undefined> {
 
 export async function createNda(input: NDA): Promise<NDA> {
   const user = await requireAction("nda.prepare");
-  const row = await prisma.nDA.create({
-    data: { ...ndaWriteData(input, user.id), id: input.id, createdById: user.id },
-    include: INCLUDE,
+  const row = await prisma.$transaction(async (tx) => {
+    const created = await tx.nDA.create({
+      data: { ...ndaWriteData(input, user.id), id: input.id, createdById: user.id },
+      include: INCLUDE,
+    });
+    await syncCompanyNdaStatus(tx, input.companyId);
+    return created;
   });
   // TODO: if input.status is in NOTIFY_STATUSES, dispatch the e-signature / email
   // request once that integration lands. Persisted now; side effect stubbed.
@@ -85,10 +97,17 @@ export async function updateNda(id: string, patch: Partial<NDA>): Promise<NDA | 
     if (merged.status === "sent") await requireAction("nda.send");
     if (SIGNATURE_STATUSES.includes(merged.status)) await requireAction("nda.mark_signed");
   }
-  const row = await prisma.nDA.update({
-    where: { id },
-    data: ndaWriteData(merged, user.id),
-    include: INCLUDE,
+  const row = await prisma.$transaction(async (tx) => {
+    const updated = await tx.nDA.update({
+      where: { id },
+      data: ndaWriteData(merged, user.id),
+      include: INCLUDE,
+    });
+    await syncCompanyNdaStatus(tx, updated.companyId);
+    if (existing.companyId !== updated.companyId) {
+      await syncCompanyNdaStatus(tx, existing.companyId);
+    }
+    return updated;
   });
   // TODO: a transition into a NOTIFY_STATUSES status (e.g. `sent`, `fully_signed`)
   // should trigger the e-signature provider / notification email. Not yet
@@ -101,7 +120,12 @@ export async function updateNda(id: string, patch: Partial<NDA>): Promise<NDA | 
 
 export async function removeNda(id: string): Promise<void> {
   await requireSectionEdit("ndas");
-  await prisma.nDA.delete({ where: { id } }).catch(() => undefined);
+  const existing = await prisma.nDA.findUnique({ where: { id }, select: { companyId: true } });
+  if (!existing) return;
+  await prisma.$transaction(async (tx) => {
+    await tx.nDA.delete({ where: { id } });
+    await syncCompanyNdaStatus(tx, existing.companyId);
+  });
 }
 
 export async function ndasByCompany(companyId: string): Promise<NDA[]> {
@@ -129,10 +153,27 @@ export async function ndaStatistics() {
     "awaiting_counterparty_signature",
     "partially_signed",
   ];
-  const rows = await prisma.nDA.findMany({
-    where: await scopeWhere(),
-    select: { status: true, expiryDate: true },
-  });
+  const [companies, ndas] = await Promise.all([
+    prisma.company.findMany({
+      where: await companyScopeWhere(),
+      select: { id: true, ndaStatus: true },
+    }),
+    prisma.nDA.findMany({
+      where: await scopeWhere(),
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+      select: { companyId: true, expiryDate: true },
+    }),
+  ]);
+  const currentByCompany = new Map<string, (typeof ndas)[number]>();
+  for (const nda of ndas) {
+    if (!currentByCompany.has(nda.companyId)) currentByCompany.set(nda.companyId, nda);
+  }
+  const rows = companies
+    .filter((company) => company.ndaStatus && company.ndaStatus !== "not_required")
+    .map((company) => ({
+      status: company.ndaStatus as NDAStatus,
+      expiryDate: currentByCompany.get(company.id)?.expiryDate ?? null,
+    }));
   const byStatus = {} as Record<NDAStatus, number>;
   for (const r of rows) byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
   const expiringSoon = rows.filter((r) => {

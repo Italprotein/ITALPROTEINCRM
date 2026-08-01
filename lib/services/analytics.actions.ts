@@ -96,15 +96,18 @@ export async function pipelineDistribution(): Promise<
 
 export async function ndaFunnel(): Promise<{ name: string; value: number }[]> {
   await requireSection("analytics");
-  const rows = await prisma.nDA.findMany({ select: { status: true, dateSent: true } });
+  const rows = await prisma.company.findMany({
+    where: { ndaStatus: { not: null } },
+    select: { ndaStatus: true },
+  });
   const sentStatuses = [
     "sent", "under_review", "changes_requested", "approved",
     "awaiting_italprotein_signature", "awaiting_counterparty_signature",
     "partially_signed", "fully_signed",
   ];
-  const prepared = rows.filter((n) => n.status !== "not_required").length;
-  const sent = rows.filter((n) => !!n.dateSent || sentStatuses.includes(n.status)).length;
-  const signed = rows.filter((n) => n.status === "fully_signed").length;
+  const prepared = rows.filter((n) => n.ndaStatus !== "not_required").length;
+  const sent = rows.filter((n) => n.ndaStatus && sentStatuses.includes(n.ndaStatus)).length;
+  const signed = rows.filter((n) => n.ndaStatus === "fully_signed").length;
   return [
     { name: "Prepared", value: prepared },
     { name: "Sent", value: sent },

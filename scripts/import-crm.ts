@@ -374,6 +374,7 @@ async function main() {
   // DB modes need Prisma + the owner user to exist.
   const { PrismaClient } = await import("../lib/generated/prisma/client");
   const { PrismaPg } = await import("@prisma/adapter-pg");
+  const { setCurrentNdaStatus } = await import("../lib/backend/nda-status-sync");
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is not set");
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
@@ -488,6 +489,12 @@ async function main() {
         companyId = created.id;
         idByName.set(c.legalName.toLowerCase(), companyId);
         cCreated++;
+      }
+
+      if (data.ndaStatus) {
+        await prisma.$transaction((tx) =>
+          setCurrentNdaStatus(tx, companyId!, data.ndaStatus, owner),
+        );
       }
 
       for (const ct of c.contacts) {

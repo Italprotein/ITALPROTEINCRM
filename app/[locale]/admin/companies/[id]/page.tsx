@@ -314,6 +314,7 @@ export default function CompanyProfilePage() {
       await sleep(400);
       await ndaService.update(nda.id, patch);
       setData((d) => (d ? { ...d, ndas: d.ndas.map((n) => (n.id === nda.id ? { ...n, ...patch } : n)) } : d));
+      setCompany((current) => (current ? { ...current, ndaStatus: to } : current));
       toast({ title: t('toastNdaMarked', { label }), description: nda.reference, variant: 'success' });
     } catch {
       toast({ title: 'Action failed', description: 'Please try again.', variant: 'danger' });

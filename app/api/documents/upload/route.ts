@@ -180,11 +180,23 @@ export async function POST(request: Request) {
         select: { id: true },
       });
       ndaId = nda.id;
-      await prisma.company.update({
-        where: { id: companyId },
-        data: { ndaStatus: "under_review" },
-      });
     }
+    await prisma.$transaction([
+      prisma.nDA.updateMany({
+        where: { id: ndaId, status: { in: ["not_required", "to_prepare", "draft", "sent"] } },
+        data: { status: "under_review", updatedById: user.id },
+      }),
+      prisma.company.updateMany({
+        where: {
+          id: companyId,
+          OR: [
+            { ndaStatus: null },
+            { ndaStatus: { in: ["not_required", "to_prepare", "draft", "sent"] } },
+          ],
+        },
+        data: { ndaStatus: "under_review" },
+      }),
+    ]);
     await prisma.documentVersion.create({
       data: {
         documentId: document.id,

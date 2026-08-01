@@ -25,7 +25,7 @@ import { companyService } from '@/lib/mock-services';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
 import { can } from '@/lib/permissions';
-import type { Company, CompanyType, RelationshipStage, Priority, NDAStatus, Locale } from '@/lib/types';
+import type { Company, CompanyType, RelationshipStage, Priority, Locale } from '@/lib/types';
 import { COMPANY_TYPES } from '@/lib/types';
 import { getLabel, COMPANY_TYPE_OPTIONS } from '@/lib/labels';
 import { formatCurrency, formatRelative, flagEmoji } from '@/lib/formatting';
@@ -79,14 +79,6 @@ const RELATIONSHIP_STAGES: RelationshipStage[] = [
 ];
 
 const PRIORITIES: Priority[] = ['low', 'medium', 'high', 'urgent'];
-
-/** NDA states offered inline. The full enum includes terminal/administrative
- *  values that are set from the NDA record itself, not from this list. */
-const NDA_STATUSES: NDAStatus[] = [
-  'not_required', 'to_prepare', 'draft', 'sent', 'under_review',
-  'changes_requested', 'approved', 'awaiting_counterparty_signature',
-  'partially_signed', 'fully_signed', 'expired',
-];
 
 const ALL = '__all__';
 
@@ -343,16 +335,7 @@ export default function CompaniesPage() {
       key: 'nda',
       header: t('colNda'),
       sortValue: (c) => getLabel('ndaStatus', c.ndaStatus),
-      cell: (c) => (
-        <InlineSelect<NDAStatus>
-          value={c.ndaStatus}
-          options={NDA_STATUSES.map((v) => ({ value: v, label: getLabel('ndaStatus', v) }))}
-          onChange={(next) => editCompany(c.id, { ndaStatus: next })}
-          disabled={!canEditCompany}
-          ariaLabel={t('colNda')}
-          render={(v) => <StatusBadge kind="ndaStatus" value={v} />}
-        />
-      ),
+      cell: (c) => <StatusBadge kind="ndaStatus" value={c.ndaStatus} />,
       hideable: true,
     },
     {

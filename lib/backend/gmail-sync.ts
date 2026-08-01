@@ -271,22 +271,32 @@ async function storeNdaDocument(options: {
  * FORWARD into review — never sideways or back from a signature state a staff
  * member already asserted.
  */
-async function advanceCompanyNdaStatus(companyId: string, emailDate: Date): Promise<void> {
-  const company = await prisma.company.findUnique({
-    where: { id: companyId },
-    select: { ndaStatus: true },
-  });
-  const advanceable =
-    !company?.ndaStatus || ["not_required", "to_prepare", "draft"].includes(company.ndaStatus);
-  await prisma.company
-    .update({
+async function advanceCompanyNdaStatus(
+  companyId: string,
+  emailDate: Date,
+  ndaId?: string,
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    if (ndaId) {
+      await tx.nDA.updateMany({
+        where: { id: ndaId, status: { in: ["not_required", "to_prepare", "draft", "sent"] } },
+        data: { status: "under_review" },
+      });
+    }
+    const company = await tx.company.findUnique({
+      where: { id: companyId },
+      select: { ndaStatus: true },
+    });
+    const advanceable =
+      !company?.ndaStatus || ["not_required", "to_prepare", "draft", "sent"].includes(company.ndaStatus);
+    await tx.company.update({
       where: { id: companyId },
       data: {
         ...(advanceable ? { ndaStatus: "under_review" as const } : {}),
         lastActivityAt: emailDate,
       },
-    })
-    .catch(() => undefined);
+    });
+  }).catch(() => undefined);
 }
 
 /**
@@ -337,7 +347,7 @@ async function fileNdaFromAttachment(options: {
         sizeBytes: stored.sizeBytes,
       },
     });
-    await advanceCompanyNdaStatus(companyId, emailDate);
+    await advanceCompanyNdaStatus(companyId, emailDate, open.id);
     return { ndaId: open.id, createdNda: false };
   }
 
@@ -366,7 +376,7 @@ async function fileNdaFromAttachment(options: {
       },
     },
   });
-  await advanceCompanyNdaStatus(companyId, emailDate);
+  await advanceCompanyNdaStatus(companyId, emailDate, nda.id);
   return { ndaId: nda.id, createdNda: true };
 }
 

@@ -5,6 +5,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 import { PrismaClient } from "../lib/generated/prisma/client";
+import { setCurrentNdaStatus } from "../lib/backend/nda-status-sync";
 
 // Imports data/import/companies.csv + contacts.csv into the database.
 //   npx tsx scripts/import-data.ts --dry    (validate only, no writes)
@@ -185,10 +186,20 @@ async function main() {
     const id = idByName.get(c.legalName.toLowerCase());
     if (id) {
       await prisma.company.update({ where: { id }, data: base });
+      if (base.ndaStatus) {
+        await prisma.$transaction((tx) =>
+          setCurrentNdaStatus(tx, id, base.ndaStatus, fallbackOwner),
+        );
+      }
       cUpdated++;
     } else {
       const created = await prisma.company.create({ data: { ...base, createdById: fallbackOwner } });
       idByName.set(c.legalName.toLowerCase(), created.id);
+      if (base.ndaStatus) {
+        await prisma.$transaction((tx) =>
+          setCurrentNdaStatus(tx, created.id, base.ndaStatus, fallbackOwner),
+        );
+      }
       cCreated++;
     }
   }

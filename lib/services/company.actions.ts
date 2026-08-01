@@ -5,6 +5,7 @@ import { prisma } from "@/lib/backend/prisma";
 import { getCurrentUser, requireUser, requireAction } from "@/lib/backend/session";
 import { can } from "@/lib/permissions";
 import type { Company } from "@/lib/types";
+import { setCurrentNdaStatus } from "@/lib/backend/nda-status-sync";
 import type { CompanyQuery } from "@/lib/mock-services/companyService";
 import { companyToDTO, companyWriteData } from "./company.mapper";
 
@@ -56,8 +57,14 @@ export async function getCompany(id: string): Promise<Company | undefined> {
 
 export async function createCompany(input: Company): Promise<Company> {
   const actor = await requireAction("company.create");
-  const row = await prisma.company.create({
-    data: { ...companyWriteData(input, actor.id), id: input.id, createdById: actor.id },
+  const row = await prisma.$transaction(async (tx) => {
+    const created = await tx.company.create({
+      data: { ...companyWriteData(input, actor.id), id: input.id, createdById: actor.id },
+    });
+    if (input.ndaStatus !== "not_required") {
+      await setCurrentNdaStatus(tx, created.id, input.ndaStatus, actor.id);
+    }
+    return created;
   });
   return companyToDTO(row);
 }
@@ -78,8 +85,19 @@ export async function updateCompany(id: string, patch: Partial<Company>): Promis
   // so we don't confirm the row exists).
   const existing = await prisma.company.findFirst({ where: { AND: [await scopeWhere(), { id }] } });
   if (!existing) return undefined;
-  const merged: Company = { ...companyToDTO(existing), ...patch };
-  const row = await prisma.company.update({ where: { id }, data: companyWriteData(merged, actor.id) });
+  const requestedNdaStatus = actor.kind === "internal" ? patch.ndaStatus : undefined;
+  const merged: Company = {
+    ...companyToDTO(existing),
+    ...patch,
+    ndaStatus: requestedNdaStatus ?? companyToDTO(existing).ndaStatus,
+  };
+  const row = await prisma.$transaction(async (tx) => {
+    const updated = await tx.company.update({ where: { id }, data: companyWriteData(merged, actor.id) });
+    if (requestedNdaStatus) {
+      await setCurrentNdaStatus(tx, id, requestedNdaStatus, actor.id);
+    }
+    return updated;
+  });
   return companyToDTO(row);
 }
 
