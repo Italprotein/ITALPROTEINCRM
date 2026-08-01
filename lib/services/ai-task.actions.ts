@@ -15,7 +15,7 @@ import {
 } from "@/lib/backend/gmail";
 import { runGmailSync } from "@/lib/backend/gmail-sync";
 import { prisma } from "@/lib/backend/prisma";
-import { checkRateLimit, clientIpFromHeaders } from "@/lib/backend/rate-limit";
+import { checkRateLimit, clientIpFromHeaders, peekRateLimit } from "@/lib/backend/rate-limit";
 import { requireSection, requireSectionEdit } from "@/lib/backend/session";
 import type { Task } from "@/lib/types";
 import { taskToDTO } from "./task.mapper";
@@ -32,7 +32,7 @@ type AiTaskError =
 
 export type GenerateAiTasksResult =
   | { ok: true; tasks: Task[]; consideredEmails: number }
-  | { ok: false; error: AiTaskError };
+  | { ok: false; error: AiTaskError; retryAfterSeconds?: number };
 
 export type CreateAiDraftResult =
   | { ok: true; draftId: string; gmailUrl: string }
@@ -57,6 +57,15 @@ function dueDate(candidate: string, today: string): Date {
   return new Date(`${safe}T12:00:00.000Z`);
 }
 
+/** One inbox pass per member per day. The window key is shared with the UI hint. */
+const DAILY_TASKS_LIMIT_KEY = (userId: string) => `ai-tasks-daily:${userId}`;
+const DAILY_TASKS_WINDOW_SECONDS = 24 * 60 * 60;
+
+const TASK_NOTE_LABELS = {
+  en: { source: "Source email", evidence: "AI evidence" },
+  it: { source: "Email di origine", evidence: "Evidenza AI" },
+} as const;
+
 /** Sync the shared inbox, identify today's unfinished actions, and persist them as tasks. */
 export async function generateAiTasksFromInbox(
   locale: "en" | "it",
@@ -65,8 +74,12 @@ export async function generateAiTasksFromInbox(
   await requireSection("communications");
   if (!isCrmTaskAiConfigured()) return { ok: false, error: "openai_not_configured" };
 
-  const limit = await checkRateLimit(`ai-tasks:${user.id}`, 8, 60 * 60);
-  if (!limit.ok) return { ok: false, error: "rate_limited" };
+  // Peek only: the daily slot is consumed after a SUCCESSFUL run (below), so a
+  // provider outage or an empty inbox never burns the member's one pass a day.
+  const daily = await peekRateLimit(DAILY_TASKS_LIMIT_KEY(user.id), 1, DAILY_TASKS_WINDOW_SECONDS);
+  if (!daily.ok) {
+    return { ok: false, error: "rate_limited", retryAfterSeconds: daily.retryAfterSeconds };
+  }
 
   // Best effort: stored mail remains usable if Google is temporarily unavailable.
   await runGmailSync({ maxMessages: 100 }).catch(() => undefined);
@@ -83,6 +96,7 @@ export async function generateAiTasksFromInbox(
     take: 80,
     select: {
       id: true,
+      gmailThreadId: true,
       fromAddress: true,
       fromName: true,
       subject: true,
@@ -105,12 +119,20 @@ export async function generateAiTasksFromInbox(
     : [];
   const alreadyTracked = new Set(existing.map((task) => task.relatedId).filter(Boolean));
   const freeTierMode = getAiProviderName() === "groq";
-  // Groq's free plan has a much smaller per-minute token allowance. The latest
-  // six untracked messages provide a useful daily pass without sending a batch
-  // that is likely to be rejected before the model can create any tasks.
-  const available = inbound
+  // One email per Gmail thread (the newest — the list is already sorted desc):
+  // older messages in the same conversation restate the same pending action and
+  // would only spend the token budget on duplicates.
+  const seenThreads = new Set<string>();
+  const latestPerThread = inbound.filter((email) => {
+    if (seenThreads.has(email.gmailThreadId)) return false;
+    seenThreads.add(email.gmailThreadId);
+    return true;
+  });
+  // Groq's free plan has a small per-minute token allowance; eight trimmed
+  // messages stay inside it while covering the day's distinct conversations.
+  const available = latestPerThread
     .filter((email) => !alreadyTracked.has(email.id))
-    .slice(0, freeTierMode ? 6 : 60);
+    .slice(0, freeTierMode ? 8 : 60);
   if (!available.length) return { ok: true, tasks: [], consideredEmails: 0 };
 
   try {
@@ -127,7 +149,7 @@ export async function generateAiTasksFromInbox(
         fromName: email.fromName,
         subject: email.subject,
         companyName: email.lead?.companyName,
-        body: (email.bodyText ?? "").slice(0, freeTierMode ? 2_400 : 6_000),
+        body: (email.bodyText ?? "").slice(0, freeTierMode ? 2_200 : 6_000),
       })),
     });
 
@@ -169,10 +191,11 @@ export async function generateAiTasksFromInbox(
         ? companyByName.get(source.lead.companyName.toLocaleLowerCase())
         : undefined;
       const sourceLabel = `${source.subject ?? "(no subject)"} — ${source.fromName ?? source.fromAddress}`;
+      const noteLabels = TASK_NOTE_LABELS[locale === "it" ? "it" : "en"];
       const row = await prisma.task.create({
         data: {
           title: candidate.title,
-          description: `${candidate.description}\n\nSource email: ${sourceLabel}\nAI evidence: ${candidate.reason}`.slice(0, 2_500),
+          description: `${candidate.description}\n\n${noteLabels.source}: ${sourceLabel}\n${noteLabels.evidence}: ${candidate.reason}`.slice(0, 2_500),
           type: candidate.type,
           priority: candidate.priority,
           source: "system",
@@ -190,6 +213,9 @@ export async function generateAiTasksFromInbox(
       });
       created.push(taskToDTO(row));
     }
+
+    // The model pass ran and its output is persisted — now spend today's slot.
+    await checkRateLimit(DAILY_TASKS_LIMIT_KEY(user.id), 1, DAILY_TASKS_WINDOW_SECONDS);
 
     await prisma.auditEvent
       .create({

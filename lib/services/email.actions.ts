@@ -44,6 +44,21 @@ export async function listEmailMessages(
   return rows.map(emailMessageToDTO);
 }
 
+/** Mailbox-wide counts for dashboards — the stored mail, not just one page of it. */
+export async function emailMessageStatistics(): Promise<{
+  total: number;
+  inbound: number;
+  outbound: number;
+}> {
+  await requireInternal();
+  const grouped = await prisma.emailMessage.groupBy({ by: ["direction"], _count: { _all: true } });
+  const of = (direction: string) =>
+    grouped.find((g) => g.direction === direction)?._count._all ?? 0;
+  const inbound = of("inbound");
+  const outbound = of("outbound");
+  return { total: inbound + outbound, inbound, outbound };
+}
+
 export async function syncGmailInbox(): Promise<GmailSyncResult> {
   // Triggered from both /admin/communications and /admin/settings, so it stays
   // open to every internal role rather than being gated on either section.

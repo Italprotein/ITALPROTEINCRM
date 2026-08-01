@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { activityService, companyService } from '@/lib/mock-services';
+import { emailMessageStatistics } from '@/lib/services/email.actions';
+import { getLinkedCalendarEvents, type LinkedCalendarEvent } from '@/lib/services/google.actions';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
 import { canEdit } from '@/lib/permissions';
@@ -62,11 +64,20 @@ export default function ActivitiesPage() {
   const [q, setQ] = React.useState('');
   const [fType, setFType] = React.useState(ALL);
   const [logOpen, setLogOpen] = React.useState(false);
+  // Live sources beside the logged activities: the shared mailbox and the
+  // linked Google Calendar. Both fall back to null (mock mode, no session,
+  // not connected) — the cards then say so instead of asserting a zero.
+  const [mailboxStats, setMailboxStats] = React.useState<{ total: number; inbound: number; outbound: number } | null>(null);
+  const [googleCal, setGoogleCal] = React.useState<{ events: LinkedCalendarEvent[]; connected: boolean } | null>(null);
 
   React.useEffect(() => {
     activityService.list().then((l) => setRows([...l].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())));
     activityService.getStatistics().then(setStats);
     companyService.list().then((l) => setCompanyMap(new Map(l.map((c) => [c.id, c]))));
+    emailMessageStatistics().then(setMailboxStats).catch(() => setMailboxStats(null));
+    getLinkedCalendarEvents()
+      .then((result) => setGoogleCal({ events: result.events, connected: result.connected }))
+      .catch(() => setGoogleCal({ events: [], connected: false }));
   }, []);
 
   const userName = (id?: string) => {
@@ -100,6 +111,19 @@ export default function ActivitiesPage() {
 
   const byType = stats?.byType ?? ({} as Record<ActivityType, number>);
 
+  // Meetings this month: CRM-logged meeting activities plus linked Google
+  // Calendar events. The two sources have no shared id, so the hint shows the
+  // breakdown instead of pretending they were deduplicated.
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const loggedMeetingsThisMonth = (rows ?? []).filter(
+    (a) => a.type === 'meeting' && new Date(a.at) >= monthStart,
+  ).length;
+  const googleMeetingsThisMonth = googleCal?.connected
+    ? googleCal.events.filter((e) => new Date(e.start) >= monthStart).length
+    : 0;
+
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
@@ -110,9 +134,31 @@ export default function ActivitiesPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t('statTotal')} value={stats?.total ?? 0} icon={ActivityIcon} tone="gold" />
-        <StatCard label={t('statEmails')} value={byType.email ?? 0} icon={Mail} tone="info" delay={0.05} />
+        <StatCard
+          label={t('statEmails')}
+          value={mailboxStats ? mailboxStats.total : byType.email ?? 0}
+          hint={
+            mailboxStats
+              ? t('emailsMailboxHint', { inbound: mailboxStats.inbound, outbound: mailboxStats.outbound })
+              : t('emailsLoggedHint')
+          }
+          icon={Mail}
+          tone="info"
+          delay={0.05}
+        />
         <StatCard label={t('statCalls')} value={byType.call ?? 0} icon={Phone} tone="success" delay={0.1} />
-        <StatCard label={t('statMeetings')} value={byType.meeting ?? 0} icon={Users} tone="warning" delay={0.15} />
+        <StatCard
+          label={t('statMeetings')}
+          value={loggedMeetingsThisMonth + googleMeetingsThisMonth}
+          hint={
+            googleCal?.connected
+              ? t('meetingsBreakdownHint', { logged: loggedMeetingsThisMonth, google: googleMeetingsThisMonth })
+              : t('meetingsNoGoogleHint')
+          }
+          icon={Users}
+          tone="warning"
+          delay={0.15}
+        />
       </div>
 
       <Card>

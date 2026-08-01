@@ -57,7 +57,9 @@ export function userToDTO(u: UserWithRelations): StaffMember {
       ? `/api/users/${encodeURIComponent(u.id)}/avatar?v=${u.updatedAt.getTime()}`
       : undefined,
     status: toStaffStatus(u.status),
-    lastActiveAt: (u.lastLoginAt ?? u.createdAt).toISOString(),
+    // No fallback to createdAt: an invited-but-never-signed-in member must not
+    // appear "active" the day their row was created.
+    lastActiveAt: u.lastLoginAt?.toISOString(),
     phone: undefined, // no column on User; not persisted
     assignedCompanyIds: u.ownedCompanies.map((c) => c.id),
   };

@@ -154,7 +154,7 @@ export default function PortalRequestsPage() {
     };
   }, [ready, companyId, account?.email, account?.id]);
 
-  const canSend = role ? can(role, 'portal.request_meeting') || true : true;
+  const canSend = role ? can(role, 'portal.request_meeting') : false;
 
   const owner: StaffMember | null = company ? getStaff(company.accountOwnerId) ?? null : null;
 
@@ -219,14 +219,14 @@ export default function PortalRequestsPage() {
     attachments: AttachmentRef[];
   }) {
     if (!companyId) return;
-    const seq = String(7 + threads.length).padStart(4, '0');
     const at = nowIso();
     const description = payload.relatedRef
       ? `${payload.message}\n\nRelated: ${payload.relatedRef}`
       : payload.message;
+    // reference stays empty here — the service mints the collision-safe one.
     const newReq: SupportRequest = {
       id: uid('rq'),
-      reference: `REQ-2026-${seq}`,
+      reference: '',
       companyId,
       contactId: meContact?.id,
       subject: payload.subject.trim(),
@@ -240,16 +240,23 @@ export default function PortalRequestsPage() {
       createdAt: at,
     };
 
-    await new Promise((r) => setTimeout(r, 500));
-    await supportService.create(newReq);
-
-    setThreads((prev) => [newReq, ...prev].sort(sortByRecent));
-    setSelectedId(newReq.id);
-    setComposeOpen(false);
-    toast({
-      title: 'Request sent',
-      description: `${newReq.reference} is on its way${owner ? ` to ${owner.firstName}` : ''}. We'll reply soon.`,
-    });
+    try {
+      const created = await supportService.create(newReq);
+      setThreads((prev) => [created, ...prev].sort(sortByRecent));
+      setSelectedId(created.id);
+      setComposeOpen(false);
+      toast({
+        title: 'Request sent',
+        description: `${created.reference} is on its way${owner ? ` to ${owner.firstName}` : ''}. We'll reply soon.`,
+      });
+    } catch {
+      toast({
+        variant: 'danger',
+        title: 'Message not sent',
+        description: 'The request could not be saved. Please try again.',
+      });
+      throw new Error('SUPPORT_CREATE_FAILED');
+    }
   }
 
   /* ── Loading ── */
@@ -296,34 +303,37 @@ export default function PortalRequestsPage() {
         }
       />
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Open" value={stats.open} icon={Inbox} tone="info" hint="Being handled by our team" />
-        <StatCard
-          label="Waiting on you"
-          value={stats.waiting}
-          icon={Clock}
-          tone="warning"
-          hint="Needs your reply"
-          delay={0.05}
-        />
-        <StatCard
-          label="Resolved"
-          value={stats.resolved}
-          icon={CheckCircle2}
-          tone="success"
-          hint="Closed conversations"
-          delay={0.1}
-        />
-        <StatCard
-          label="Total threads"
-          value={stats.total}
-          icon={MessagesSquare}
-          tone="gold"
-          hint="All time"
-          delay={0.15}
-        />
-      </div>
+      {/* Stats — only once a conversation exists; below, the empty state
+          stands alone instead of under a row of zeros. */}
+      {threads.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Open" value={stats.open} icon={Inbox} tone="info" hint="Being handled by our team" />
+          <StatCard
+            label="Waiting on you"
+            value={stats.waiting}
+            icon={Clock}
+            tone="warning"
+            hint="Needs your reply"
+            delay={0.05}
+          />
+          <StatCard
+            label="Resolved"
+            value={stats.resolved}
+            icon={CheckCircle2}
+            tone="success"
+            hint="Closed conversations"
+            delay={0.1}
+          />
+          <StatCard
+            label="Total threads"
+            value={stats.total}
+            icon={MessagesSquare}
+            tone="gold"
+            hint="Your conversations, all time"
+            delay={0.15}
+          />
+        </div>
+      )}
 
       {threads.length === 0 ? (
         <EmptyState
@@ -652,15 +662,21 @@ function ComposeDialog({
   async function submit() {
     if (!valid || !canSend) return;
     setSubmitting(true);
-    await onCreate({
-      subject,
-      category,
-      priority,
-      message,
-      relatedRef: relatedLabel,
-      attachments,
-    });
-    // Parent closes the dialog on success.
+    try {
+      await onCreate({
+        subject,
+        category,
+        priority,
+        message,
+        relatedRef: relatedLabel,
+        attachments,
+      });
+      // Parent closes the dialog on success.
+    } finally {
+      // On failure the dialog stays open — the button must not stay stuck
+      // on "Sending…" with the user's message trapped behind it.
+      setSubmitting(false);
+    }
   }
 
   return (

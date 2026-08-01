@@ -13,17 +13,22 @@ import {
   type GmailMessage,
 } from "./gmail";
 import type { GmailSyncResult } from "@/lib/types";
-import { isItalproteinNdaDocumentName } from "./nda-classification";
+import {
+  fileExtensionOf,
+  pickNdaAttachments,
+  type NdaMatchConfidence,
+} from "./nda-classification";
 import { firstMentionedLeadMember } from "./lead-attribution";
 
 // Gmail inbox sync engine. For every new inbox message it:
 //  1. stores an EmailMessage row (dedupe key: gmailMessageId),
-//  2. auto-files "NDA" attachments as Document + DocumentVersion + NDA rows,
+//  2. auto-files ITALPROTEIN NDA attachments as Document (+ version on the
+//     company's open NDA, or a new NDA row) — always as under_review, never
+//     signed: only a staff member may promote signature state,
 //  3. attributes the sender's company NAME to the Italprotein member whose
 //     name occurs first in the counterparty's incoming message.
 
 const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
-const NDA_FILE_EXTENSIONS = new Set(["pdf", "doc", "docx", "rtf", "odt"]);
 
 const FREEMAIL_DOMAINS = new Set([
   "gmail.com",
@@ -192,25 +197,6 @@ async function createCompanyFromEmail(options: {
 
 // ── NDA detection + filing ─────────────────────────────────────────────────
 
-function fileExtension(filename: string): string {
-  return filename.split(".").pop()?.toLowerCase() ?? "";
-}
-
-function pickNdaAttachment(
-  attachments: GmailAttachmentMeta[],
-  subject: string,
-  body: string,
-): GmailAttachmentMeta | null {
-  const docs = attachments.filter((a) => NDA_FILE_EXTENSIONS.has(fileExtension(a.filename)));
-  const byName = docs.find((a) => isItalproteinNdaDocumentName(a.filename));
-  if (byName) return byName;
-  const mailText = `${subject}\n${body}`;
-  if (/\bNDA\b/i.test(mailText) && /ITAL[\s._-]*PROTEIN/i.test(mailText)) {
-    return docs[0] ?? null;
-  }
-  return null;
-}
-
 async function nextNdaReference(): Promise<string> {
   const year = new Date().getFullYear();
   for (let i = 0; i < 6; i += 1) {
@@ -221,20 +207,33 @@ async function nextNdaReference(): Promise<string> {
   return `NDA-${year}-${Date.now().toString(36).toUpperCase()}`;
 }
 
-async function fileNdaFromAttachment(options: {
+/** Store the attachment bytes as a Document (+Attachment) and return both ids. */
+async function storeNdaDocument(options: {
   auth: GmailAuth;
   message: GmailMessage;
   attachment: GmailAttachmentMeta;
-  companyId: string;
-  senderEmail: string;
+  companyId: string | null;
   emailDate: Date;
-}): Promise<string | null> {
-  const { auth, message, attachment, companyId, senderEmail, emailDate } = options;
+  description: string;
+}): Promise<{ documentId: string; storageKey: string; sizeBytes: number } | null> {
+  const { auth, message, attachment, companyId, emailDate, description } = options;
   if (attachment.sizeBytes > MAX_ATTACHMENT_BYTES) return null;
 
+  // Cheap idempotency: the same file arriving again (forward, re-send, second
+  // sync overlap window) must not produce a second Document row.
+  const duplicate = await prisma.document.findFirst({
+    where: {
+      companyId,
+      category: "nda",
+      title: attachment.filename,
+      sizeBytes: attachment.sizeBytes,
+    },
+    select: { id: true },
+  });
+  if (duplicate) return null;
+
   const bytes = await getAttachmentBytes(auth, message.id, attachment.attachmentId);
-  const reference = await nextNdaReference();
-  const ext = fileExtension(attachment.filename) || "pdf";
+  const ext = fileExtensionOf(attachment.filename) || "pdf";
 
   const document = await prisma.document.create({
     data: {
@@ -246,7 +245,7 @@ async function fileNdaFromAttachment(options: {
       mimeType: attachment.mimeType,
       sizeBytes: bytes.length,
       uploadedAt: emailDate,
-      description: `Received by email from ${senderEmail} (Gmail sync).`,
+      description,
     },
   });
   const stored = await prisma.attachment.create({
@@ -264,10 +263,87 @@ async function fileNdaFromAttachment(options: {
   const storageKey = `db:attachment:${stored.id}`;
   await prisma.attachment.update({ where: { id: stored.id }, data: { storageKey } });
   await prisma.document.update({ where: { id: document.id }, data: { storageKey } });
+  return { documentId: document.id, storageKey, sizeBytes: bytes.length };
+}
+
+/**
+ * Company.ndaStatus is the portal's access gate, so the sync may only push it
+ * FORWARD into review — never sideways or back from a signature state a staff
+ * member already asserted.
+ */
+async function advanceCompanyNdaStatus(companyId: string, emailDate: Date): Promise<void> {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { ndaStatus: true },
+  });
+  const advanceable =
+    !company?.ndaStatus || ["not_required", "to_prepare", "draft"].includes(company.ndaStatus);
+  await prisma.company
+    .update({
+      where: { id: companyId },
+      data: {
+        ...(advanceable ? { ndaStatus: "under_review" as const } : {}),
+        lastActivityAt: emailDate,
+      },
+    })
+    .catch(() => undefined);
+}
+
+/**
+ * File one matched attachment for a known company. If the company already has
+ * an open NDA, the file lands as its next DocumentVersion instead of minting a
+ * duplicate NDA row. Status is under_review, always — never signed.
+ */
+async function fileNdaFromAttachment(options: {
+  auth: GmailAuth;
+  message: GmailMessage;
+  attachment: GmailAttachmentMeta;
+  confidence: NdaMatchConfidence;
+  companyId: string;
+  senderEmail: string;
+  emailDate: Date;
+}): Promise<{ ndaId: string; createdNda: boolean } | null> {
+  const { auth, message, attachment, confidence, companyId, senderEmail, emailDate } = options;
+
+  const stored = await storeNdaDocument({
+    auth,
+    message,
+    attachment,
+    companyId,
+    emailDate,
+    description:
+      confidence === "high"
+        ? `Received by email from ${senderEmail} (Gmail sync).`
+        : `Received by email from ${senderEmail} (Gmail sync; matched via subject — verify).`,
+  });
+  if (!stored) return null;
+
+  const open = await prisma.nDA.findFirst({
+    where: { companyId, status: { notIn: ["expired", "terminated"] } },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, _count: { select: { versions: true } } },
+  });
+
+  if (open) {
+    await prisma.documentVersion.create({
+      data: {
+        ndaId: open.id,
+        documentId: stored.documentId,
+        version: `v1.${open._count.versions}`,
+        versionDate: emailDate,
+        note: `Received via email from ${senderEmail}`,
+        storageKey: stored.storageKey,
+        mimeType: attachment.mimeType,
+        sizeBytes: stored.sizeBytes,
+      },
+    });
+    await advanceCompanyNdaStatus(companyId, emailDate);
+    return { ndaId: open.id, createdNda: false };
+  }
 
   const nda = await prisma.nDA.create({
     data: {
-      reference,
+      reference: await nextNdaReference(),
       companyId,
       type: "mutual",
       status: "under_review",
@@ -281,25 +357,51 @@ async function fileNdaFromAttachment(options: {
             version: "v1.0",
             versionDate: emailDate,
             note: `Received via email from ${senderEmail}`,
-            documentId: document.id,
-            storageKey,
+            documentId: stored.documentId,
+            storageKey: stored.storageKey,
             mimeType: attachment.mimeType,
-            sizeBytes: bytes.length,
+            sizeBytes: stored.sizeBytes,
           },
         ],
       },
     },
   });
+  await advanceCompanyNdaStatus(companyId, emailDate);
+  return { ndaId: nda.id, createdNda: true };
+}
 
-  // Keep the denormalized Company.ndaStatus in sync (portal gating reads it).
-  await prisma.company
-    .update({
-      where: { id: companyId },
-      data: { ndaStatus: "under_review", lastActivityAt: emailDate },
+/**
+ * NDA from a sender we cannot attribute (freemail, no usable domain): keep the
+ * file, skip the guesswork. No company row, no NDA row — an internal-class
+ * Document plus an audit event that lands it in the review queue.
+ */
+async function parkUnattributedNda(options: {
+  auth: GmailAuth;
+  message: GmailMessage;
+  attachment: GmailAttachmentMeta;
+  senderEmail: string;
+  emailDate: Date;
+}): Promise<void> {
+  const { auth, message, attachment, senderEmail, emailDate } = options;
+  const stored = await storeNdaDocument({
+    auth,
+    message,
+    attachment,
+    companyId: null,
+    emailDate,
+    description: `Unattributed NDA from ${senderEmail} — needs company assignment.`,
+  });
+  if (!stored) return;
+  await prisma.auditEvent
+    .create({
+      data: {
+        action: "nda.auto_file_unattributed",
+        entityType: "document",
+        entityId: stored.documentId,
+        summary: `NDA-named attachment "${attachment.filename}" from ${senderEmail} filed without a company — assign manually.`,
+      },
     })
     .catch(() => undefined);
-
-  return nda.id;
 }
 
 /**
@@ -536,46 +638,64 @@ export async function runGmailSync(options?: { maxMessages?: number }): Promise<
         }
       }
 
-      // ── NDA auto-filing.
+      // ── NDA auto-filing: every matched attachment, company resolved once.
       let ndaId: string | null = null;
       let companyId: string | null = null;
-      const ndaAttachment = pickNdaAttachment(attachments, subject, body);
-      if (ndaAttachment) {
+      let ndaDetected = false;
+      const ndaMatches = pickNdaAttachments(attachments, subject);
+      if (ndaMatches.length) {
+        ndaDetected = true;
         companyId = await resolveCompanyId(from.email, senderDomain);
-        if (!companyId) {
+        if (!companyId && senderDomain && !isFreemail(senderDomain)) {
+          // A real organisation domain we simply have not met yet.
           const ownerId = admin?.id ?? (await fallbackOwnerId(admins));
           const name = companyName ?? from.name ?? from.email.split("@")[0];
           if (ownerId && name) {
             companyId = await createCompanyFromEmail({
               name,
-              domain: senderDomain && !isFreemail(senderDomain) ? senderDomain : null,
+              domain: senderDomain,
               ownerUserId: ownerId,
               emailDate,
               personName: from.name,
             });
           }
         }
-        if (companyId) {
-          ndaId = await fileNdaFromAttachment({
-            auth,
-            message,
-            attachment: ndaAttachment,
-            companyId,
-            senderEmail: from.email,
-            emailDate,
-          });
-          if (ndaId) result.ndasCreated += 1;
+        for (const match of ndaMatches) {
+          if (companyId) {
+            const filed = await fileNdaFromAttachment({
+              auth,
+              message,
+              attachment: match.attachment,
+              confidence: match.confidence,
+              companyId,
+              senderEmail: from.email,
+              emailDate,
+            });
+            if (filed) {
+              ndaId = filed.ndaId;
+              if (filed.createdNda) result.ndasCreated += 1;
+            }
+          } else {
+            // Freemail / unattributable sender: keep the file, skip the guess.
+            await parkUnattributedNda({
+              auth,
+              message,
+              attachment: match.attachment,
+              senderEmail: from.email,
+              emailDate,
+            });
+          }
         }
       }
 
-      if (admin || leadId || ndaId || companyId) {
+      if (admin || leadId || ndaId || companyId || ndaDetected) {
         await prisma.emailMessage.update({
           where: { id: row.id },
           data: {
             matchedAdminUserId: admin?.id ?? null,
             leadId,
             ndaId,
-            ndaDetected: Boolean(ndaId),
+            ndaDetected,
             companyId,
           },
         });

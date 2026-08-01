@@ -40,6 +40,7 @@ import {
   type Locale,
 } from '@/lib/types';
 import { getLabel } from '@/lib/labels';
+import { profileCompletion } from '@/lib/profile-completion';
 import { uid } from '@/lib/utils';
 
 import { PageHeader } from '@/components/shared/page-header';
@@ -201,24 +202,8 @@ function validate(form: ProfileForm): Partial<Record<keyof ProfileForm, string>>
   return errors;
 }
 
-/* Profile completion: weighted on the fields a client can fill in. */
-function completion(form: ProfileForm): number {
-  const checks: boolean[] = [
-    !!form.legalName.trim(),
-    !!form.tradingName.trim(),
-    !!form.mainActivity.trim(),
-    !!form.website.trim(),
-    !!form.vatNumber.trim(),
-    !!form.hqLine1.trim() && !!form.hqCity.trim() && !!form.hqCountry.trim(),
-    form.billingSameAsHq || (!!form.billingLine1.trim() && !!form.billingCity.trim()),
-    !!form.shippingLine1.trim() && !!form.shippingCity.trim(),
-    form.applicationInterests.length > 0,
-    !!form.preferredCourier.trim(),
-    !!form.deliveryInstructions.trim(),
-  ];
-  const done = checks.filter(Boolean).length;
-  return Math.round((done / checks.length) * 100);
-}
+/* Profile completion lives in lib/profile-completion.ts — one computation
+   shared with the portal dashboard, always from the persisted Company. */
 
 /* ─────────────────────────────── Page ─────────────────────────────── */
 
@@ -338,8 +323,10 @@ export default function PortalProfilePage() {
       postalCode: form.hqPostalCode.trim() || undefined,
       country: form.hqCountry.trim(),
     };
-    const billing: Address | undefined = form.billingSameAsHq
-      ? undefined
+    // "Same as headquarters" stores an explicit copy: an asserted answer must
+    // persist as data, or the profile forever shows "billing address missing".
+    const billing: Address = form.billingSameAsHq
+      ? { ...hq, label: 'Billing' }
       : {
           label: 'Billing',
           line1: form.billingLine1.trim(),
@@ -456,7 +443,9 @@ export default function PortalProfilePage() {
     );
   }
 
-  const pct = completion(form);
+  // From the PERSISTED company (shared computation with the dashboard) — the
+  // bar must not move on keystrokes or lie after a failed save.
+  const pct = profileCompletion(company, contacts.length).percent;
   const disabled = !canEdit;
 
   return (

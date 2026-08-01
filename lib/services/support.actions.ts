@@ -42,16 +42,33 @@ export async function getSupportRequest(id: string): Promise<SupportRequest | un
 export async function createSupportRequest(input: SupportRequest): Promise<SupportRequest> {
   // Portal-originated write: clients raise tickets from /portal/requests.
   const user = await requireUser();
-  const row = await prisma.supportRequest.create({
-    data: {
-      ...supportWriteData(input, user.id),
-      id: input.id,
-      createdById: user.id,
-      messages: { create: conversationCreateData(input) },
-    },
-    include: { messages: true },
-  });
-  return supportToDTO(row);
+  // The reference is SERVER-minted — a client-computed sequence collides the
+  // moment two companies both send their first message. Retry on the unique
+  // constraint instead of pre-checking (pre-checks race under concurrency).
+  const year = new Date().getFullYear();
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const reference =
+      attempt < 5
+        ? `REQ-${year}-${String(Math.floor(1000 + Math.random() * 9000))}`
+        : `REQ-${year}-${Date.now().toString(36).toUpperCase()}`;
+    try {
+      const row = await prisma.supportRequest.create({
+        data: {
+          ...supportWriteData({ ...input, reference }, user.id),
+          id: input.id,
+          createdById: user.id,
+          messages: { create: conversationCreateData(input) },
+        },
+        include: { messages: true },
+      });
+      return supportToDTO(row);
+    } catch (error) {
+      const uniqueCollision =
+        error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+      if (!uniqueCollision) throw error;
+    }
+  }
+  throw new Error("SUPPORT_REFERENCE_EXHAUSTED");
 }
 
 export async function updateSupportRequest(

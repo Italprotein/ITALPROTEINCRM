@@ -8,7 +8,17 @@ export const supportService = {
   list: () => repo.list(),
   get: (id: string) => repo.get(id),
   getById: (id: string) => repo.get(id),
-  create: (r: SupportRequest) => repo.create(r),
+  // The reference is minted here, not by the caller — mirrors the server
+  // action, so a client-computed sequence can never collide.
+  async create(r: SupportRequest): Promise<SupportRequest> {
+    const taken = new Set((await repo.list()).map((x) => x.reference));
+    const year = new Date().getFullYear();
+    let reference = '';
+    do {
+      reference = `REQ-${year}-${String(Math.floor(1000 + Math.random() * 9000))}`;
+    } while (taken.has(reference));
+    return repo.create({ ...r, reference });
+  },
   update: (id: string, patch: Partial<SupportRequest>) => repo.update(id, patch),
   remove: (id: string) => repo.remove(id),
   reset: () => repo.reset(),

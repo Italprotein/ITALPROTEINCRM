@@ -101,17 +101,20 @@ export default function PortalProjectsPage() {
         subtitle="Your co-development work with Italprotein, from concept through to launch."
       />
 
-      <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StaggerItem>
-          <StatCard label="Active projects" value={activeCount} icon={FlaskConical} tone="info" hint="In development with our team" />
-        </StaggerItem>
-        <StaggerItem>
-          <StatCard label="Products in development" value={inDevelopment} icon={Hammer} tone="gold" hint="Formulations being refined" />
-        </StaggerItem>
-        <StaggerItem>
-          <StatCard label="Launched products" value={launchedProducts} icon={Rocket} tone="success" hint="Live on the market" />
-        </StaggerItem>
-      </Stagger>
+      {/* The empty state below stands alone — no row of asserted zeros above it. */}
+      {!hasNothing && (
+        <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StaggerItem>
+            <StatCard label="Active projects" value={activeCount} icon={FlaskConical} tone="info" hint="In development with our team" />
+          </StaggerItem>
+          <StaggerItem>
+            <StatCard label="Products in development" value={inDevelopment} icon={Hammer} tone="gold" hint="Formulations being refined" />
+          </StaggerItem>
+          <StaggerItem>
+            <StatCard label="Launched products" value={launchedProducts} icon={Rocket} tone="success" hint="Live on the market" />
+          </StaggerItem>
+        </Stagger>
+      )}
 
       {hasNothing ? (
         <EmptyState
@@ -174,6 +177,9 @@ export default function PortalProjectsPage() {
 }
 
 function ProjectCard({ project, locale }: { project: ApplicationProject; locale: Locale }) {
+  // "On hold" is a state, not a point on the pipeline — the badge already says
+  // it, and a half-full bar would invent progress that never happened.
+  const onHold = project.developmentStage === 'on_hold';
   const progress = getStageProgress(project.developmentStage);
 
   return (
@@ -196,9 +202,9 @@ function ProjectCard({ project, locale }: { project: ApplicationProject; locale:
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Development progress</span>
-            <span className="font-medium tabular text-foreground">{progress}%</span>
+            <span className="font-medium tabular text-foreground">{onHold ? 'Paused' : `${progress}%`}</span>
           </div>
-          <Progress value={progress} />
+          {!onHold && <Progress value={progress} />}
         </div>
 
         {project.objective && (

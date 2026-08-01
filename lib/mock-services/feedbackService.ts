@@ -28,14 +28,16 @@ export const feedbackService = {
       if (f.overallResult) byResult[f.overallResult] = (byResult[f.overallResult] ?? 0) + 1;
     }
     const rated = all.filter((f) => typeof f.overallRating === 'number');
-    const avgRating = rated.length
+    // null, not 0: "no ratings yet" must not display as a 0/5 score.
+    const avgRating: number | null = rated.length
       ? Math.round((rated.reduce((s, f) => s + (f.overallRating ?? 0), 0) / rated.length) * 10) / 10
-      : 0;
+      : null;
     return {
       total: all.length,
       byStatus,
       byResult,
       avgRating,
+      ratedCount: rated.length,
       open: all.filter((f) => f.status !== 'resolved').length,
       positive: all.filter((f) => f.overallResult === 'positive').length,
     };

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/backend/prisma';
 import { getCurrentUser } from '@/lib/backend/session';
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/backend/rate-limit';
+import { isApiMode } from '@/lib/data-mode';
 import { assistantAudienceForRole, type AssistantAudience } from '@/lib/ai/assistant-profile';
 import { generateAssistantReply, type AssistantTurn } from '@/lib/ai/assistant-runtime';
 import type { Role } from '@/lib/types';
@@ -26,6 +27,13 @@ const BodySchema = z.object({
   message: z.string().trim().min(1).max(4000),
   threadId: z.string().trim().min(1).max(64).optional(),
   locale: z.enum(['en', 'it']).default('en'),
+  // Read only by the demo (mock-mode) branch below; api mode replays the DB
+  // thread and ignores both fields entirely.
+  history: z
+    .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(4000) }))
+    .max(12)
+    .optional(),
+  mockAudience: z.enum(['internal', 'portal']).optional(),
 });
 
 /** How many turns of history we replay. Bounds both the prompt and the query. */
@@ -48,12 +56,75 @@ interface Actor {
   role: Role | null;
 }
 
+/**
+ * Demo-mode limiter: mock mode has no database, so the DB-backed limiter
+ * cannot run. In-memory is fine here — the branch is unreachable in
+ * production builds (see the isApiMode gate below).
+ */
+const mockWindows = new Map<string, { windowStart: number; count: number }>();
+
+function checkMockRateLimit(ip: string, limit = 20, windowMs = 5 * 60 * 1000): boolean {
+  const now = Date.now();
+  const entry = mockWindows.get(ip);
+  if (!entry || now - entry.windowStart >= windowMs) {
+    mockWindows.set(ip, { windowStart: now, count: 1 });
+    return true;
+  }
+  entry.count += 1;
+  return entry.count <= limit;
+}
+
 export async function POST(request: Request) {
   let body: z.infer<typeof BodySchema>;
   try {
     body = BodySchema.parse(await request.json());
   } catch {
     return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
+  }
+
+  // ── Demo (mock-mode) branch ──────────────────────────────────────────────
+  // Mock mode has no real session and no database, so the persisted-thread
+  // contract below can never be satisfied there. Serve a stateless reply
+  // instead: client-supplied bounded history, nothing stored, nothing audited.
+  // isApiMode is true for EVERY production build (lib/data-mode.ts), so this
+  // branch cannot be reached in production regardless of env misconfiguration.
+  if (!isApiMode) {
+    const ip = clientIpFromHeaders(request.headers);
+    if (!checkMockRateLimit(ip)) {
+      return NextResponse.json(
+        { error: 'rate_limited', retryAfterSeconds: 60 },
+        { status: 429, headers: { 'Retry-After': '60' } },
+      );
+    }
+    try {
+      const reply = await generateAssistantReply({
+        audience: body.mockAudience ?? 'internal',
+        locale: body.locale,
+        history: (body.history ?? []).map((turn) => ({ role: turn.role, content: turn.content })),
+        message: body.message,
+      });
+      return NextResponse.json({
+        threadId: body.threadId ?? `mock-${Date.now().toString(36)}`,
+        audience: body.mockAudience ?? 'internal',
+        stubbed: reply.stubbed,
+        message: {
+          id: `mock-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`,
+          role: 'assistant' as const,
+          content: reply.text,
+          citations: [],
+        },
+      });
+    } catch (error) {
+      const providerStatus = statusFromError(error);
+      const code = error instanceof Error ? error.message : '';
+      if (code === 'AI_PROVIDER_NOT_CONFIGURED' || providerStatus === 401 || providerStatus === 403) {
+        return NextResponse.json({ error: 'assistant_not_configured' }, { status: 503 });
+      }
+      if (providerStatus === 429) {
+        return NextResponse.json({ error: 'provider_rate_limited' }, { status: 429 });
+      }
+      return NextResponse.json({ error: 'assistant_generation_failed' }, { status: 502 });
+    }
   }
 
   const user = await getCurrentUser();

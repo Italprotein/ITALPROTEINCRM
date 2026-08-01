@@ -29,11 +29,10 @@ import type { Company, CompanyType, RelationshipStage, Priority, NDAStatus, Loca
 import { COMPANY_TYPES } from '@/lib/types';
 import { getLabel, COMPANY_TYPE_OPTIONS } from '@/lib/labels';
 import { formatCurrency, formatRelative, flagEmoji } from '@/lib/formatting';
-import { initials, uid } from '@/lib/utils';
+import { cn, initials, uid } from '@/lib/utils';
 import { useRouter } from '@/lib/i18n/navigation';
 
 import { PageHeader } from '@/components/shared/page-header';
-import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
 import { CHART_COLORS } from '@/lib/chart-colors';
 import { DataTable, type Column } from '@/components/ui/data-table';
@@ -659,32 +658,36 @@ export default function CompaniesPage() {
         title={t('pageTitle')}
         subtitle={t('pageSubtitle')}
         actions={
-          <>
-            <Button
-              variant="outline"
-              onClick={() =>
-                toast({
-                  variant: 'info',
-                  title: t('toastExportStartedTitle'),
-                  description: t('toastExportSelectedDescription', { count: filtered.length }),
-                })
-              }
-            >
-              <Download />
-              {t('export')}
+          canCreateCompany ? (
+            <Button variant="gold" onClick={() => setCreateOpen(true)}>
+              <Plus />
+              {t('addCompany')}
             </Button>
-            {canCreateCompany && (
-              <Button variant="gold" onClick={() => setCreateOpen(true)}>
-                <Plus />
-                {t('addCompany')}
-              </Button>
-            )}
-          </>
+          ) : undefined
         }
       />
 
-      {/* Table first — it is the work surface. The KPI row is a summary, so it
-          sits below rather than pushing the list off screen on every visit. */}
+      {/* Book-of-business summary as one slim strip: the table below stays the
+          work surface at full height, and nothing lands under the floating
+          assistant in the bottom corner. */}
+      <div className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border bg-card px-4 py-2.5">
+        {(
+          [
+            { icon: Building2, value: stats?.total, label: t('statTotalCompanies'), cls: 'text-brand-goldDark' },
+            { icon: ActivityIcon, value: stats?.active, label: t('statActive'), cls: 'text-info' },
+            { icon: CheckCircle2, value: stats?.customers, label: t('statCustomers'), cls: 'text-success' },
+            { icon: FileSignature, value: stats?.ndaSigned, label: t('statNdasSigned'), cls: 'text-success' },
+            { icon: Flame, value: stats?.highPriority, label: t('statHighPriority'), cls: 'text-warning-foreground' },
+          ] as const
+        ).map((chip) => (
+          <span key={chip.label} className="flex items-center gap-1.5 text-sm">
+            <chip.icon className={cn('h-4 w-4 shrink-0', chip.cls)} />
+            <span className="font-semibold tabular text-foreground">{chip.value ?? '—'}</span>
+            <span className="text-muted-foreground">{chip.label}</span>
+          </span>
+        ))}
+      </div>
+
       <DataTable<Company>
         className="min-h-0 flex-1"
         data={filtered}
@@ -710,16 +713,6 @@ export default function CompaniesPage() {
         defaultSortDir="desc"
         storageKey="companies-table"
       />
-
-      {/* Summary of the whole book of business — below the list, since the list
-          is what people come here to work with. */}
-      <div className="grid shrink-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <StatCard label={t('statTotalCompanies')} value={stats?.total ?? 0} icon={Building2} tone="gold" />
-        <StatCard label={t('statActive')} value={stats?.active ?? 0} icon={ActivityIcon} tone="info" delay={0.05} />
-        <StatCard label={t('statCustomers')} value={stats?.customers ?? 0} icon={CheckCircle2} tone="success" delay={0.1} />
-        <StatCard label={t('statNdasSigned')} value={stats?.ndaSigned ?? 0} icon={FileSignature} tone="success" delay={0.15} />
-        <StatCard label={t('statHighPriority')} value={stats?.highPriority ?? 0} icon={Flame} tone="warning" delay={0.2} />
-      </div>
 
       <CreateCompanyDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={handleCreate} />
 

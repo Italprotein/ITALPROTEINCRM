@@ -4,6 +4,8 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { ScrollText, CalendarClock, Users } from 'lucide-react';
 import { activityService } from '@/lib/mock-services';
+import { listAuditEvents } from '@/lib/services/audit.actions';
+import { isApiMode } from '@/lib/data-mode';
 import type { Activity } from '@/lib/types';
 import { humanize } from '@/lib/labels';
 import { formatDateTime } from '@/lib/formatting';
@@ -16,12 +18,12 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const ALL = '__all__';
-const TODAY = new Date().toISOString().slice(0, 10);
 
 interface AuditRow {
   id: string;
   at: string;
   actorId?: string;
+  actorName?: string;
   action: string;
   entity: string;
   summary: string;
@@ -35,6 +37,12 @@ export default function AuditPage() {
   const [fAction, setFAction] = React.useState(ALL);
 
   React.useEffect(() => {
+    if (isApiMode) {
+      // The real trail: AuditEvent rows written by the guarded server actions.
+      listAuditEvents().then(setRows).catch(() => setRows([]));
+      return;
+    }
+    // Mock mode has no AuditEvent table — derive a demo log from activities.
     activityService.list().then((acts: Activity[]) => {
       const derived: AuditRow[] = acts.map((a) => ({
         id: 'au_' + a.id,
@@ -48,12 +56,16 @@ export default function AuditPage() {
     });
   }, []);
 
-  const actorName = (id?: string) => {
-    if (!id) return t('systemActor');
-    return nameOf(id, humanize(id.replace('u_', '')));
+  const actorName = (row: { actorId?: string; actorName?: string }) => {
+    if (!row.actorId) return t('systemActor');
+    return nameOf(row.actorId, row.actorName ?? humanize(row.actorId.replace('u_', '')));
   };
 
-  const actors = React.useMemo(() => [...new Set((rows ?? []).map((r) => r.actorId).filter(Boolean) as string[])], [rows]);
+  const actors = React.useMemo(() => {
+    const byId = new Map<string, AuditRow>();
+    for (const r of rows ?? []) if (r.actorId && !byId.has(r.actorId)) byId.set(r.actorId, r);
+    return [...byId.values()];
+  }, [rows]);
   const actions = React.useMemo(() => [...new Set((rows ?? []).map((r) => r.action))], [rows]);
 
   const filtered = React.useMemo(() => {
@@ -65,9 +77,11 @@ export default function AuditPage() {
 
   const stats = React.useMemo(() => {
     const all = rows ?? [];
+    // Read the clock here, not at module scope — "today" must survive midnight.
+    const today = new Date().toISOString().slice(0, 10);
     return {
       total: all.length,
-      today: all.filter((r) => r.at.slice(0, 10) === TODAY).length,
+      today: all.filter((r) => r.at.slice(0, 10) === today).length,
       actors: new Set(all.map((r) => r.actorId).filter(Boolean)).size,
     };
   }, [rows]);
@@ -75,12 +89,12 @@ export default function AuditPage() {
   const columns: Column<AuditRow>[] = [
     { key: 'at', header: t('colTimestamp'), sortable: true, sortValue: (r) => new Date(r.at).getTime(), cell: (r) => <span className="whitespace-nowrap text-sm tabular text-muted-foreground">{formatDateTime(r.at)}</span> },
     {
-      key: 'actor', header: t('colActor'), sortValue: (r) => actorName(r.actorId),
+      key: 'actor', header: t('colActor'), sortValue: (r) => actorName(r),
       cell: (r) => {
         const role = get(r.actorId)?.role;
         return (
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-foreground">{actorName(r.actorId)}</span>
+            <span className="text-sm font-medium text-foreground">{actorName(r)}</span>
             {role && <StatusBadge kind="role" value={role} />}
           </div>
         );
@@ -95,7 +109,7 @@ export default function AuditPage() {
     <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
       <Select value={fActor} onValueChange={setFActor}>
         <SelectTrigger className="h-9 w-full sm:w-[160px]"><SelectValue placeholder={t('filterActorPlaceholder')} /></SelectTrigger>
-        <SelectContent><SelectItem value={ALL}>{t('allActors')}</SelectItem>{actors.map((a) => <SelectItem key={a} value={a}>{actorName(a)}</SelectItem>)}</SelectContent>
+        <SelectContent><SelectItem value={ALL}>{t('allActors')}</SelectItem>{actors.map((a) => <SelectItem key={a.actorId} value={a.actorId!}>{actorName(a)}</SelectItem>)}</SelectContent>
       </Select>
       <Select value={fAction} onValueChange={setFAction}>
         <SelectTrigger className="h-9 w-full sm:w-[170px]"><SelectValue placeholder={t('filterActionPlaceholder')} /></SelectTrigger>
@@ -116,7 +130,7 @@ export default function AuditPage() {
 
       <DataTable<AuditRow>
         data={filtered} columns={columns} getRowId={(r) => r.id} loading={rows === null}
-        searchable searchPlaceholder={t('searchPlaceholder')} searchValue={(r) => `${actorName(r.actorId)} ${r.action} ${r.entity} ${r.summary}`}
+        searchable searchPlaceholder={t('searchPlaceholder')} searchValue={(r) => `${actorName(r)} ${r.action} ${r.entity} ${r.summary}`}
         pageSize={12} toolbar={toolbar} enableColumnVisibility enableDensityToggle
         emptyTitle={t('emptyTitle')} exportFilename="audit-log" storageKey="audit-table"
       />

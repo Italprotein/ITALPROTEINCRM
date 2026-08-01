@@ -16,7 +16,8 @@ export interface StaffMember {
   avatarColor?: string;
   avatarUrl?: string;
   status: 'active' | 'invited' | 'suspended';
-  lastActiveAt: string;
+  /** Missing means the member has never signed in — render that, don't fake a date. */
+  lastActiveAt?: string;
   phone?: string;
   assignedCompanyIds: string[];
 }

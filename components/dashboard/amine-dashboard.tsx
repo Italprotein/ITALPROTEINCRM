@@ -26,9 +26,14 @@ import {
 } from '@/lib/mock-services';
 import { cn } from '@/lib/utils';
 
-/* ────────────────────────────── theme ────────────────────────────── */
+/* ────────────────────────────── theme ──────────────────────────────
+   The command center speaks the app's own palette: brand sky as the life
+   color, teal as its partner, and red kept for the two KPIs that genuinely
+   demand attention — everywhere else in the CRM red means danger, and a
+   dashboard that cries wolf in eight colors says nothing. */
+const SKY = '#38bdf8';
+const TEAL = '#0eb89a';
 const RED = '#f43f5e';
-const BLUE = '#3b82f6';
 
 /* deterministic particle field (no Math.random → no hydration mismatch) */
 const PARTICLES = Array.from({ length: 42 }, (_, i) => ({
@@ -37,7 +42,7 @@ const PARTICLES = Array.from({ length: 42 }, (_, i) => ({
   size: 1 + (i % 3),
   delay: (i % 11) * 0.35,
   dur: 3 + (i % 6),
-  red: i % 3 === 0,
+  teal: i % 3 === 0,
 }));
 
 /* ────────────────────────────── animated background ────────────────────────────── */
@@ -62,19 +67,19 @@ function TechBackground() {
       {/* drifting glow orbs */}
       <motion.div
         className="absolute -left-24 -top-20 h-[34rem] w-[34rem] rounded-full blur-3xl"
-        style={{ background: 'radial-gradient(circle, rgba(244,63,94,0.30), transparent 60%)' }}
+        style={{ background: 'radial-gradient(circle, rgba(56,189,248,0.26), transparent 60%)' }}
         animate={{ x: [0, 40, -20, 0], y: [0, 30, -10, 0], scale: [1, 1.1, 0.95, 1] }}
         transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
       />
       <motion.div
         className="absolute right-0 top-1/4 h-[26rem] w-[26rem] rounded-full blur-3xl"
-        style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.28), transparent 60%)' }}
+        style={{ background: 'radial-gradient(circle, rgba(14,184,154,0.22), transparent 60%)' }}
         animate={{ x: [0, -30, 15, 0], y: [0, 20, -25, 0], scale: [1, 1.08, 0.96, 1] }}
         transition={{ duration: 19, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
       />
       <motion.div
         className="absolute bottom-[-6rem] left-1/3 h-[24rem] w-[24rem] rounded-full blur-3xl"
-        style={{ background: 'radial-gradient(circle, rgba(220,38,38,0.22), transparent 60%)' }}
+        style={{ background: 'radial-gradient(circle, rgba(27,58,91,0.45), transparent 60%)' }}
         animate={{ x: [0, 25, -15, 0], y: [0, -18, 8, 0], scale: [1, 1.06, 0.98, 1] }}
         transition={{ duration: 21, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
       />
@@ -89,8 +94,8 @@ function TechBackground() {
             top: `${p.top}%`,
             width: p.size,
             height: p.size,
-            background: p.red ? RED : '#cdd9f5',
-            boxShadow: `0 0 ${p.size * 4}px ${p.red ? 'rgba(244,63,94,0.8)' : 'rgba(180,200,255,0.7)'}`,
+            background: p.teal ? TEAL : '#cdd9f5',
+            boxShadow: `0 0 ${p.size * 4}px ${p.teal ? 'rgba(14,184,154,0.7)' : 'rgba(180,200,255,0.7)'}`,
           }}
           animate={{ opacity: [0.15, 0.9, 0.15], y: [0, -14, 0] }}
           transition={{ duration: p.dur, repeat: Infinity, ease: 'easeInOut', delay: p.delay }}
@@ -100,7 +105,7 @@ function TechBackground() {
       {/* sweeping scan beam */}
       <motion.div
         className="absolute inset-x-0 h-px"
-        style={{ background: 'linear-gradient(90deg, transparent, rgba(244,63,94,0.55), rgba(59,130,246,0.45), transparent)' }}
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(56,189,248,0.55), rgba(14,184,154,0.45), transparent)' }}
         animate={{ top: ['-5%', '105%'] }}
         transition={{ duration: 7, repeat: Infinity, ease: 'linear' }}
       />
@@ -143,12 +148,15 @@ interface Kpi {
   label: string;
   value: number;
   icon: LucideIcon;
-  accent: 'red' | 'blue';
+  /** sky/teal carry the healthy metrics; red is only for "this needs you". */
+  accent: 'sky' | 'teal' | 'red';
   currency?: boolean;
 }
 
+const ACCENTS = { sky: SKY, teal: TEAL, red: RED } as const;
+
 function NeonStat({ kpi, index }: { kpi: Kpi; index: number }) {
-  const c = kpi.accent === 'red' ? RED : BLUE;
+  const c = ACCENTS[kpi.accent];
   const Icon = kpi.icon;
   return (
     <motion.div
@@ -214,7 +222,7 @@ function PulseBars() {
         <motion.span
           key={i}
           className="w-1 rounded-full"
-          style={{ background: i % 4 === 0 ? RED : 'rgba(148,180,255,0.7)' }}
+          style={{ background: i % 4 === 0 ? TEAL : 'rgba(148,180,255,0.7)' }}
           animate={{ height: [6, 10 + ((i * 7) % 34), 6] }}
           transition={{ duration: 1 + (i % 5) * 0.25, repeat: Infinity, ease: 'easeInOut', delay: i * 0.06 }}
         />
@@ -269,14 +277,14 @@ export function AmineDashboard() {
   }, []);
 
   const kpis: Kpi[] = [
-    { label: t('kpiCompanies'), value: stats?.companies ?? 0, icon: Building2, accent: 'red' },
-    { label: t('kpiActivePipeline'), value: stats?.opportunities ?? 0, icon: Target, accent: 'blue' },
-    { label: t('kpiPipelineValue'), value: stats?.pipelineValue ?? 0, icon: Flame, accent: 'red', currency: true },
-    { label: t('kpiNdasSigned'), value: stats?.ndasSigned ?? 0, icon: ShieldCheck, accent: 'blue' },
-    { label: t('kpiSamplesShipped'), value: stats?.samplesShipped ?? 0, icon: FlaskConical, accent: 'red' },
-    { label: t('kpiInTransit'), value: stats?.inTransit ?? 0, icon: Truck, accent: 'blue' },
+    { label: t('kpiCompanies'), value: stats?.companies ?? 0, icon: Building2, accent: 'sky' },
+    { label: t('kpiActivePipeline'), value: stats?.opportunities ?? 0, icon: Target, accent: 'teal' },
+    { label: t('kpiPipelineValue'), value: stats?.pipelineValue ?? 0, icon: Flame, accent: 'sky', currency: true },
+    { label: t('kpiNdasSigned'), value: stats?.ndasSigned ?? 0, icon: ShieldCheck, accent: 'teal' },
+    { label: t('kpiSamplesShipped'), value: stats?.samplesShipped ?? 0, icon: FlaskConical, accent: 'sky' },
+    { label: t('kpiInTransit'), value: stats?.inTransit ?? 0, icon: Truck, accent: 'teal' },
     { label: t('kpiHighPriority'), value: stats?.highPriority ?? 0, icon: Sparkles, accent: 'red' },
-    { label: t('kpiOverdueTasks'), value: stats?.overdue ?? 0, icon: AlertTriangle, accent: 'blue' },
+    { label: t('kpiOverdueTasks'), value: stats?.overdue ?? 0, icon: AlertTriangle, accent: 'red' },
   ];
 
   return (
@@ -292,10 +300,10 @@ export function AmineDashboard() {
           className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
         >
           <div>
-            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-rose-400/90">
+            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-sky-300/90">
               <motion.span
-                className="h-1.5 w-1.5 rounded-full bg-rose-500"
-                style={{ boxShadow: `0 0 10px ${RED}` }}
+                className="h-1.5 w-1.5 rounded-full bg-sky-400"
+                style={{ boxShadow: `0 0 10px ${SKY}` }}
                 animate={{ opacity: [0.4, 1, 0.4] }}
                 transition={{ duration: 1.8, repeat: Infinity }}
               />
@@ -305,7 +313,7 @@ export function AmineDashboard() {
               {t('welcomeBack')}{' '}
               <span
                 className="bg-clip-text text-transparent"
-                style={{ backgroundImage: `linear-gradient(100deg, ${RED}, #fb7185 35%, ${BLUE} 90%)` }}
+                style={{ backgroundImage: `linear-gradient(100deg, ${SKY}, #7dd3fc 45%, ${TEAL} 100%)` }}
               >
                 Amine
               </span>
@@ -321,7 +329,7 @@ export function AmineDashboard() {
               <LiveClock />
             </div>
             <div className="h-8 w-px bg-white/10" />
-            <ActivityIcon className="h-5 w-5 text-rose-400" />
+            <ActivityIcon className="h-5 w-5 text-sky-300" />
             <PulseBars />
           </div>
         </motion.div>
@@ -342,21 +350,21 @@ export function AmineDashboard() {
         >
           <div
             className="absolute inset-y-0 left-0 w-1"
-            style={{ background: `linear-gradient(180deg, ${RED}, ${BLUE})` }}
+            style={{ background: `linear-gradient(180deg, ${SKY}, ${TEAL})` }}
           />
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="text-xs uppercase tracking-wider text-slate-500">{t('pipelineValueUnderManagement')}</div>
+              <div className="text-xs uppercase tracking-wider text-slate-400">{t('pipelineValueUnderManagement')}</div>
               <div className="mt-1 font-display text-3xl font-bold text-white tabular-nums">
                 <Counter value={stats?.pipelineValue ?? 0} currency />
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <div className="text-2xl font-bold text-rose-400 tabular-nums">
+                <div className="text-2xl font-bold text-sky-300 tabular-nums">
                   <Counter value={stats?.companies ?? 0} />
                 </div>
-                <div className="text-[10px] uppercase tracking-wider text-slate-500">{t('accounts')}</div>
+                <div className="text-[10px] uppercase tracking-wider text-slate-400">{t('accounts')}</div>
               </div>
               <div className="h-10 w-px bg-white/10" />
               <PulseBars />

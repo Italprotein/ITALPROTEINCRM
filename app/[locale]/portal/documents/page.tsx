@@ -23,8 +23,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useSession } from '@/components/providers/session-provider';
-import { companyService, documentService } from '@/lib/mock-services';
-import type { Company, DocumentRecord, DocumentCategory, Locale } from '@/lib/types';
+import { companyService, documentService, ndaService } from '@/lib/mock-services';
+import type { Company, DocumentRecord, DocumentCategory, Locale, NDA } from '@/lib/types';
 import { can } from '@/lib/permissions';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
@@ -129,6 +129,7 @@ export default function PortalDocumentsPage() {
 
   const [company, setCompany] = React.useState<Company | null>(null);
   const [docs, setDocs] = React.useState<DocumentRecord[]>([]);
+  const [ndas, setNdas] = React.useState<NDA[]>([]);
   const [loaded, setLoaded] = React.useState(false);
 
   const [query, setQuery] = React.useState('');
@@ -147,9 +148,13 @@ export default function PortalDocumentsPage() {
         return;
       }
       setCompany(c);
-      documentService.forPortal(c.id, c.ndaStatus === 'fully_signed').then((list) => {
+      Promise.all([
+        documentService.forPortal(c.id, c.ndaStatus === 'fully_signed'),
+        ndaService.byCompany(c.id).catch(() => [] as NDA[]),
+      ]).then(([list, ndaRows]) => {
         if (cancelled) return;
         setDocs(list);
+        setNdas(ndaRows);
         setLoaded(true);
       });
     });
@@ -164,6 +169,20 @@ export default function PortalDocumentsPage() {
 
   const ndaSigned = company?.ndaStatus === 'fully_signed';
   const canUpload = role ? can(role, 'portal.request_docs') : false;
+
+  // "Awaiting signature" only while an agreement is actually open. Once every
+  // NDA on record is executed (or none needs action), the same files are
+  // history, not a to-do — they move to "Other documents".
+  const hasOpenNda = ndas.some(
+    (n) => !['fully_signed', 'expired', 'terminated', 'not_required'].includes(n.status),
+  );
+  const effectiveGroupOf = React.useCallback(
+    (d: DocumentRecord): GroupKey => {
+      const g = groupOf(d);
+      return g === 'signature' && !hasOpenNda ? 'other' : g;
+    },
+    [hasOpenNda],
+  );
 
   const availableCategories = React.useMemo(() => {
     const set = new Set<DocumentCategory>();
@@ -187,13 +206,13 @@ export default function PortalDocumentsPage() {
   const grouped = React.useMemo(() => {
     const map = new Map<GroupKey, DocumentRecord[]>();
     for (const d of filtered) {
-      const g = groupOf(d);
+      const g = effectiveGroupOf(d);
       const arr = map.get(g) ?? [];
       arr.push(d);
       map.set(g, arr);
     }
     return map;
-  }, [filtered]);
+  }, [filtered, effectiveGroupOf]);
 
   function handleUploaded() {
     // The upload dialog POSTs the file to /api/documents/upload — refresh the list.
@@ -232,9 +251,9 @@ export default function PortalDocumentsPage() {
     );
   }
 
-  const signatureCount = docs.filter((d) => groupOf(d) === 'signature').length;
-  const technicalCount = docs.filter((d) => groupOf(d) === 'technical').length;
-  const regulatoryCount = docs.filter((d) => groupOf(d) === 'regulatory').length;
+  const signatureCount = docs.filter((d) => effectiveGroupOf(d) === 'signature').length;
+  const technicalCount = docs.filter((d) => effectiveGroupOf(d) === 'technical').length;
+  const regulatoryCount = docs.filter((d) => effectiveGroupOf(d) === 'regulatory').length;
 
   return (
     <div className="space-y-6">
@@ -252,12 +271,16 @@ export default function PortalDocumentsPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Available documents" value={docs.length} icon={FileText} tone="default" hint="Shared with your company" />
-        <StatCard label="Technical files" value={technicalCount} icon={FlaskConical} tone="info" hint="Data sheets & guides" />
-        <StatCard label="Regulatory & certificates" value={regulatoryCount} icon={ShieldCheck} tone="success" hint="Compliance documents" />
-        <StatCard label="Awaiting signature" value={signatureCount} icon={FileSignature} tone={signatureCount > 0 ? 'warning' : 'default'} hint="Agreements to review" />
-      </div>
+      {/* Counts only once the library has anything in it — the list below owns
+          the empty state, and four zeros would read as a broken sync. */}
+      {docs.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Available documents" value={docs.length} icon={FileText} tone="default" hint="Shared with your company" />
+          <StatCard label="Technical files" value={technicalCount} icon={FlaskConical} tone="info" hint="Data sheets & guides" />
+          <StatCard label="Regulatory & certificates" value={regulatoryCount} icon={ShieldCheck} tone="success" hint="Compliance documents" />
+          <StatCard label="Awaiting signature" value={signatureCount} icon={FileSignature} tone={signatureCount > 0 ? 'warning' : 'default'} hint={signatureCount > 0 ? 'Agreements to review' : 'Nothing waiting on you'} />
+        </div>
+      )}
 
       {!ndaSigned && (
         <FadeIn>

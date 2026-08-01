@@ -158,14 +158,16 @@ export async function feedbackStatistics() {
     if (f.overallResult) byResult[f.overallResult] = (byResult[f.overallResult] ?? 0) + 1;
   }
   const rated = rows.filter((f) => typeof f.overallRating === "number");
-  const avgRating = rated.length
+  // null, not 0: "no ratings yet" must not display as a 0/5 score.
+  const avgRating: number | null = rated.length
     ? Math.round((rated.reduce((s, f) => s + (f.overallRating ?? 0), 0) / rated.length) * 10) / 10
-    : 0;
+    : null;
   return {
     total: rows.length,
     byStatus,
     byResult,
     avgRating,
+    ratedCount: rated.length,
     open: rows.filter((f) => f.status !== "resolved").length,
     positive: rows.filter((f) => f.overallResult === "positive").length,
   };

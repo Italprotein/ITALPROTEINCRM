@@ -7,9 +7,10 @@ import {
   ShieldCheck, KeyRound, Mail, Unplug, RefreshCw,
 } from 'lucide-react';
 import {
-  companyService, sampleService, ndaService, documentService, taskService, userService, emailService,
+  companyService, contactService, sampleService, ndaService, documentService, taskService, userService, emailService,
 } from '@/lib/mock-services';
 import type { GmailConnectionStatus } from '@/lib/types';
+import { workspaceRecordCount } from '@/lib/services/settings.actions';
 import { resetLocalData } from '@/lib/local-store';
 import { INTERNAL_NAV } from '@/components/navigation/nav-config';
 import { formatRelative } from '@/lib/formatting';
@@ -56,12 +57,19 @@ export default function SettingsPage() {
   }, []);
 
   React.useEffect(() => {
-    Promise.all([
-      companyService.list(), sampleService.list(), ndaService.list(),
-      documentService.list(), taskService.list(), userService.getStatistics(),
-    ]).then(([c, s, n, d, t, u]) => {
-      setCounts({ records: c.length + s.length + n.length + d.length + t.length, team: u.total });
-    });
+    if (isApi) {
+      // One counted number from the database instead of five full DTO lists.
+      Promise.all([workspaceRecordCount(), userService.getStatistics()])
+        .then(([records, u]) => setCounts({ records, team: u.total }))
+        .catch(() => setCounts(null));
+    } else {
+      Promise.all([
+        companyService.list(), contactService.list(), sampleService.list(), ndaService.list(),
+        documentService.list(), taskService.list(), userService.getStatistics(),
+      ]).then(([c, ct, s, n, d, t, u]) => {
+        setCounts({ records: c.length + ct.length + s.length + n.length + d.length + t.length, team: u.total });
+      });
+    }
     loadGmail();
   }, [loadGmail]);
 

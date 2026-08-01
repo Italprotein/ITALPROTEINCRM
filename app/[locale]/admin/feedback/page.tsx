@@ -523,10 +523,10 @@ export default function FeedbackPage() {
         />
         <StatCard
           label={t('kpiAvgRating')}
-          value={stats ? t('avgRatingValue', { value: stats.avgRating.toFixed(1) }) : '—'}
+          value={stats?.avgRating != null ? t('avgRatingValue', { value: stats.avgRating.toFixed(1) }) : '—'}
           icon={Star}
           tone="info"
-          hint={t('avgRatingHint')}
+          hint={stats?.ratedCount ? t('avgRatingHint', { count: stats.ratedCount }) : t('avgRatingHintEmpty')}
           delay={0.2}
         />
       </div>

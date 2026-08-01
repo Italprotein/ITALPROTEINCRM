@@ -146,7 +146,9 @@ export default function CommunicationsPage() {
 
       <Tabs defaultValue="inbox">
         <TabsList className="max-w-full justify-start overflow-x-auto scrollbar-thin">
-          <TabsTrigger value="inbox">{t('inboxTab', { count: inbox?.length ?? 0 })}</TabsTrigger>
+          {/* Mailbox total when the connection reports one; the loaded page length
+              is only a lower bound (the fetch is capped server-side). */}
+          <TabsTrigger value="inbox">{t('inboxTab', { count: gmail?.inboxCount ?? inbox?.length ?? 0 })}</TabsTrigger>
           <TabsTrigger value="requests">{t('requestsTab', { count: stats.total })}</TabsTrigger>
           <TabsTrigger value="email">{t('emailLogTab', { count: emails.length })}</TabsTrigger>
         </TabsList>
@@ -180,6 +182,11 @@ export default function CommunicationsPage() {
                 {syncing ? t('syncing') : t('syncNow')}
               </Button>
             </div>
+            {inbox && gmail?.inboxCount != null && inbox.length < gmail.inboxCount && (
+              <p className="border-b bg-muted/30 px-4 py-1.5 text-xs text-muted-foreground">
+                {t('inboxTruncated', { shown: inbox.length, total: gmail.inboxCount })}
+              </p>
+            )}
             <CardContent className="p-0">
               <Table>
                 <TableHeader>

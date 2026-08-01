@@ -54,7 +54,9 @@ import type {
   SampleStatus,
 } from '@/lib/types';
 import { can } from '@/lib/permissions';
-import { getLabel } from '@/lib/labels';
+import { getLabel, isFeedbackOpen } from '@/lib/labels';
+import { profileCompletion, type ProfileItemKey } from '@/lib/profile-completion';
+import { getCompanyCalendarEvents, type CompanyCalendarEvent } from '@/lib/services/google.actions';
 import { formatDate, formatDateTime, formatRelative, formatQuantity } from '@/lib/formatting';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
@@ -84,6 +86,7 @@ interface DashboardData {
   documents: DocumentRecord[];
   feedback: Feedback[];
   meetings: Meeting[];
+  calendarEvents: CompanyCalendarEvent[];
   activities: Activity[];
   support: SupportRequest[];
   notifications: AppNotification[];
@@ -118,7 +121,7 @@ export default function PortalDashboard() {
         return;
       }
       const ndaSigned = company.ndaStatus === 'fully_signed';
-      const [samples, shipments, ndas, documents, feedback, upcomingMeetings, activities, support, notifications, contacts] =
+      const [samples, shipments, ndas, documents, feedback, upcomingMeetings, activities, support, notifications, contacts, calendar] =
         await Promise.all([
           sampleService.byCompany(companyId),
           shipmentService.byCompany(companyId),
@@ -130,6 +133,9 @@ export default function PortalDashboard() {
           supportService.byCompany(companyId),
           notificationService.forAudience({ workspace: 'external', companyId }),
           contactService.byCompany(companyId),
+          // Company-scoped Google Calendar events (server-filtered + projected).
+          // Absent (mock mode, not connected, no session) just means none.
+          getCompanyCalendarEvents().then((r) => r.events).catch(() => [] as CompanyCalendarEvent[]),
         ]);
 
       if (!active) return;
@@ -141,6 +147,7 @@ export default function PortalDashboard() {
         documents,
         feedback,
         meetings: upcomingMeetings.filter((m) => m.companyId === companyId),
+        calendarEvents: calendar.filter((event) => new Date(event.end) >= new Date()),
         activities,
         support,
         notifications,
@@ -168,14 +175,19 @@ export default function PortalDashboard() {
     );
   }
 
-  const { company, samples, shipments, documents, feedback, meetings, activities, support } = data;
+  const { company, samples, shipments, documents, feedback, meetings, calendarEvents, activities, support } = data;
   const owner = getStaff(company.accountOwnerId);
 
   /* ── Derived metrics ── */
   const activeSamples = samples.filter((s) => !SAMPLE_CLOSED.includes(s.status));
   const inTransit = shipments.filter((s) => shipmentService.deriveStatus(s) === 'in_transit' || shipmentService.deriveStatus(s) === 'customs');
-  const openFeedback = feedback.filter((f) => f.status !== 'resolved');
+  const openFeedback = feedback.filter((f) => isFeedbackOpen(f.status));
   const openSupport = support.filter((r) => r.status === 'open' || r.status === 'in_progress' || r.status === 'waiting_on_client');
+  // CRM meetings and company-matched Google Calendar events, one upcoming list.
+  const upcomingCalls = [
+    ...meetings.map((m) => ({ start: m.start })),
+    ...calendarEvents.map((e) => ({ start: e.start })),
+  ].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
   /* ── Pending actions ── */
   const pendingActions = buildPendingActions(samples, feedback);
@@ -185,8 +197,14 @@ export default function PortalDashboard() {
     (a, b) => new Date(b.shipmentDate ?? b.createdAt).getTime() - new Date(a.shipmentDate ?? a.createdAt).getTime(),
   )[0];
 
-  /* ── Profile completion ── */
-  const profile = computeProfileCompletion(company, data.contactCount);
+  /* ── Profile completion — the shared computation (lib/profile-completion.ts),
+        from the PERSISTED company, so this checklist and the profile page's bar
+        can never disagree ── */
+  const completion = profileCompletion(company, data.contactCount);
+  const profile = {
+    percent: completion.percent,
+    items: completion.items.map((item) => ({ label: PROFILE_ITEM_LABELS[item.key], done: item.done })),
+  };
 
   const canEdit = role ? can(role, 'portal.edit_company') : false;
   const canRequestSample = role ? can(role, 'portal.request_sample') : false;
@@ -243,7 +261,7 @@ export default function PortalDashboard() {
             value={activeSamples.length}
             icon={FlaskConical}
             tone="info"
-            hint={`${samples.length} total to date`}
+            hint={samples.length ? `${samples.length} total to date` : 'None requested yet'}
             href="/portal/samples"
             delay={0.04}
           />
@@ -252,7 +270,7 @@ export default function PortalDashboard() {
             value={inTransit.length}
             icon={Truck}
             tone="gold"
-            hint={`${shipments.length} shipments overall`}
+            hint={shipments.length ? `${shipments.length} shipments overall` : 'No shipments yet'}
             href="/portal/samples"
             delay={0.08}
           />
@@ -270,7 +288,7 @@ export default function PortalDashboard() {
             value={openFeedback.length}
             icon={MessageSquareHeart}
             tone="info"
-            hint={`${feedback.length} reports submitted`}
+            hint={feedback.length ? `${feedback.length} reports submitted` : 'No reports yet'}
             href="/portal/feedback"
             delay={0.16}
           />
@@ -293,10 +311,10 @@ export default function PortalDashboard() {
           />
           <StatCard
             label="Upcoming calls"
-            value={meetings.length}
+            value={upcomingCalls.length}
             icon={CalendarClock}
             tone="info"
-            hint={meetings[0] ? `Next ${formatRelative(meetings[0].start, 'en', NOW)}` : 'None scheduled'}
+            hint={upcomingCalls[0] ? `Next ${formatRelative(upcomingCalls[0].start, 'en', NOW)}` : 'No calls scheduled yet'}
             delay={0.28}
           />
         </div>
@@ -702,23 +720,16 @@ function buildPendingActions(samples: SampleRequest[], feedback: Feedback[]): Pe
   return actions;
 }
 
-interface ProfileItem {
-  label: string;
-  done: boolean;
-}
-
-function computeProfileCompletion(company: Company, contactCount: number): { percent: number; items: ProfileItem[] } {
-  const items: ProfileItem[] = [
-    { label: 'Website', done: !!company.website },
-    { label: 'VAT number', done: !!company.vatNumber },
-    { label: 'Billing address', done: !!company.billingAddress },
-    { label: 'Shipping address', done: !!(company.shippingAddresses && company.shippingAddresses.length > 0) },
-    { label: 'Application interests', done: !!(company.applicationInterests && company.applicationInterests.length > 0) },
-    { label: 'Team contacts', done: contactCount > 0 },
-  ];
-  const done = items.filter((i) => i.done).length;
-  return { percent: Math.round((done / items.length) * 100), items };
-}
+const PROFILE_ITEM_LABELS: Record<ProfileItemKey, string> = {
+  website: 'Website',
+  vatNumber: 'VAT number',
+  mainActivity: 'Main activity',
+  billingAddress: 'Billing address',
+  shippingAddress: 'Shipping address',
+  applicationInterests: 'Application interests',
+  deliveryPreferences: 'Delivery preferences',
+  teamContacts: 'Team contacts',
+};
 
 /* ── Shipment mini timeline ── */
 const SHIPMENT_STEPS: { key: ReturnType<typeof shipmentService.deriveStatus>; label: string }[] = [

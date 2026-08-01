@@ -7,6 +7,7 @@ import { ArrowUp, Bot, CheckCircle2, CornerDownLeft, ListTodo, Loader2, X } from
 import { useLocale, useTranslations } from 'next-intl';
 
 import { useSession } from '@/components/providers/session-provider';
+import { isApiMode } from '@/lib/data-mode';
 import { Link } from '@/lib/i18n/navigation';
 import { canEdit, isInternal } from '@/lib/permissions';
 import { generateAiTasksFromInbox } from '@/lib/services/ai-task.actions';
@@ -82,11 +83,24 @@ export function Amina() {
     setSending(true);
     addMessage({ role: 'user', content: text });
 
+    // In api mode the server replays the persisted thread and ignores this;
+    // in mock mode (no database) it is the only conversational memory.
+    const history = messages
+      .filter((m) => !m.failed)
+      .slice(-10)
+      .map((m) => ({ role: m.role, content: m.content }));
+
     try {
       const response = await fetch('/api/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, threadId: threadId ?? undefined, locale }),
+        body: JSON.stringify({
+          message: text,
+          threadId: threadId ?? undefined,
+          locale,
+          history,
+          mockAudience: session && !isInternal(session.role) ? 'portal' : 'internal',
+        }),
       });
       const data = await response.json().catch(() => ({}));
 
@@ -121,27 +135,41 @@ export function Amina() {
   async function generateTodayTasks() {
     if (!canGenerateTasks || sending || generatingTasks) return;
 
+    // The mock mailbox is empty by design (lib/mock-services/emailService.ts):
+    // inbox analysis only exists against the production database + Gmail.
+    if (!isApiMode) {
+      addMessage({ role: 'user', content: t('generateTasks') });
+      addMessage({ role: 'assistant', content: t('tasksNeedApiMode') });
+      return;
+    }
+
     setGeneratingTasks(true);
     addMessage({ role: 'user', content: t('generateTasks') });
     try {
       const result = await generateAiTasksFromInbox(locale === 'it' ? 'it' : 'en');
       if (!result.ok) {
+        if (result.error === 'rate_limited') {
+          const hours = Math.max(1, Math.ceil((result.retryAfterSeconds ?? 24 * 3600) / 3600));
+          addMessage({ role: 'assistant', content: t('taskLimitReached', { hours }) });
+          return;
+        }
         const content =
           result.error === 'openai_not_configured'
             ? t('errorConfiguration')
             : result.error === 'gmail_not_connected' || result.error === 'gmail_reconnect_required'
               ? t('errorGmail')
-              : result.error === 'rate_limited'
-                ? t('errorRateLimited')
-                : t('taskGenerationFailed');
+              : t('taskGenerationFailed');
         addMessage({ role: 'assistant', content, failed: true });
         return;
       }
 
+      const titles = result.tasks
+        .map((task) => `• ${task.title}`)
+        .join('\n');
       addMessage({
         role: 'assistant',
         content: result.tasks.length
-          ? t('tasksGenerated', { count: result.tasks.length })
+          ? `${t('tasksGenerated', { count: result.tasks.length })}\n\n${titles}`
           : t('noTasksGenerated'),
         actionHref: '/admin/tasks',
         actionLabel: t('openTasks'),

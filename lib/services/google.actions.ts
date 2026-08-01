@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/backend/prisma";
-import { requireInternal, requireAction } from "@/lib/backend/session";
+import { requireInternal, requireAction, requireUser } from "@/lib/backend/session";
 import { listCalendarEvents, hasCalendarAccess, type CalendarEvent } from "@/lib/backend/google-calendar";
 import { searchDriveFiles, getDriveFile, hasDriveAccess, type DriveFile } from "@/lib/backend/google-drive";
 import { captureError } from "@/lib/backend/observability";
@@ -47,7 +47,13 @@ export async function getLinkedCalendarEvents(options?: {
   daysAhead?: number;
 }): Promise<{ events: LinkedCalendarEvent[]; connected: boolean; error?: string }> {
   await requireInternal();
+  return collectLinkedCalendarEvents(options);
+}
 
+async function collectLinkedCalendarEvents(options?: {
+  daysBack?: number;
+  daysAhead?: number;
+}): Promise<{ events: LinkedCalendarEvent[]; connected: boolean; error?: string }> {
   if (!(await hasCalendarAccess())) {
     return { events: [], connected: false };
   }
@@ -121,6 +127,42 @@ export async function getLinkedCalendarEvents(options?: {
   });
 
   return { events: linked, connected: true };
+}
+
+/** The fields a portal user may see about a calendar event — nothing else.
+    Attendees, meet links and locations would leak internal participants. */
+export interface CompanyCalendarEvent {
+  id: string;
+  summary: string;
+  start: string;
+  end: string;
+  allDay?: boolean;
+}
+
+/**
+ * Upcoming calendar events for the SIGNED-IN company only. The company scope
+ * comes from the session — never from an argument — and events are projected
+ * down to the safe fields above before leaving the server.
+ */
+export async function getCompanyCalendarEvents(): Promise<{
+  events: CompanyCalendarEvent[];
+  connected: boolean;
+}> {
+  const user = await requireUser();
+  if (!user.companyId) return { events: [], connected: false };
+  const { events, connected } = await collectLinkedCalendarEvents({ daysBack: 0, daysAhead: 60 });
+  return {
+    connected,
+    events: events
+      .filter((event) => event.companyId === user.companyId)
+      .map((event) => ({
+        id: event.id,
+        summary: event.summary,
+        start: event.start,
+        end: event.end,
+        allDay: event.allDay,
+      })),
+  };
 }
 
 /** Drive search, for attaching a file to a company. */

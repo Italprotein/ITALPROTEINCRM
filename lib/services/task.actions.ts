@@ -214,7 +214,8 @@ export async function taskStatistics(now: Date = new Date()) {
     completed: completed.length,
     overdue: overdue.length,
     dueToday: dueToday.length,
-    completionRate: all.length ? Math.round((completed.length / all.length) * 100) : 0,
+    // null, not 0: an empty workspace has no completion rate to report.
+    completionRate: all.length ? Math.round((completed.length / all.length) * 100) : null,
     byAssignee,
   };
 }

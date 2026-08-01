@@ -173,9 +173,23 @@ export async function documentsForPortal(
     include: withDownload,
     orderBy: { createdAt: "desc" },
   });
+  // A company's OWN uploads must never vanish behind their NDA state — they
+  // provided the file. Portal uploads land as company_specific (POST_NDA), so
+  // without this a client uploads a document and immediately loses sight of it.
+  const ownUploaderIds = new Set(
+    (
+      await prisma.user.findMany({
+        where: { kind: "external", companyId },
+        select: { id: true },
+      })
+    ).map((u) => u.id),
+  );
   return rows
     .map(documentToDTO)
     .filter((d) => {
+      const ownUpload =
+        d.companyId === companyId && !!d.uploadedByUserId && ownUploaderIds.has(d.uploadedByUserId);
+      if (ownUpload) return true;
       if (PORTAL_OPEN.includes(d.accessLevel)) return !d.companyId || d.companyId === companyId;
       if (POST_NDA.includes(d.accessLevel))
         return ndaSigned && (!d.companyId || d.companyId === companyId);

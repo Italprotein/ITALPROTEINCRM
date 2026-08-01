@@ -96,7 +96,7 @@ export default function UsersPage() {
     { key: 'role', header: t('colRole'), sortValue: (u) => u.role, cell: (u) => <StatusBadge kind="role" value={u.role} /> },
     { key: 'jobTitle', header: t('colJobTitle'), sortValue: (u) => u.jobTitle, cell: (u) => <span className="text-sm">{u.jobTitle}</span>, hideable: true },
     { key: 'status', header: t('colStatus'), sortValue: (u) => u.status, cell: (u) => <Badge variant={statusBadge[u.status]}>{u.status[0].toUpperCase() + u.status.slice(1)}</Badge> },
-    { key: 'lastActive', header: t('colLastActive'), align: 'right', sortable: true, sortValue: (u) => new Date(u.lastActiveAt).getTime(), cell: (u) => <span className="whitespace-nowrap text-sm text-muted-foreground">{formatRelative(u.lastActiveAt)}</span>, hideable: true },
+    { key: 'lastActive', header: t('colLastActive'), align: 'right', sortable: true, sortValue: (u) => (u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0), cell: (u) => <span className="whitespace-nowrap text-sm text-muted-foreground">{u.lastActiveAt ? formatRelative(u.lastActiveAt) : t('neverLoggedIn')}</span>, hideable: true },
     {
       key: 'companies', header: t('colCompanies'), align: 'right', sortValue: (u) => u.assignedCompanyIds.length,
       cell: (u) => u.assignedCompanyIds.length === 0 ? <span className="text-sm text-muted-foreground">—</span> : (
@@ -140,7 +140,7 @@ export default function UsersPage() {
           <div className="min-w-0 flex-1"><p className="truncate font-medium">{u.firstName} {u.lastName}</p><p className="truncate text-xs text-muted-foreground">{u.jobTitle}</p></div>
           <Badge variant={statusBadge[u.status]}>{u.status}</Badge>
         </div>
-        <div className="mt-2 flex items-center justify-between"><StatusBadge kind="role" value={u.role} /><span className="text-xs text-muted-foreground">{formatRelative(u.lastActiveAt)}</span></div>
+        <div className="mt-2 flex items-center justify-between"><StatusBadge kind="role" value={u.role} /><span className="text-xs text-muted-foreground">{u.lastActiveAt ? formatRelative(u.lastActiveAt) : t('neverLoggedIn')}</span></div>
       </Card>
     );
   }

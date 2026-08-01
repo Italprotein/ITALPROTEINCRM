@@ -1204,3 +1204,28 @@ export function getStageProgress(stage: string | undefined | null): number {
   if (!stage) return 0;
   return developmentStageProgress[stage] ?? 0;
 }
+
+/* ────────────────────────────── Feedback open/closed buckets ────────────────────────────── */
+
+/**
+ * Client-facing bucket per feedback status. A Record (not two arrays) so adding
+ * a seventh status without classifying it is a compile error, and the portal
+ * dashboard + feedback page cannot disagree about what counts as "open".
+ * `technical_reply_sent` is closed for the client — we replied, nothing waits
+ * on them; `additional_info_requested` is the one that genuinely does.
+ */
+const FEEDBACK_STATUS_BUCKET: Record<
+  'received' | 'under_review' | 'additional_info_requested' | 'technical_reply_sent' | 'technical_call_needed' | 'resolved',
+  'open' | 'closed'
+> = {
+  received: 'open',
+  under_review: 'open',
+  additional_info_requested: 'open',
+  technical_call_needed: 'open',
+  technical_reply_sent: 'closed',
+  resolved: 'closed',
+};
+
+export function isFeedbackOpen(status: keyof typeof FEEDBACK_STATUS_BUCKET): boolean {
+  return FEEDBACK_STATUS_BUCKET[status] === 'open';
+}

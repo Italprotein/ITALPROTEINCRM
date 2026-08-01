@@ -69,8 +69,9 @@ import { createAiReplyDraft, generateAiTasksFromInbox } from '@/lib/services/ai-
 
 /* ────────────────────────────── Constants ────────────────────────────── */
 
-const NOW = new Date();
-const TODAY = NOW.toISOString().slice(0, 10);
+/** Read the clock at call time: a session left open across midnight must not
+    stamp completions — or bucket "overdue"/"due today" — with yesterday. */
+const todayStamp = () => new Date().toISOString().slice(0, 10);
 
 const TASK_TYPES: TaskType[] = [
   'follow_up',
@@ -148,23 +149,24 @@ export default function TasksPage() {
     void taskService.getStatistics().then(setStats);
   }, []);
 
-  /* ── filtering ── */
-  const filtered = React.useMemo(() => {
-    const data = rows ?? [];
-    switch (filter) {
+  /* ── filtering — computed per render (cheap array scans) so the buckets
+        follow the real clock instead of the first page load ── */
+  const now = new Date();
+  const bucketOf = (key: FilterKey, data: Task[]): Task[] => {
+    switch (key) {
       case 'mine':
         return data.filter((t) => t.ownerId === account?.id);
       case 'overdue':
-        return data.filter((t) => isActive(t) && !!t.dueDate && isOverdue(t.dueDate, NOW));
+        return data.filter((t) => isActive(t) && !!t.dueDate && isOverdue(t.dueDate, now));
       case 'due_today':
-        return data.filter((t) => isActive(t) && !!t.dueDate && sameDay(new Date(t.dueDate), NOW));
+        return data.filter((t) => isActive(t) && !!t.dueDate && sameDay(new Date(t.dueDate), now));
       case 'upcoming':
         return data.filter(
           (t) =>
             isActive(t) &&
             !!t.dueDate &&
-            new Date(t.dueDate) > NOW &&
-            !sameDay(new Date(t.dueDate), NOW),
+            new Date(t.dueDate) > now &&
+            !sameDay(new Date(t.dueDate), now),
         );
       case 'completed':
         return data.filter((t) => t.status === 'done');
@@ -172,36 +174,9 @@ export default function TasksPage() {
       default:
         return data;
     }
-  }, [rows, filter, account?.id]);
-
-  const filterCount = React.useCallback(
-    (key: FilterKey): number => {
-      const data = rows ?? [];
-      switch (key) {
-        case 'mine':
-          return data.filter((t) => t.ownerId === account?.id).length;
-        case 'overdue':
-          return data.filter((t) => isActive(t) && !!t.dueDate && isOverdue(t.dueDate, NOW)).length;
-        case 'due_today':
-          return data.filter((t) => isActive(t) && !!t.dueDate && sameDay(new Date(t.dueDate), NOW))
-            .length;
-        case 'upcoming':
-          return data.filter(
-            (t) =>
-              isActive(t) &&
-              !!t.dueDate &&
-              new Date(t.dueDate) > NOW &&
-              !sameDay(new Date(t.dueDate), NOW),
-          ).length;
-        case 'completed':
-          return data.filter((t) => t.status === 'done').length;
-        case 'team':
-        default:
-          return data.length;
-      }
-    },
-    [rows, account?.id],
-  );
+  };
+  const filtered = bucketOf(filter, rows ?? []);
+  const filterCount = (key: FilterKey): number => bucketOf(key, rows ?? []).length;
 
   /* ── mutations (mock) ── */
   function toastActionFailed() {
@@ -211,10 +186,10 @@ export default function TasksPage() {
   async function completeTask(task: Task) {
     const snapshot = rows;
     setRows((prev) =>
-      prev ? prev.map((x) => (x.id === task.id ? { ...x, status: 'done', completedAt: TODAY } : x)) : prev,
+      prev ? prev.map((x) => (x.id === task.id ? { ...x, status: 'done', completedAt: todayStamp() } : x)) : prev,
     );
     try {
-      await taskService.update(task.id, { status: 'done', completedAt: TODAY });
+      await taskService.update(task.id, { status: 'done', completedAt: todayStamp() });
     } catch {
       setRows(snapshot);
       toastActionFailed();
@@ -260,7 +235,7 @@ export default function TasksPage() {
               ? {
                   ...x,
                   status,
-                  completedAt: status === 'done' ? TODAY : undefined,
+                  completedAt: status === 'done' ? todayStamp() : undefined,
                 }
               : x,
           )
@@ -269,7 +244,7 @@ export default function TasksPage() {
     try {
       await taskService.update(task.id, {
         status,
-        completedAt: status === 'done' ? TODAY : undefined,
+        completedAt: status === 'done' ? todayStamp() : undefined,
       });
     } catch {
       setRows(snapshot);
@@ -464,7 +439,7 @@ export default function TasksPage() {
       sortValue: (t) => (t.dueDate ? new Date(t.dueDate).getTime() : Number.MAX_SAFE_INTEGER),
       cell: (t) => {
         if (!t.dueDate) return <span className="text-sm text-muted-foreground">—</span>;
-        const overdue = isActive(t) && isOverdue(t.dueDate, NOW);
+        const overdue = isActive(t) && isOverdue(t.dueDate, now);
         return (
           <span
             className={cn(
@@ -547,7 +522,7 @@ export default function TasksPage() {
 
   /* ── mobile card ── */
   function mobileCard(task: Task) {
-    const overdue = isActive(task) && !!task.dueDate && isOverdue(task.dueDate, NOW);
+    const overdue = isActive(task) && !!task.dueDate && isOverdue(task.dueDate, now);
     return (
       <Card className="p-3">
         <div className="flex items-start gap-2">
@@ -637,7 +612,7 @@ export default function TasksPage() {
         <StatCard label={t('statCompleted')} value={stats?.completed ?? 0} icon={CheckCircle2} tone="success" delay={0.15} />
         <StatCard
           label={t('statCompletionRate')}
-          value={stats?.completionRate ?? 0}
+          value={stats?.completionRate ?? '—'}
           icon={Gauge}
           tone="gold"
           format={(n) => `${n}%`}
@@ -867,7 +842,7 @@ function TaskBoard({
             ) : (
               items.map((task) => {
                 const overdue =
-                  task.status !== 'done' && task.status !== 'cancelled' && !!task.dueDate && isOverdue(task.dueDate, NOW);
+                  task.status !== 'done' && task.status !== 'cancelled' && !!task.dueDate && isOverdue(task.dueDate, new Date());
                 return (
                   <div
                     key={task.id}
@@ -993,7 +968,7 @@ function CreateTaskDialog({
       priority,
       dueDate: dueDate || undefined,
       status: 'open',
-      createdAt: TODAY,
+      createdAt: todayStamp(),
     };
 
     try {

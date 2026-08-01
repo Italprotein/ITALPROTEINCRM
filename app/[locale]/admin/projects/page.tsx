@@ -433,20 +433,23 @@ export default function ProjectsPage() {
         }
       />
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label={t('kpiTotal')} value={stats?.total ?? 0} icon={FlaskConical} tone="gold" delay={0} />
-        <StatCard
-          label={t('kpiActive')}
-          value={stats?.active ?? 0}
-          icon={ActivityIcon}
-          tone="info"
-          hint={t('kpiActiveHint')}
-          delay={0.05}
-        />
-        <StatCard label={t('kpiLaunched')} value={stats?.launched ?? 0} icon={Rocket} tone="success" delay={0.1} />
-        <StatCard label={t('kpiOnHold')} value={onHold} icon={PauseCircle} tone="warning" delay={0.15} />
-      </div>
+      {/* KPI cards — only once there is anything to count; the table below owns
+          the empty state, and a duplicate row of zeros reads as a broken counter. */}
+      {stats !== null && stats.total > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label={t('kpiTotal')} value={stats.total} icon={FlaskConical} tone="gold" delay={0} />
+          <StatCard
+            label={t('kpiActive')}
+            value={stats.active}
+            icon={ActivityIcon}
+            tone="info"
+            hint={t('kpiActiveHint')}
+            delay={0.05}
+          />
+          <StatCard label={t('kpiLaunched')} value={stats.launched} icon={Rocket} tone="success" delay={0.1} />
+          <StatCard label={t('kpiOnHold')} value={onHold} icon={PauseCircle} tone="warning" delay={0.15} />
+        </div>
+      )}
 
       {/* Table */}
       <DataTable<ApplicationProject>

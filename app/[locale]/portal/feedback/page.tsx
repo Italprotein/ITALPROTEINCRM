@@ -22,7 +22,7 @@ import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FadeIn, Stagger, StaggerItem } from '@/components/shared/motion';
-import { getLabel } from '@/lib/labels';
+import { getLabel, isFeedbackOpen } from '@/lib/labels';
 import { formatDate } from '@/lib/formatting';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -142,18 +142,11 @@ export default function PortalFeedbackPage() {
     );
   }
 
-  /* Stats */
+  /* Stats — open/closed buckets come from the shared map in lib/labels.ts,
+     the same one the portal dashboard's "Open feedback" card uses. */
   const total = feedback.length;
-  const underReview = feedback.filter(
-    (f) =>
-      f.status === 'received' ||
-      f.status === 'under_review' ||
-      f.status === 'additional_info_requested' ||
-      f.status === 'technical_call_needed',
-  ).length;
-  const resolved = feedback.filter(
-    (f) => f.status === 'resolved' || f.status === 'technical_reply_sent',
-  ).length;
+  const underReview = feedback.filter((f) => isFeedbackOpen(f.status)).length;
+  const resolved = feedback.filter((f) => !isFeedbackOpen(f.status)).length;
   const rated = feedback.filter((f) => typeof f.overallRating === 'number');
   const avgRating = rated.length
     ? Math.round((rated.reduce((s, f) => s + (f.overallRating ?? 0), 0) / rated.length) * 10) / 10
@@ -179,7 +172,8 @@ export default function PortalFeedbackPage() {
         }
       />
 
-      {/* Stat cards */}
+      {/* Stat cards — only once feedback exists; the empty state below owns page-zero. */}
+      {feedback.length > 0 && (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total submitted" value={total} icon={Inbox} tone="info" delay={0} />
         <StatCard
@@ -207,6 +201,7 @@ export default function PortalFeedbackPage() {
           delay={0.15}
         />
       </div>
+      )}
 
       {/* List */}
       {feedback.length === 0 ? (

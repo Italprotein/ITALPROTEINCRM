@@ -98,7 +98,7 @@ export async function generateTaskCandidates(input: {
       "Create at most 12 concrete, unfinished actions supported by the supplied email. Do not create tasks for newsletters, spam, routine courier notifications, acknowledgements, or already-completed work.",
       "Prefer the earliest realistic due date. Use draft_reply only when a personalized email response is genuinely needed.",
       "Each task must cite exactly one sourceEmailId from the supplied data. Do not invent IDs, companies, commitments, prices, dates, or shipment facts.",
-      `Write titles and descriptions in ${input.locale === "it" ? "Italian" : "English"}.`,
+      `Write EVERY title, description and reason in ${input.locale === "it" ? "Italian" : "English"}, even when the source email is written in another language. Keep proper nouns, product names and quoted references as they appear.`,
     ].join("\n");
   const modelInput = JSON.stringify({
     today: input.today,
