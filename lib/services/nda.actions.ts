@@ -54,9 +54,14 @@ export async function listNdas(): Promise<NDA[]> {
   const rows = await prisma.nDA.findMany({
     where: await scopeWhere(),
     include: INCLUDE,
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
   });
-  return rows.map(ndaToDTO);
+  const seenCompanies = new Set<string>();
+  return rows.flatMap((row) => {
+    if (seenCompanies.has(row.companyId)) return [];
+    seenCompanies.add(row.companyId);
+    return [ndaToDTO(row)];
+  });
 }
 
 export async function getNda(id: string): Promise<NDA | undefined> {
