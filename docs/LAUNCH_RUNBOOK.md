@@ -217,7 +217,7 @@ The remaining **[CLAUDE]** tasks are ordered by launch impact:
 - E-signature provider (`ESIGN_*`) for the NDA flow.
 - Object storage bucket (`OBJECT_STORAGE_*`), carrier tracking, payments, AI vector store.
 
-**Deferred until data/permissions are production-safe:** permission-filtered Google Drive/Docs and live CRM retrieval inside Amina. The authenticated chat UI and model call are active without retrieval.
+**Implemented:** Amina uses permission-filtered live CRM, Gmail, Calendar and document tools. CRM administrators can search Google Drive metadata; portal retrieval is company- and NDA-scoped. Mutations are limited to explicit task, CRM-meeting/notification and Gmail-draft requests, with existing server authorization and audit logging. Google Calendar and Drive writes remain deliberately disabled.
 
 ---
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { prisma } from '@/lib/backend/prisma';
+import { captureError } from '@/lib/backend/observability';
 import { getCurrentUser } from '@/lib/backend/session';
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/backend/rate-limit';
 import { isApiMode } from '@/lib/data-mode';
@@ -115,6 +116,7 @@ export async function POST(request: Request) {
         },
       });
     } catch (error) {
+      captureError(error, { source: 'POST /api/assistant (mock)' });
       const providerStatus = statusFromError(error);
       const code = error instanceof Error ? error.message : '';
       if (code === 'AI_PROVIDER_NOT_CONFIGURED' || providerStatus === 401 || providerStatus === 403) {
@@ -181,11 +183,16 @@ export async function POST(request: Request) {
       locale: body.locale,
       history,
       message: body.message,
+      actorUserId: actor.userId ?? undefined,
       companyId: actor.companyId,
       companyName,
       actorRole: actor.role ?? undefined,
     });
   } catch (error) {
+    captureError(error, {
+      source: 'POST /api/assistant',
+      extra: { audience: actor.audience, role: actor.role },
+    });
     const providerStatus = statusFromError(error);
     const code = error instanceof Error ? error.message : '';
 
@@ -317,7 +324,8 @@ async function loadCompanyName(companyId: string): Promise<string | null> {
 }
 
 function statusFromError(error: unknown): number | null {
-  if (!error || typeof error !== 'object' || !('status' in error)) return null;
-  const status = (error as { status?: unknown }).status;
-  return typeof status === 'number' ? status : null;
+  if (!error || typeof error !== 'object') return null;
+  const candidate = error as { status?: unknown; statusCode?: unknown };
+  if (typeof candidate.status === 'number') return candidate.status;
+  return typeof candidate.statusCode === 'number' ? candidate.statusCode : null;
 }

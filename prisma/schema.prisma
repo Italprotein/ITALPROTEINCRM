@@ -678,6 +678,7 @@ enum AssistantCitationTargetType {
   invoice
   task
   meeting
+  email_message
   google_drive_file
 }
 
