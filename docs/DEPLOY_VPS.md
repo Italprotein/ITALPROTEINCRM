@@ -49,9 +49,16 @@ issue the certificate.
 ```bash
 git clone https://github.com/Italprotein/ITALPROTEINCRM.git
 cd ITALPROTEINCRM
-git checkout main                   # main, master and backend-phase-1 are identical
+git checkout backend-phase-1        # the live branch — see the warning below
 cp .env.production.example .env.production
 ```
+
+> ⚠️ **`backend-phase-1` is the live branch**, and it is what `origin/HEAD`
+> points at. `main` and `master` are stale leftovers — as of 2026-08-02 they sit
+> 26 commits behind, missing the Amina assistant, the operational dashboard, the
+> responsive pass and the NDA work. Deploying either of them would roll
+> production backwards. An earlier version of this runbook claimed the three
+> branches were identical; they have not been for some time.
 
 Edit `.env.production` and fill in every `REPLACE_…`. Generate the secrets:
 
@@ -147,6 +154,7 @@ restore before you rely on it.
 ## Updating after a code change
 
 ```bash
+git branch --show-current   # must be backend-phase-1; on main, `git pull` brings nothing
 git pull
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 ```
