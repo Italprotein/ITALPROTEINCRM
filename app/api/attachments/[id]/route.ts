@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/backend/prisma";
 import { canEdit, canView } from "@/lib/permissions";
 import { getCurrentUser } from "@/lib/backend/session";
-import { getObject } from "@/lib/backend/storage";
+import { readAttachmentBody } from "@/lib/backend/attachment-content";
 
 export const dynamic = "force-dynamic";
 
@@ -49,19 +49,13 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   // Resolve the bytes only after authorization has passed, so an unauthorized
   // caller never triggers a bucket read.
-  let body: Uint8Array;
-  if (attachment.storageKey) {
-    let stored;
-    try {
-      stored = await getObject(attachment.storageKey);
-    } catch {
-      return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
-    }
-    if (!stored) return NextResponse.json({ error: "not_found" }, { status: 404 });
-    body = stored.body;
-  } else {
-    body = attachment.bytes!;
+  let body: Uint8Array | null;
+  try {
+    body = await readAttachmentBody(attachment);
+  } catch {
+    return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
   }
+  if (!body) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   if (attachment.documentId) {
     await Promise.all([
