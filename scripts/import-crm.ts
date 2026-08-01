@@ -39,8 +39,8 @@ const AGENT_EMAIL_BY_NAME: Record<string, string> = {
   "giuseppe minelli": "giuseppeminelli@wefin.it",
   "mohamed amine abidi": "labidimedamine53@gmail.com",
   "amine abidi": "labidimedamine53@gmail.com",
-  "tomasso pitarello": "tpittarello@gmail.com",
-  "matteo pitarello": "matteo.pittarello@gmail.com",
+  "tommaso pittarello": "tpittarello@gmail.com",
+  "matteo pittarello": "matteo.pittarello@gmail.com",
   "ludwig becker": "ludwigvanbecker.3@gmail.com",
 };
 
