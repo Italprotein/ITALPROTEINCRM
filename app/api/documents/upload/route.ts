@@ -13,6 +13,7 @@ import { can, canEdit } from "@/lib/permissions";
 import { documentToDTO } from "@/lib/services/document.mapper";
 import type { DocumentCategory } from "@/lib/types";
 import { isItalproteinNdaDocumentName } from "@/lib/backend/nda-classification";
+import { syncCompanyNdaStatus } from "@/lib/backend/nda-status-sync";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -181,22 +182,15 @@ export async function POST(request: Request) {
       });
       ndaId = nda.id;
     }
-    await prisma.$transaction([
-      prisma.nDA.updateMany({
+    // Advance the register row, then re-derive the company cache from it.
+    // `neverRegress` keeps an upload from walking a signed company backwards.
+    await prisma.$transaction(async (tx) => {
+      await tx.nDA.updateMany({
         where: { id: ndaId, status: { in: ["not_required", "to_prepare", "draft", "sent"] } },
         data: { status: "under_review", updatedById: user.id },
-      }),
-      prisma.company.updateMany({
-        where: {
-          id: companyId,
-          OR: [
-            { ndaStatus: null },
-            { ndaStatus: { in: ["not_required", "to_prepare", "draft", "sent"] } },
-          ],
-        },
-        data: { ndaStatus: "under_review" },
-      }),
-    ]);
+      });
+      await syncCompanyNdaStatus(tx, companyId, { neverRegress: true });
+    });
     await prisma.documentVersion.create({
       data: {
         documentId: document.id,

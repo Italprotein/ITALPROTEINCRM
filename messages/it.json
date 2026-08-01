@@ -146,6 +146,13 @@
       "projects": "Progetti",
       "analytics": "Analisi"
     },
+    "heroCaption": "Proamina® · dolcificante 100% proteico · brevetto Italprotein",
+    "stats": [
+      { "value": 36, "suffix": "+", "label": "Partner attivi" },
+      { "value": 100, "suffix": "%", "label": "Dolcificante proteico" },
+      { "value": 12, "suffix": "", "label": "Paesi raggiunti" },
+      { "value": 28, "suffix": "", "label": "Moduli CRM" }
+    ],
     "partnersTitle": "In collaborazione con",
     "partnersSubtitle": "Marchi e produttori che già lavorano con Proamina®.",
     "ctaBannerTitle": "Pronto a potenziare il business di ITALPROTEIN?",

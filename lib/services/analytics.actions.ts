@@ -2,6 +2,8 @@
 
 import { prisma } from "@/lib/backend/prisma";
 import { requireSection } from "@/lib/backend/session";
+import { currentNdaByCompany } from "@/lib/backend/nda-current-status";
+import { ndaFunnelCounts } from "@/lib/nda-stats";
 import type {
   ApplicationCategory,
   CompanyType,
@@ -96,18 +98,12 @@ export async function pipelineDistribution(): Promise<
 
 export async function ndaFunnel(): Promise<{ name: string; value: number }[]> {
   await requireSection("analytics");
-  const rows = await prisma.company.findMany({
-    where: { ndaStatus: { not: null } },
-    select: { ndaStatus: true },
-  });
-  const sentStatuses = [
-    "sent", "under_review", "changes_requested", "approved",
-    "awaiting_italprotein_signature", "awaiting_counterparty_signature",
-    "partially_signed", "fully_signed",
-  ];
-  const prepared = rows.filter((n) => n.ndaStatus !== "not_required").length;
-  const sent = rows.filter((n) => n.ndaStatus && sentStatuses.includes(n.ndaStatus)).length;
-  const signed = rows.filter((n) => n.ndaStatus === "fully_signed").length;
+  // Analytics is an internal section, so the funnel spans every company. Read
+  // from the register, like every other NDA count — see lib/nda-stats.ts.
+  const current = await currentNdaByCompany({});
+  const { prepared, sent, signed } = ndaFunnelCounts(
+    [...current.values()].map((row) => row.status),
+  );
   return [
     { name: "Prepared", value: prepared },
     { name: "Sent", value: sent },

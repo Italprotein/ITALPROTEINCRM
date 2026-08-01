@@ -186,6 +186,11 @@ const config: Config = {
           '0%': { backgroundPosition: '-200% center' },
           '100%': { backgroundPosition: '200% center' },
         },
+        // Track is rendered twice, so -50% lands exactly on the seam.
+        marquee: {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(-50%)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -200,6 +205,7 @@ const config: Config = {
         'spin-slow': 'spin-slow 28s linear infinite',
         'bounce-in': 'bounce-in 0.5s cubic-bezier(0.22,1,0.36,1) forwards',
         shimmer: 'shimmer 1.5s infinite',
+        marquee: 'marquee 90s linear infinite',
       },
     },
   },

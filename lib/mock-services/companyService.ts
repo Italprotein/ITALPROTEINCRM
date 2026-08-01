@@ -1,5 +1,7 @@
 import type { Company } from '@/lib/types';
 import { COMPANIES, AGENCY_COMPANIES } from '@/fixtures';
+import { currentNdasOf } from '@/lib/nda-stats';
+import { ndaService } from './ndaService';
 import { createRepository } from './repository';
 
 // Agencies/distributors are Company records too, so they appear in company lists.
@@ -74,7 +76,11 @@ export const companyService = {
       total: all.length,
       active: all.filter((c) => !ACTIVE_EXCLUDE.includes(c.relationshipStage)).length,
       customers: all.filter((c) => ['customer', 'repeat_customer'].includes(c.relationshipStage)).length,
-      ndaSigned: all.filter((c) => c.ndaStatus === 'fully_signed').length,
+      // From the register, so this matches the NDA page — see lib/nda-stats.ts.
+      // Read through ndaService, not the NDAS seed: the repository carries a
+      // localStorage overlay of demo edits, and the seed would freeze this
+      // count while the NDA page moved.
+      ndaSigned: currentNdasOf(await ndaService.list()).filter((n) => n.status === 'fully_signed').length,
       pipelineValue: all.reduce((s, c) => s + (c.opportunityValue ?? 0), 0),
       estimatedPotential: all.reduce((s, c) => s + (c.estimatedAnnualPotential ?? 0), 0),
       highPriority: all.filter((c) => c.priority === 'high' || c.priority === 'urgent').length,

@@ -146,6 +146,13 @@
       "projects": "Projects",
       "analytics": "Analytics"
     },
+    "heroCaption": "Proamina® · 100% protein sweetener · Italprotein patent",
+    "stats": [
+      { "value": 36, "suffix": "+", "label": "Active partners" },
+      { "value": 100, "suffix": "%", "label": "Protein sweetener" },
+      { "value": 12, "suffix": "", "label": "Countries reached" },
+      { "value": 28, "suffix": "", "label": "CRM modules" }
+    ],
     "partnersTitle": "In collaboration with",
     "partnersSubtitle": "Brands and manufacturers already working with Proamina®.",
     "ctaBannerTitle": "Ready to power the ITALPROTEIN business?",

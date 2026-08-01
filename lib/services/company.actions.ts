@@ -6,6 +6,7 @@ import { getCurrentUser, requireUser, requireAction } from "@/lib/backend/sessio
 import { can } from "@/lib/permissions";
 import type { Company } from "@/lib/types";
 import { setCurrentNdaStatus } from "@/lib/backend/nda-status-sync";
+import { currentNdaByCompany, ndaScopeWhere } from "@/lib/backend/nda-current-status";
 import type { CompanyQuery } from "@/lib/mock-services/companyService";
 import { companyToDTO, companyWriteData } from "./company.mapper";
 
@@ -194,16 +195,18 @@ export async function companiesByType(): Promise<{ type: Company["type"]; count:
 
 export async function companyStatistics() {
   await requireUser();
-  const rows = await prisma.company.findMany({
-    where: await scopeWhere(),
-    select: {
-      relationshipStage: true,
-      ndaStatus: true,
-      priority: true,
-      opportunityValueMinor: true,
-      estimatedAnnualPotentialMinor: true,
-    },
-  });
+  const [rows, currentNdas] = await Promise.all([
+    prisma.company.findMany({
+      where: await scopeWhere(),
+      select: {
+        relationshipStage: true,
+        priority: true,
+        opportunityValueMinor: true,
+        estimatedAnnualPotentialMinor: true,
+      },
+    }),
+    currentNdaByCompany(await ndaScopeWhere()),
+  ]);
   const ACTIVE_EXCLUDE = ["lost", "dormant"];
   const byStage = new Map<string, number>();
   for (const r of rows) byStage.set(r.relationshipStage, (byStage.get(r.relationshipStage) ?? 0) + 1);
@@ -211,7 +214,9 @@ export async function companyStatistics() {
     total: rows.length,
     active: rows.filter((r) => !ACTIVE_EXCLUDE.includes(r.relationshipStage)).length,
     customers: rows.filter((r) => ["customer", "repeat_customer"].includes(r.relationshipStage)).length,
-    ndaSigned: rows.filter((r) => r.ndaStatus === "fully_signed").length,
+    // Counted from the NDA register so this agrees with the NDA page by
+    // construction; Company.ndaStatus is a cache and can lag it.
+    ndaSigned: [...currentNdas.values()].filter((n) => n.status === "fully_signed").length,
     pipelineValue: rows.reduce((s, r) => s + (r.opportunityValueMinor ?? 0) / 100, 0),
     estimatedPotential: rows.reduce((s, r) => s + (r.estimatedAnnualPotentialMinor ?? 0) / 100, 0),
     highPriority: rows.filter((r) => r.priority === "high" || r.priority === "urgent").length,

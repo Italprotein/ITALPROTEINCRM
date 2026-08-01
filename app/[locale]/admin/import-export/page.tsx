@@ -1,14 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { Database, Download, FileDown, FileSpreadsheet } from 'lucide-react';
+import { Download, FileDown, FileSpreadsheet } from 'lucide-react';
 
 import {
   companyService, contactService, sampleService, shipmentService, ndaService,
   documentService, taskService,
 } from '@/lib/mock-services';
 import { PageHeader } from '@/components/shared/page-header';
-import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
@@ -47,13 +46,9 @@ function saveCsv(name: string, csv: string) {
 }
 
 export default function DownloadDataPage() {
-  const [count, setCount] = React.useState(0);
+  // Nothing is loaded on mount on purpose: each dataset is fetched only when its
+  // Download button is pressed, and the row count lands in the success toast.
   const [downloading, setDownloading] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    void Promise.all(DATASETS.map((dataset) => dataset.load()))
-      .then((results) => setCount(results.reduce((total, rows) => total + rows.length, 0)));
-  }, []);
 
   async function download(dataset: Dataset) {
     setDownloading(dataset.key);
@@ -69,10 +64,6 @@ export default function DownloadDataPage() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader title="Download Data" subtitle="Download a current CSV copy of CRM records. Data upload has been removed from this area." />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <StatCard label="Available records" value={count} icon={Database} tone="gold" />
-        <StatCard label="Download format" value="CSV" icon={Download} tone="success" delay={0.05} />
-      </div>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Download className="h-4 w-4" /> Download datasets</CardTitle>

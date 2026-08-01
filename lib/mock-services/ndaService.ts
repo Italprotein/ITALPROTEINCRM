@@ -1,14 +1,11 @@
-import type { NDA, NDAStatus } from '@/lib/types';
+import type { NDA } from '@/lib/types';
 import { NDAS } from '@/fixtures';
+import { currentNdasOf, ndaStatusTallies } from '@/lib/nda-stats';
 import { createRepository } from './repository';
 
 const repo = createRepository<NDA>('ndas', NDAS);
 
 const NOW = new Date('2026-06-17T12:00:00Z');
-const AWAITING: NDAStatus[] = [
-  'sent', 'under_review', 'changes_requested', 'approved',
-  'awaiting_italprotein_signature', 'awaiting_counterparty_signature', 'partially_signed',
-];
 
 export const ndaService = {
   list: () => repo.list(),
@@ -23,22 +20,16 @@ export const ndaService = {
     return (await repo.list()).filter((n) => n.companyId === companyId);
   },
   async getStatistics() {
-    const all = await repo.list();
-    const byStatus = {} as Record<NDAStatus, number>;
-    for (const n of all) byStatus[n.status] = (byStatus[n.status] ?? 0) + 1;
-    const expiringSoon = all.filter((n) => {
+    // One current row per company, then the shared tallies — same contract as
+    // the Prisma path in lib/services/nda.actions.ts.
+    const current = currentNdasOf(await repo.list());
+    const tallies = ndaStatusTallies(current.map((n) => n.status));
+    const expiringSoon = current.filter((n) => {
       if (!n.expiryDate || n.status !== 'fully_signed') return false;
       const days = (new Date(n.expiryDate).getTime() - NOW.getTime()) / 86400000;
       return days >= 0 && days <= 60;
     }).length;
-    return {
-      total: all.length,
-      byStatus,
-      awaitingSignature: all.filter((n) => AWAITING.includes(n.status)).length,
-      signed: all.filter((n) => n.status === 'fully_signed').length,
-      toPrepare: all.filter((n) => n.status === 'to_prepare' || n.status === 'draft').length,
-      expiringSoon,
-    };
+    return { ...tallies, expiringSoon };
   },
 };
 

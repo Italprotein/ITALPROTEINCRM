@@ -19,6 +19,7 @@ import {
   type NdaMatchConfidence,
 } from "./nda-classification";
 import { firstMentionedLeadMember } from "./lead-attribution";
+import { syncCompanyNdaStatus } from "./nda-status-sync";
 
 // Gmail inbox sync engine. For every new inbox message it:
 //  1. stores an EmailMessage row (dedupe key: gmailMessageId),
@@ -187,7 +188,9 @@ async function createCompanyFromEmail(options: {
       city: "",
       website: domain ? `https://${domain}` : null,
       relationshipStage: "nda_in_progress",
-      ndaStatus: "under_review",
+      // No ndaStatus here: the cache is derived from the register, and the
+      // filing step that follows creates the register row and syncs from it.
+      // Setting it here produced companies counted with zero NDA rows.
       tags: ["gmail-import"],
       ownerUserId,
     },
@@ -267,8 +270,9 @@ async function storeNdaDocument(options: {
 }
 
 /**
- * Company.ndaStatus is the portal's access gate, so the sync may only push it
- * FORWARD into review — never sideways or back from a signature state a staff
+ * Advance the register row into review, then re-derive the company cache from
+ * it. Company.ndaStatus is the portal's access gate, so `neverRegress` keeps an
+ * inbound email from walking a company back out of a signature state a staff
  * member already asserted.
  */
 async function advanceCompanyNdaStatus(
@@ -283,19 +287,8 @@ async function advanceCompanyNdaStatus(
         data: { status: "under_review" },
       });
     }
-    const company = await tx.company.findUnique({
-      where: { id: companyId },
-      select: { ndaStatus: true },
-    });
-    const advanceable =
-      !company?.ndaStatus || ["not_required", "to_prepare", "draft", "sent"].includes(company.ndaStatus);
-    await tx.company.update({
-      where: { id: companyId },
-      data: {
-        ...(advanceable ? { ndaStatus: "under_review" as const } : {}),
-        lastActivityAt: emailDate,
-      },
-    });
+    await tx.company.update({ where: { id: companyId }, data: { lastActivityAt: emailDate } });
+    await syncCompanyNdaStatus(tx, companyId, { neverRegress: true });
   }).catch(() => undefined);
 }
 
