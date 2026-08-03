@@ -133,6 +133,12 @@ const config: Config = {
         ring: '0 0 0 1px rgb(10 22 40 / 0.06)',
         'gold-glow': '0 0 24px rgb(56 189 248 / 0.40)',
       },
+      // The site's signature ease, shared by the landing reveals and the motion
+      // presets. Named here because the inline arbitrary value
+      // `ease-[cubic-bezier(0.22,1,0.36,1)]` is ambiguous to Tailwind's parser.
+      transitionTimingFunction: {
+        editorial: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      },
       keyframes: {
         'accordion-down': {
           from: { height: '0' },
