@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { Bot, ChefHat, ClipboardCheck, FlaskConical, Package, Users } from 'lucide-react';
 
@@ -19,13 +20,19 @@ import { PublicShell } from '@/components/public/public-shell';
  * `/team-login`, `/login` or `/register`.
  *
  * Every string below comes from the existing `Landing` namespace — no new
- * copy, no new keys. `heroTitle` is the one piece of copy that states what
- * ITALPROTEIN makes, so it renders as a real `<h1>` with display weight —
- * the first thing in the column — rather than through the small mono
- * `Designation` label every other module uses. `radarTitle`/`featuresTitle`/
- * `partnersTitle` double as their module's mono designation, the same
- * treatment the previous version already gave `featuresTitle` and
- * `partnersTitle` directly.
+ * copy, no new keys. `radarTitle`/`featuresTitle`/`partnersTitle` double as
+ * their module's mono designation, the same treatment the previous version
+ * already gave `featuresTitle` and `partnersTitle` directly.
+ *
+ * The headline states the *product*, not the software. `heroTitle` ("the
+ * operating system for the ITALPROTEIN business") describes this CRM, and
+ * when it held the display slot a first-time visitor learned only that the
+ * company sells itself internal software — what Italprotein actually makes
+ * survived in an 11px caption and one trailing clause. So `heroSubtitle` is
+ * split at its em dash: the product half leads at display weight beside the
+ * Proamina® bottle, and the platform (`heroTitle` + `platformNote`) follows
+ * behind a hairline as the supporting note it is. Split rather than rewritten
+ * because the copy is fixed — see the "no new copy" rule above.
  *
  * A server component; its only client code is the scroll reveal (`Reveal`)
  * and the wordmark scan, which now lives in the rail.
@@ -35,21 +42,67 @@ const CAPABILITY_ICONS = [FlaskConical, Package, ClipboardCheck, ChefHat, Bot, U
 
 export default function LandingPage() {
   const t = useTranslations('Landing');
+  const tCommon = useTranslations('Common');
   const features = t.raw('features') as { title: string; desc: string }[];
   const stats = t.raw('stats') as { value: number; suffix: string; label: string }[];
 
+  /* `heroSubtitle` is one sentence hinged on an em dash: the platform clause,
+     then what the product is ("… Proamina® — Italprotein's patented 100%
+     protein sweetener."). Both locales carry the hinge; if a future
+     translation drops it the whole sentence simply becomes the definition
+     line, which still reads. */
+  const subtitle = t('heroSubtitle');
+  const hinge = subtitle.lastIndexOf(' — ');
+  const productLine = hinge === -1 ? subtitle : subtitle.slice(hinge + 3);
+
   return (
     <PublicShell>
-      {/* 1 — Headline. A first-time visitor needs to know what ITALPROTEIN
-          makes without hovering anything, so this carries real display
-          weight and is a genuine <h1> — not routed through `Module`'s mono
-          designation, which would bury it at 11px. First thing in the
-          column, so it paints immediately rather than waiting on Reveal. */}
-      <div className="border-b border-white/10 pb-14 sm:pb-16">
-        <h1 className="max-w-[20ch] text-3xl font-extrabold leading-[1.08] tracking-[-0.03em] text-white sm:text-4xl lg:text-5xl">
-          {t('heroTitle')}
-        </h1>
-        <p className="mt-6 max-w-[56ch] leading-relaxed text-slate-400">{t('heroSubtitle')}</p>
+      {/* 1 — Headline. The largest type on the page names the product and
+          says what it is, next to a photograph of it: a first-time visitor
+          must learn what this company makes without hovering anything or
+          reading to the end of a paragraph. First thing in the column and
+          outside `Reveal`, so it paints on the first frame. */}
+      {/* Two columns only from `xl`: at exactly `lg` the rail has already
+          taken 26rem, so a 17rem product column would leave the headline
+          about 18rem to sit in. Below that the bottle stacks under the
+          text. */}
+      <div className="grid items-center gap-10 border-b border-white/10 py-12 sm:py-16 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-14">
+        <div>
+          <Designation className="text-sky-300/90">{t('eyebrow')}</Designation>
+
+          <h1 className="mt-5 text-4xl font-extrabold leading-[1.02] tracking-[-0.035em] text-white sm:text-5xl xl:text-6xl">
+            {tCommon('productName')}
+            <span className="mt-4 block max-w-[22ch] text-xl font-semibold leading-snug tracking-[-0.01em] text-slate-200 sm:text-2xl">
+              {productLine}
+            </span>
+          </h1>
+
+          {/* The platform, deliberately subordinate: behind a hairline, at
+              body size. It is what this site runs on, not what the company
+              sells. */}
+          <div className="mt-8 max-w-[52ch] border-l border-white/15 pl-4">
+            <p className="text-sm font-medium text-slate-300">{t('heroTitle')}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-400">{t('platformNote')}</p>
+          </div>
+        </div>
+
+        {/* The product itself. `priority`: it is the largest above-the-fold
+            element on the page. */}
+        <div className="relative mx-auto w-full max-w-[14rem] sm:max-w-[16rem] xl:mx-0 xl:w-[17rem] xl:max-w-none">
+          <div
+            className="absolute left-1/2 top-1/2 h-[22rem] w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,theme(colors.brand.gold/0.18),transparent_65%)] blur-2xl"
+            aria-hidden
+          />
+          <Image
+            src="/marketing/proamina-bottle.png"
+            alt={t('heroCaption')}
+            width={500}
+            height={500}
+            priority
+            sizes="(max-width: 1024px) 60vw, 17rem"
+            className="relative z-10 h-auto w-full drop-shadow-2xl"
+          />
+        </div>
       </div>
 
       {/* 2 — Platform radar. */}

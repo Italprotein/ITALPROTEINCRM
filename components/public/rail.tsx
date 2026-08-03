@@ -1,4 +1,4 @@
-import { Building2, Globe2, Mail, Phone, Users } from 'lucide-react';
+import { Building2, Globe2, Mail, Phone, UserPlus, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Logo } from '@/components/brand/logo';
@@ -8,8 +8,15 @@ import { siteContact } from '@/lib/config/site';
 import { Link } from '@/lib/i18n/navigation';
 
 /**
- * The rail: identity, the signature, the two doors and contact — permanently
- * on screen, so the column is never more than a glance from either door.
+ * The rail: identity, the signature, the doors and contact — permanently on
+ * screen, so the column is never more than a glance from any door.
+ *
+ * Three doors, not two: the two sign-in doors as lit panels, then `/register`
+ * beneath them. Registration is the only way a company that has no account yet
+ * can get one, and after `access-menu.tsx` was deleted nothing on the site
+ * linked to it. It is rendered as a quieter dashed row rather than a third
+ * panel because it is subordinate — most visitors already have an account —
+ * but it lives in the same `<nav>` so it is never missed.
  *
  * `Logo` renders `variant="mark"` only (the circular image badge, no text
  * lockup). Its `variant="full"`/`"wordmark"` text spans hard-code the
@@ -25,6 +32,7 @@ import { Link } from '@/lib/i18n/navigation';
 export function Rail() {
   const t = useTranslations('Public');
   const tLanding = useTranslations('Landing');
+  const tAccess = useTranslations('Access');
 
   const doors = [
     {
@@ -58,7 +66,7 @@ export function Rail() {
           {t('positioning')}
         </p>
 
-        <nav aria-label="Access" className="space-y-3">
+        <nav aria-label={t('accessNav')} className="space-y-3">
           {doors.map((door) => (
             <Link
               key={door.href}
@@ -78,6 +86,33 @@ export function Rail() {
               </span>
             </Link>
           ))}
+
+          {/* The third door. Dashed and unlit so it reads as subordinate to
+              the two sign-in panels above, but it is a full-width target with
+              the same focus ring — a company with no account has no other
+              route in. Copy reuses the `Access` namespace the deleted access
+              menu already carried. */}
+          <Link
+            href="/register"
+            className={
+              'group flex items-start gap-3 rounded-lg border border-dashed border-white/15 px-4 py-3 ' +
+              'transition-colors duration-200 hover:border-sky-400/40 hover:bg-white/[0.03] ' +
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 focus-visible:ring-offset-brand-navy'
+            }
+          >
+            <UserPlus
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500 transition-colors group-hover:text-sky-400"
+              aria-hidden
+            />
+            <span className="min-w-0">
+              <span className="block text-xs font-medium text-slate-300 transition-colors group-hover:text-white">
+                {tAccess('register')}
+              </span>
+              <span className="mt-0.5 block font-mono text-[0.625rem] leading-relaxed text-slate-500">
+                {tAccess('registerHint')}
+              </span>
+            </span>
+          </Link>
         </nav>
 
         <div className="flex flex-col gap-6 border-t border-white/10 pt-6 lg:mt-auto">
