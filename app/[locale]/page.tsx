@@ -3,6 +3,9 @@
 import { useTranslations } from 'next-intl';
 
 import { Link } from '@/lib/i18n/navigation';
+import { Logo } from '@/components/brand/logo';
+import { LanguageSwitcher } from '@/components/i18n/language-switcher';
+import { CrmPreview } from '@/components/landing/crm-preview';
 import { LANES, PARTNERS } from '@/components/landing/partners';
 import { HoverBorderGradient } from '@/components/ui/hover-border-gradient';
 import { InfiniteMovingCards } from '@/components/ui/infinite-moving-cards';
@@ -37,57 +40,95 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen bg-brand-navy text-white">
 
-      {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <section className="relative flex min-h-[92vh] flex-col items-center justify-center overflow-hidden px-4 py-20">
+      {/* ── Header ───────────────────────────────────────────────────────
+          The rebuild dropped the header entirely, so the page opened on a
+          band of empty navy with no logo and no way to change language. */}
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-brand-navy/80 backdrop-blur">
+        <div className="container flex h-16 items-center justify-between gap-4">
+          <Logo tone="light" href="/" />
+          <div className="flex items-center gap-2 sm:gap-4">
+            <LanguageSwitcher tone="light" />
+            <Link
+              href="/login"
+              className="hidden text-sm font-medium text-slate-300 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 sm:inline"
+            >
+              {t('ctaExternal')}
+            </Link>
+            <Link
+              href="/team-login"
+              className="rounded-full border border-white/15 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:border-sky-400/50 hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+            >
+              {t('ctaInternal')}
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* ── Hero ─────────────────────────────────────────────────────────
+          Two columns: the claim on the left, the thing being claimed on the
+          right. The previous single centred column left the fold two-thirds
+          empty. */}
+      <section className="relative overflow-hidden px-4 py-16 sm:py-24">
         <Spotlight
           gradientFirst="radial-gradient(68% 68% at 50% 30%, rgba(56,189,248,0.10) 0%, rgba(56,189,248,0.03) 50%, transparent 80%)"
           gradientSecond="radial-gradient(50% 50% at 50% 50%, rgba(14,184,154,0.08) 0%, transparent 80%)"
           gradientThird="radial-gradient(50% 50% at 50% 50%, rgba(56,189,248,0.06) 0%, transparent 80%)"
         />
 
-        <p className="relative z-10 font-mono text-[0.6875rem] uppercase tracking-[0.28em] text-sky-300/80">
-          {t('eyebrow')}
-        </p>
+        <div className="container relative z-10 grid grid-cols-1 items-center gap-14 lg:grid-cols-12 lg:gap-12">
+          <div className="lg:col-span-6">
+            <p className="font-mono text-[0.6875rem] uppercase tracking-[0.28em] text-sky-300/80">
+              {t('eyebrow')}
+            </p>
 
-        <TextGenerateEffect
-          words={t('heroTitle')}
-          className="relative z-10 mt-8 max-w-4xl text-center text-4xl font-extrabold tracking-[-0.03em] text-white sm:text-5xl lg:text-6xl"
-          duration={0.6}
-        />
+            <TextGenerateEffect
+              words={t('heroTitle')}
+              className="mt-6 text-4xl font-extrabold tracking-[-0.03em] text-white sm:text-5xl"
+              duration={0.6}
+            />
 
-        <p className="relative z-10 mt-7 max-w-2xl text-center text-base leading-relaxed text-slate-400 sm:text-lg">
-          {t('heroSubtitle')}
-        </p>
+            <p className="mt-6 max-w-xl text-base leading-relaxed text-slate-400 sm:text-lg">
+              {t('heroSubtitle')}
+            </p>
 
-        <div className="relative z-10 mt-11 flex flex-wrap items-center justify-center gap-4">
-          {/* Link wraps the gradient rather than being passed as `as`: the
-              component's props do not forward href, so `as={Link}` typechecks
-              only by accident and drops the navigation. */}
-          <Link href="/team-login" className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
-            <HoverBorderGradient
-              as="span"
-              containerClassName="rounded-full"
-              className="block bg-brand-navy px-6 py-3 text-sm font-medium text-white"
-            >
-              {t('ctaInternal')}
-            </HoverBorderGradient>
-          </Link>
-          <Link
-            href="/login"
-            className="rounded-full border border-white/15 px-6 py-3 text-sm font-medium text-slate-300 transition-colors hover:border-sky-400/50 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
-          >
-            {t('ctaExternal')}
-          </Link>
-          <Link
-            href="/register"
-            className="text-sm font-medium text-sky-300 underline-offset-4 transition-colors hover:text-sky-200 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
-          >
-            {t('ctaRegister')}
-          </Link>
+            <div className="mt-9 flex flex-wrap items-center gap-4">
+              {/* Link wraps the gradient rather than being passed as `as`: the
+                  component's props do not forward href, so `as={Link}`
+                  typechecks only by accident and drops the navigation. */}
+              <Link href="/team-login" className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
+                <HoverBorderGradient
+                  as="span"
+                  containerClassName="rounded-full"
+                  className="block bg-brand-navy px-6 py-3 text-sm font-medium text-white"
+                >
+                  {t('ctaInternal')}
+                </HoverBorderGradient>
+              </Link>
+              <Link
+                href="/login"
+                className="rounded-full border border-white/15 px-6 py-3 text-sm font-medium text-slate-300 transition-colors hover:border-sky-400/50 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+              >
+                {t('ctaExternal')}
+              </Link>
+              <Link
+                href="/register"
+                className="text-sm font-medium text-sky-300 underline-offset-4 transition-colors hover:text-sky-200 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+              >
+                {t('ctaRegister')}
+              </Link>
+            </div>
+          </div>
+
+          {/* The product itself, not an abstract graphic. */}
+          <div className="lg:col-span-6">
+            <CrmPreview />
+          </div>
         </div>
+      </section>
 
-        {/* Figures, small and factual, directly under the doors. */}
-        <dl className="relative z-10 mt-16 grid w-full max-w-3xl grid-cols-2 gap-y-8 sm:grid-cols-4">
+      {/* ── Figures ──────────────────────────────────────────────────── */}
+      <section className="border-t border-white/10 py-12">
+        <dl className="container grid grid-cols-2 gap-y-8 sm:grid-cols-4">
           {stats.map((stat) => (
             <div key={stat.label} className="text-center">
               <dt className="sr-only">{stat.label}</dt>
