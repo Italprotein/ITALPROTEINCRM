@@ -81,7 +81,7 @@ function ActivationForm() {
           ) : (
             <form onSubmit={submit} className="mt-8 space-y-4" noValidate>
               <div className="space-y-1.5">
-                <Label htmlFor="activation-password">{t('passwordLabel')}</Label>
+                <Label htmlFor="activation-password" className="text-slate-200">{t('passwordLabel')}</Label>
                 <Input
                   id="activation-password"
                   type="password"
@@ -94,7 +94,7 @@ function ActivationForm() {
                 <p className="text-xs text-slate-400">{t('passwordHint')}</p>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="activation-confirm">{t('confirmLabel')}</Label>
+                <Label htmlFor="activation-confirm" className="text-slate-200">{t('confirmLabel')}</Label>
                 <Input
                   id="activation-confirm"
                   type="password"

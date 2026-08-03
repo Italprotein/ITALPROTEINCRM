@@ -94,7 +94,7 @@ function ForgotPasswordForm() {
           {step === 'email' && (
             <form onSubmit={submitEmail} className="mt-8 space-y-4" noValidate>
               <div className="space-y-1.5">
-                <Label htmlFor="fp-email">{t('emailLabel')}</Label>
+                <Label htmlFor="fp-email" className="text-slate-200">{t('emailLabel')}</Label>
                 <Input
                   id="fp-email"
                   type="email"
@@ -121,7 +121,7 @@ function ForgotPasswordForm() {
                 <span>{t('codeSentNotice')}</span>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="fp-code">{t('codeLabel')}</Label>
+                <Label htmlFor="fp-code" className="text-slate-200">{t('codeLabel')}</Label>
                 <Input
                   id="fp-code"
                   inputMode="numeric"
@@ -134,7 +134,7 @@ function ForgotPasswordForm() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="fp-password">{t('newPasswordLabel')}</Label>
+                <Label htmlFor="fp-password" className="text-slate-200">{t('newPasswordLabel')}</Label>
                 <Input
                   id="fp-password"
                   type="password"
@@ -146,7 +146,7 @@ function ForgotPasswordForm() {
                 <p className="text-xs text-slate-400">{t('passwordHint')}</p>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="fp-confirm">{t('confirmPasswordLabel')}</Label>
+                <Label htmlFor="fp-confirm" className="text-slate-200">{t('confirmPasswordLabel')}</Label>
                 <Input
                   id="fp-confirm"
                   type="password"

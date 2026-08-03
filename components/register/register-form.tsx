@@ -74,7 +74,7 @@ function Section({ icon: Icon, title, children }: { icon: React.ElementType; tit
 function Field({ id, label, required, children }: { id: string; label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}{required ? ' *' : ''}</Label>
+      <Label htmlFor={id} className="text-slate-200">{label}{required ? ' *' : ''}</Label>
       {children}
     </div>
   );
