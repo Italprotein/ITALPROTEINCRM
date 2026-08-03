@@ -3,16 +3,15 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { CheckCircle2, KeyRound, Loader2, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Loader2, ShieldCheck } from 'lucide-react';
 
 import { useRouter } from '@/lib/i18n/navigation';
 import { acceptAccountInvitation } from '@/lib/services/auth.actions';
-import { Logo } from '@/components/brand/logo';
-import { LanguageSwitcher } from '@/components/i18n/language-switcher';
+import { Module } from '@/components/public/module';
+import { PublicShell } from '@/components/public/public-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 
 const ERROR_KEYS: Record<string, string> = {
   invalid_token: 'errorInvalidToken',
@@ -61,18 +60,11 @@ function ActivationForm() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <div className="flex items-center justify-between border-b px-6 py-4">
-        <Logo tone="dark" href="/" />
-        <LanguageSwitcher tone="dark" />
-      </div>
-      <main className="flex flex-1 items-center justify-center px-6 py-12">
-        <div className="w-full max-w-sm">
-          <Badge variant="gold" className="mb-4">
-            <KeyRound className="h-3 w-3" /> {t('eyebrow')}
-          </Badge>
-          <h1 className="font-display text-3xl font-bold tracking-tight">{t('heading')}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+    <PublicShell>
+      <Module designation={t('eyebrow')}>
+        <div className="max-w-sm">
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">{t('heading')}</h1>
+          <p className="mt-2 text-sm text-slate-400">
             {loginPath ? t('subheadingDone') : t('subheading')}
           </p>
 
@@ -99,7 +91,7 @@ function ActivationForm() {
                   disabled={!token || busy}
                   className="h-12"
                 />
-                <p className="text-xs text-muted-foreground">{t('passwordHint')}</p>
+                <p className="text-xs text-slate-400">{t('passwordHint')}</p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="activation-confirm">{t('confirmLabel')}</Label>
@@ -125,8 +117,8 @@ function ActivationForm() {
             </form>
           )}
         </div>
-      </main>
-    </div>
+      </Module>
+    </PublicShell>
   );
 }
 
