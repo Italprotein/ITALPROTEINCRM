@@ -2,10 +2,12 @@
 
 import { useTranslations } from 'next-intl';
 
+import Image from 'next/image';
+
 import { Link } from '@/lib/i18n/navigation';
 import { Logo } from '@/components/brand/logo';
 import { LanguageSwitcher } from '@/components/i18n/language-switcher';
-import { CrmPreview } from '@/components/landing/crm-preview';
+
 import { LANES, PARTNERS } from '@/components/landing/partners';
 import { HoverBorderGradient } from '@/components/ui/hover-border-gradient';
 import { InfiniteMovingCards } from '@/components/ui/infinite-moving-cards';
@@ -21,12 +23,16 @@ import WorldMap from '@/components/ui/world-map';
  * partner logos. The rail, the modules, the wordmark scan and the editorial
  * hero are all gone.
  *
- * The thesis is reach. With no product photograph, the most characteristic true
- * thing about an ingredient house in Bologna is who buys from it and where it
- * ships — so the world map is the signature, and every arc ends somewhere
- * Proamina® actually goes. The timeline earns its ordering because first
- * contact → NDA → sample → testing → supply is a real sequence: it is the
- * pipeline this CRM tracks.
+ * The hero leads with the product: the Proamina® bottle beside the claim. It
+ * briefly showed a rendering of the CRM overview instead, which put real
+ * company counts and pipeline conversion rates on a public page — never put
+ * operational figures here. The four numbers in the strip below are published
+ * marketing claims and are fine.
+ *
+ * Reach is the second thesis: the world map's arcs each end somewhere Proamina®
+ * actually goes. The timeline earns its ordering because first contact → NDA →
+ * sample → testing → supply is a real sequence — it is the pipeline this CRM
+ * tracks.
  *
  * Palette unchanged: brand-navy #0a1628 field, brand-gold #38bdf8 (a sky blue
  * despite the token name) as the accent, brand-teal #0eb89a as the second.
@@ -119,9 +125,23 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* The product itself, not an abstract graphic. */}
-          <div className="lg:col-span-6">
-            <CrmPreview />
+          {/* The product itself. This column briefly held a rendering of the
+              CRM overview carrying real counts and pipeline conversion rates —
+              business figures that must not sit on a public page. */}
+          <div className="relative lg:col-span-6">
+            <div
+              className="pointer-events-none absolute left-1/2 top-1/2 h-[26rem] w-[26rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(56,189,248,0.18),transparent_68%)] blur-2xl"
+              aria-hidden
+            />
+            <Image
+              src="/marketing/proamina-bottle.png"
+              alt="Proamina®"
+              width={520}
+              height={520}
+              priority
+              sizes="(max-width: 1024px) 70vw, 30rem"
+              className="relative mx-auto h-auto w-[16rem] drop-shadow-2xl sm:w-[22rem] lg:w-[26rem]"
+            />
           </div>
         </div>
       </section>
