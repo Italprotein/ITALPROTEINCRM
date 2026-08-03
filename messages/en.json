@@ -148,10 +148,26 @@
     },
     "heroCaption": "Proamina® · 100% protein sweetener · Italprotein patent",
     "stats": [
-      { "value": 36, "suffix": "+", "label": "Active partners" },
-      { "value": 100, "suffix": "%", "label": "Protein sweetener" },
-      { "value": 12, "suffix": "", "label": "Countries reached" },
-      { "value": 28, "suffix": "", "label": "CRM modules" }
+      {
+        "value": 36,
+        "suffix": "+",
+        "label": "Active partners"
+      },
+      {
+        "value": 100,
+        "suffix": "%",
+        "label": "Protein sweetener"
+      },
+      {
+        "value": 12,
+        "suffix": "",
+        "label": "Countries reached"
+      },
+      {
+        "value": 28,
+        "suffix": "",
+        "label": "CRM modules"
+      }
     ],
     "partnersTitle": "In collaboration with",
     "partnersSubtitle": "Brands and manufacturers already working with Proamina®.",
@@ -1665,7 +1681,9 @@
     "revisionDialogDescription": "Flag changes required on {reference} and notify the counterparty.",
     "fieldRequestedModifications": "Requested modifications",
     "revisionPlaceholder": "Describe the clauses or terms that need to change…",
-    "sending": "Sending…"
+    "sending": "Sending…",
+    "kpiTechnicalDocs": "Technical documents",
+    "kpiTechnicalDocsHint": "Shared library from Drive"
   },
   "AdminNotifications": {
     "title": "Notifications",
@@ -2213,5 +2231,49 @@
     "openInDrive": "Open in Drive",
     "linkedOn": "Linked {date}",
     "modifiedOn": "Modified {date}"
+  },
+  "TechnicalDocs": {
+    "pageTitle": "Technical documents",
+    "pageSubtitle": "Shared library imported from the Drive folder “Documenti Tecnici”.",
+    "syncFromDrive": "Sync from Drive",
+    "syncing": "Syncing…",
+    "addDocument": "Add document",
+    "searchPlaceholder": "Search by name, category or format…",
+    "colName": "Document",
+    "colCategory": "Category",
+    "colVisibility": "Visibility",
+    "colSize": "Size",
+    "colUpdated": "Updated",
+    "visibilityClients": "Visible to clients",
+    "visibilityInternal": "Internal only",
+    "publish": "Publish to clients with a signed NDA",
+    "withdraw": "Withdraw from client view",
+    "download": "Download",
+    "emptyTitle": "No technical documents",
+    "emptyDescription": "Sync the “Documenti Tecnici” Drive folder, or add a file.",
+    "syncDoneTitle": "Sync complete",
+    "syncDoneDescription": "{synced} documents updated out of {found} found.",
+    "syncSkipped": "File skipped",
+    "syncFailedTitle": "Sync failed",
+    "syncFailedDescription": "Check the Google Drive connection and try again.",
+    "syncNotConfigured": "The technical documents Drive folder is not configured on the server (GOOGLE_DRIVE_TECHNICAL_FOLDER_ID).",
+    "publishedTitle": "Document published",
+    "publishedDescription": "It is now visible to clients with a signed NDA.",
+    "withdrawnTitle": "Document withdrawn",
+    "withdrawnDescription": "It is now visible to staff only.",
+    "visibilityFailedTitle": "Change failed",
+    "visibilityFailedDescription": "The visibility was not changed. Try again.",
+    "uploadDialogDescription": "The file is uploaded to the CRM. Drive stays a read-only source.",
+    "uploadVisibilityNote": "Documents added here are visible to clients with a signed NDA. You can withdraw them at any time from the table.",
+    "fieldFile": "File",
+    "fieldName": "Display name",
+    "fieldCategory": "Category",
+    "uploading": "Uploading…",
+    "uploadedTitle": "Document added",
+    "uploadedDescription": "The file is now in the technical library.",
+    "uploadFailedTitle": "Upload failed",
+    "uploadFailedDescription": "Please try again shortly.",
+    "uploadTooLarge": "That file is larger than the 20 MB limit.",
+    "cancel": "Cancel"
   }
 }

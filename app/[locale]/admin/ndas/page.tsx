@@ -7,6 +7,7 @@ import {
   Clock,
   CheckCircle2,
   FileClock,
+  FolderOpen,
   AlertTriangle,
   Plus,
   Upload,
@@ -28,7 +29,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
-import { ndaService, companyService } from '@/lib/mock-services';
+import { ndaService, companyService, documentService } from '@/lib/mock-services';
 import type {
   NDA,
   NDAStatus,
@@ -126,6 +127,7 @@ export default function NdasPage() {
   const [syncingDrive, setSyncingDrive] = React.useState(false);
   const [companies, setCompanies] = React.useState<Map<string, Company>>(new Map());
   const [stats, setStats] = React.useState<Stats | null>(null);
+  const [technicalCount, setTechnicalCount] = React.useState<number | null>(null);
 
   // toolbar filters
   const [fStatus, setFStatus] = React.useState<string>(ALL);
@@ -142,6 +144,7 @@ export default function NdasPage() {
     ndaService.list().then(setRows);
     ndaService.getStatistics().then(setStats);
     companyService.list().then((cs) => setCompanies(new Map(cs.map((c) => [c.id, c]))));
+    documentService.technical().then((docs) => setTechnicalCount(docs.length));
   }, []);
 
   const companyName = React.useCallback(
@@ -564,12 +567,15 @@ export default function NdasPage() {
         <StatCard label={t('kpiAwaitingSignature')} value={stats?.awaitingSignature ?? 0} icon={Clock} tone="warning" delay={0.05} />
         <StatCard label={t('kpiFullySigned')} value={stats?.signed ?? 0} icon={CheckCircle2} tone="success" delay={0.1} />
         <StatCard label={t('kpiToPrepare')} value={stats?.toPrepare ?? 0} icon={FileClock} tone="info" delay={0.15} />
+        {/* Replaces the former "Expiring soon" card. `ndaStatistics().expiringSoon`
+            is still computed, so restoring that card is a one-line change. */}
         <StatCard
-          label={t('kpiExpiringSoon')}
-          value={stats?.expiringSoon ?? 0}
-          icon={AlertTriangle}
-          tone="danger"
-          hint={t('kpiExpiringSoonHint')}
+          label={t('kpiTechnicalDocs')}
+          value={technicalCount ?? 0}
+          icon={FolderOpen}
+          tone="info"
+          hint={t('kpiTechnicalDocsHint')}
+          href="/admin/documents/technical"
           delay={0.2}
         />
       </div>

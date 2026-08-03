@@ -2,9 +2,10 @@
 
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
-import { getCurrentUser, requireUser, requireInternal } from "@/lib/backend/session";
+import { getCurrentUser, requireUser, requireInternal, requireAction } from "@/lib/backend/session";
 import { deleteObject } from "@/lib/backend/storage";
 import type { DocumentRecord, DocumentCategory, DocumentAccessLevel } from "@/lib/types";
+import { TECHNICAL_CATEGORIES } from "@/lib/technical-docs";
 import { documentToDTO, documentWriteData } from "./document.mapper";
 
 // Server-side document scope: external users see only their own company's docs
@@ -195,6 +196,53 @@ export async function documentsForPortal(
         return ndaSigned && (!d.companyId || d.companyId === companyId);
       return false;
     });
+}
+
+/**
+ * The shared technical library: everything imported from the Drive folder
+ * "Documenti Tecnici" plus anything staff added on that page. Membership is
+ * defined in lib/technical-docs.ts and shared with the mock service.
+ */
+export async function technicalDocuments(): Promise<DocumentRecord[]> {
+  await requireInternal();
+  const rows = await prisma.document.findMany({
+    where: {
+      AND: [
+        await scopeWhere(),
+        { companyId: null },
+        { category: { in: TECHNICAL_CATEGORIES } },
+      ],
+    },
+    include: withDownload,
+    orderBy: { uploadedAt: "desc" },
+  });
+  return rows.map(documentToDTO);
+}
+
+/**
+ * Publish or withdraw one library document.
+ *
+ * Deliberately two levels only, not a general access-level editor: everything
+ * synced from Drive is client-visible by default, and this is the way to pull a
+ * draft back without deleting it from Drive.
+ */
+export async function setTechnicalDocumentVisibility(
+  id: string,
+  level: "post_nda" | "internal",
+): Promise<DocumentRecord | undefined> {
+  const user = await requireAction("technical_docs.manage");
+  const existing = await prisma.document.findUnique({ where: { id } });
+  // Guard the scope: this action must never retarget a company-specific file
+  // or an NDA, whose visibility is owned by the register.
+  if (!existing || existing.companyId || !TECHNICAL_CATEGORIES.includes(existing.category)) {
+    return undefined;
+  }
+  const row = await prisma.document.update({
+    where: { id },
+    data: { confidentialityClass: level, updatedById: user.id },
+    include: withDownload,
+  });
+  return documentToDTO(row);
 }
 
 export async function documentStatistics() {

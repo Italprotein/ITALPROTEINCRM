@@ -31,6 +31,10 @@ export type Action =
   | 'feedback.reply' | 'nda.prepare' | 'nda.send' | 'nda.mark_signed'
   | 'finance.edit' | 'registration.approve' | 'user.manage' | 'data.export'
   | 'settings.edit' | 'audit.view' | 'integrations.manage'
+  // Sync and publish the shared technical-document library. An action, not a
+  // section right, because `documents` is a PORTAL section — it is 'hidden' for
+  // every internal role, so canEdit(role, 'documents') can never gate staff work.
+  | 'technical_docs.manage'
   // portal
   | 'portal.request_sample' | 'portal.confirm_delivery' | 'portal.submit_feedback'
   | 'portal.upload_results' | 'portal.edit_company' | 'portal.submit_sensitive_edit'
@@ -70,7 +74,7 @@ const ALL_INTERNAL_ACTIONS: Action[] = [
   'sample.approve', 'sample.status_update', 'shipment.update', 'feedback.reply',
   'nda.prepare', 'nda.send', 'nda.mark_signed', 'finance.edit',
   'registration.approve', 'user.manage', 'data.export', 'settings.edit', 'audit.view',
-  'integrations.manage',
+  'integrations.manage', 'technical_docs.manage',
 ];
 
 /* ────────────────────────────── THE MATRIX ────────────────────────────── */
@@ -98,7 +102,7 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
       // Connecting the shared ad@italprotein.com mailbox and calendar is
       // day-to-day operational work, not account administration — every CRM
       // admin needs it, and gating it on settings.edit made it super_admin-only.
-      'integrations.manage',
+      'integrations.manage', 'technical_docs.manage',
     ],
   },
   business_dev: {
@@ -122,7 +126,8 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
       finance: 'hidden', users: 'hidden', settings: 'hidden', audit: 'hidden',
       registrations: 'hidden', import_export: 'hidden',
     }),
-    actions: ['feedback.reply', 'sample.status_update', 'data.export'],
+    // R&D owns the technical data sheets in practice, so they publish them.
+    actions: ['feedback.reply', 'sample.status_update', 'data.export', 'technical_docs.manage'],
   },
   logistics: {
     workspace: 'internal',

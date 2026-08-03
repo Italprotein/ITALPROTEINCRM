@@ -148,10 +148,26 @@
     },
     "heroCaption": "Proamina® · dolcificante 100% proteico · brevetto Italprotein",
     "stats": [
-      { "value": 36, "suffix": "+", "label": "Partner attivi" },
-      { "value": 100, "suffix": "%", "label": "Dolcificante proteico" },
-      { "value": 12, "suffix": "", "label": "Paesi raggiunti" },
-      { "value": 28, "suffix": "", "label": "Moduli CRM" }
+      {
+        "value": 36,
+        "suffix": "+",
+        "label": "Partner attivi"
+      },
+      {
+        "value": 100,
+        "suffix": "%",
+        "label": "Dolcificante proteico"
+      },
+      {
+        "value": 12,
+        "suffix": "",
+        "label": "Paesi raggiunti"
+      },
+      {
+        "value": 28,
+        "suffix": "",
+        "label": "Moduli CRM"
+      }
     ],
     "partnersTitle": "In collaborazione con",
     "partnersSubtitle": "Marchi e produttori che già lavorano con Proamina®.",
@@ -1665,7 +1681,9 @@
     "revisionDialogDescription": "Segnala le modifiche necessarie su {reference} e avvisa la controparte.",
     "fieldRequestedModifications": "Modifiche richieste",
     "revisionPlaceholder": "Descrivi le clausole o i termini che devono cambiare…",
-    "sending": "Invio…"
+    "sending": "Invio…",
+    "kpiTechnicalDocs": "Documenti tecnici",
+    "kpiTechnicalDocsHint": "Libreria condivisa da Drive"
   },
   "AdminNotifications": {
     "title": "Notifiche",
@@ -2213,5 +2231,49 @@
     "openInDrive": "Apri in Drive",
     "linkedOn": "Collegato il {date}",
     "modifiedOn": "Modificato il {date}"
+  },
+  "TechnicalDocs": {
+    "pageTitle": "Documenti tecnici",
+    "pageSubtitle": "Libreria condivisa importata dalla cartella Drive “Documenti Tecnici”.",
+    "syncFromDrive": "Sincronizza da Drive",
+    "syncing": "Sincronizzazione…",
+    "addDocument": "Aggiungi documento",
+    "searchPlaceholder": "Cerca per nome, categoria o formato…",
+    "colName": "Documento",
+    "colCategory": "Categoria",
+    "colVisibility": "Visibilità",
+    "colSize": "Dimensione",
+    "colUpdated": "Aggiornato",
+    "visibilityClients": "Visibile ai clienti",
+    "visibilityInternal": "Solo interno",
+    "publish": "Pubblica ai clienti con NDA firmato",
+    "withdraw": "Ritira dalla vista clienti",
+    "download": "Scarica",
+    "emptyTitle": "Nessun documento tecnico",
+    "emptyDescription": "Sincronizza la cartella Drive “Documenti Tecnici” o aggiungi un file.",
+    "syncDoneTitle": "Sincronizzazione completata",
+    "syncDoneDescription": "{synced} documenti aggiornati su {found} trovati.",
+    "syncSkipped": "File saltato",
+    "syncFailedTitle": "Sincronizzazione non riuscita",
+    "syncFailedDescription": "Controlla la connessione a Google Drive e riprova.",
+    "syncNotConfigured": "La cartella Drive dei documenti tecnici non è configurata sul server (GOOGLE_DRIVE_TECHNICAL_FOLDER_ID).",
+    "publishedTitle": "Documento pubblicato",
+    "publishedDescription": "Ora è visibile ai clienti con NDA firmato.",
+    "withdrawnTitle": "Documento ritirato",
+    "withdrawnDescription": "Ora è visibile solo allo staff.",
+    "visibilityFailedTitle": "Modifica non riuscita",
+    "visibilityFailedDescription": "La visibilità non è stata cambiata. Riprova.",
+    "uploadDialogDescription": "Il file viene caricato nel CRM. Drive resta la sorgente in sola lettura.",
+    "uploadVisibilityNote": "I documenti aggiunti qui sono visibili ai clienti con NDA firmato. Puoi ritirarli in qualsiasi momento dalla tabella.",
+    "fieldFile": "File",
+    "fieldName": "Nome visualizzato",
+    "fieldCategory": "Categoria",
+    "uploading": "Caricamento…",
+    "uploadedTitle": "Documento aggiunto",
+    "uploadedDescription": "Il file è ora nella libreria tecnica.",
+    "uploadFailedTitle": "Caricamento non riuscito",
+    "uploadFailedDescription": "Riprova tra poco.",
+    "uploadTooLarge": "Il file supera il limite di 20 MB.",
+    "cancel": "Annulla"
   }
 }

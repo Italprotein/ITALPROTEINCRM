@@ -59,6 +59,11 @@ services:
       GOOGLE_REDIRECT_URI: "${GOOGLE_REDIRECT_URI:-}"
       GMAIL_SENDER_EMAIL: "${GMAIL_SENDER_EMAIL:-ad@italprotein.com}"
       GMAIL_REPLY_TO: "${GMAIL_REPLY_TO:-ad@italprotein.com}"
+      # Drive folders the syncs read. Neither was passed through before, so the
+      # NDA sync could only ever use its hardcoded fallback; the technical-docs
+      # sync has no fallback and reports "not configured" until this is set.
+      GOOGLE_DRIVE_INDUSTRIAL_CLIENTS_FOLDER_ID: "${GOOGLE_DRIVE_INDUSTRIAL_CLIENTS_FOLDER_ID:-}"
+      GOOGLE_DRIVE_TECHNICAL_FOLDER_ID: "${GOOGLE_DRIVE_TECHNICAL_FOLDER_ID:-}"
       # Object storage for uploaded documents (S3/R2/B2/MinIO). Blank => file
       # bytes stay in Postgres. Required before external portal users upload.
       OBJECT_STORAGE_BUCKET: "${OBJECT_STORAGE_BUCKET:-}"

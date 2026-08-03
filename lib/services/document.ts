@@ -10,6 +10,8 @@ import {
   documentsByCategory,
   documentsForPortal,
   documentStatistics,
+  technicalDocuments,
+  setTechnicalDocumentVisibility,
 } from "./document.actions";
 
 // Real (Prisma-backed) documentService — contract-identical to the mock service,
@@ -26,4 +28,7 @@ export const documentService: DocumentService = {
   byCategory: (category: DocumentCategory) => documentsByCategory(category),
   forPortal: (companyId: string, ndaSigned: boolean) => documentsForPortal(companyId, ndaSigned),
   getStatistics: () => documentStatistics(),
+  technical: () => technicalDocuments(),
+  setTechnicalVisibility: (id: string, level: "post_nda" | "internal") =>
+    setTechnicalDocumentVisibility(id, level),
 };

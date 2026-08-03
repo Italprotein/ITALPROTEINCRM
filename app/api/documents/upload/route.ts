@@ -38,6 +38,14 @@ const UPLOADABLE: DocumentCategory[] = [
   "presentation",
 ];
 
+// Staff maintaining the shared technical library may also file safety sheets and
+// application guides, which no client would ever upload.
+const TECHNICAL_UPLOADABLE: DocumentCategory[] = [
+  ...UPLOADABLE,
+  "safety_data_sheet",
+  "application_guide",
+];
+
 const ALLOWED_MIME = new Set([
   "application/pdf",
   "application/msword",
@@ -62,10 +70,14 @@ export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 
-  // Who may upload: portal clients via portal.request_docs, or internal staff who
-  // can edit the document library (which lives under the `ndas` section).
+  // Who may upload: portal clients via portal.request_docs, internal staff who
+  // can edit the document library (which lives under the `ndas` section), or
+  // the roles that maintain the shared technical library (R&D has no `ndas`
+  // edit right but owns the data sheets).
   const allowed =
-    can(user.role, "portal.request_docs") || canEdit(user.role, "ndas");
+    can(user.role, "portal.request_docs") ||
+    canEdit(user.role, "ndas") ||
+    can(user.role, "technical_docs.manage");
   if (!allowed) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   let form: FormData;
@@ -86,17 +98,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "unsupported_type" }, { status: 415 });
   }
 
+  // A shared technical-library upload: no company, and published to clients who
+  // have signed an NDA. Server-decided, never taken on the client's word.
+  const isTechnicalUpload =
+    user.kind === "internal" &&
+    (form.get("scope") as string | null) === "technical" &&
+    can(user.role, "technical_docs.manage");
+
   // Company scope is the security boundary: an external uploader is pinned to
   // their OWN company — the client-supplied companyId is ignored for them.
   const requestedCompanyId = (form.get("companyId") as string | null)?.trim() || null;
   const companyId =
-    user.kind === "external" ? user.companyId : requestedCompanyId;
+    user.kind === "external" ? user.companyId : isTechnicalUpload ? null : requestedCompanyId;
 
   const rawCategory = (form.get("category") as string | null)?.trim() as DocumentCategory;
+  const uploadableHere = isTechnicalUpload ? TECHNICAL_UPLOADABLE : UPLOADABLE;
   const autoFileAsNda = Boolean(companyId && isItalproteinNdaDocumentName(file.name));
   const category: DocumentCategory = autoFileAsNda
     ? "nda"
-    : UPLOADABLE.includes(rawCategory) ? rawCategory : "other";
+    : uploadableHere.includes(rawCategory) ? rawCategory : "other";
   const description = (form.get("description") as string | null)?.trim() || null;
 
   const displayName = ((form.get("name") as string | null)?.trim() || file.name).slice(0, 200);
@@ -126,7 +146,9 @@ export async function POST(request: Request) {
         title: displayName,
         category,
         // Client uploads are visible to their company + our staff, never public.
-        confidentialityClass: "company_specific",
+        // Technical-library files carry no company and are published to every
+        // client that has signed an NDA.
+        confidentialityClass: isTechnicalUpload ? "post_nda" : "company_specific",
         companyId,
         fileType,
         mimeType,

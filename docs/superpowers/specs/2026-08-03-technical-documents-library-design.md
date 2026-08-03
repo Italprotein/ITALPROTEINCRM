@@ -90,9 +90,19 @@ levels — it is not a general access-level editor.
 
 ### Permissions
 
-One matrix change: `rnd_technical` gains `documents: "edit"` (currently the
-inherited `"view"`). Every gate is the existing `canEdit(role, "documents")`,
-which then admits `super_admin`, `crm_admin` and `rnd_technical`.
+**Corrected during implementation.** The design first proposed gating on
+`canEdit(role, "documents")`. That cannot work: `documents` is a **portal**
+section (`PortalSection` in `lib/permissions/index.ts`), so it is `'hidden'` for
+every internal role — the point `document.actions.ts:31-34` already makes, which
+is why internal document reads guard with `requireInternal()` instead.
+
+The gate is therefore a new **action**, matching how `integrations.manage` and
+`nda.prepare` express cross-cutting rights: `technical_docs.manage`, granted to
+`super_admin`, `crm_admin` and `rnd_technical`.
+
+The document upload endpoint's `allowed` check gains the same action, because it
+previously admitted only `canEdit(role, "ndas")` — which excludes `rnd_technical`,
+the role that actually owns data sheets.
 
 ### Surfaces
 

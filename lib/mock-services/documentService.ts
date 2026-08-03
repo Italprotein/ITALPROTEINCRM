@@ -1,5 +1,6 @@
 import type { DocumentRecord, DocumentCategory, DocumentAccessLevel } from '@/lib/types';
 import { DOCUMENTS } from '@/fixtures';
+import { isTechnicalLibraryDoc } from '@/lib/technical-docs';
 import { createRepository } from './repository';
 
 const repo = createRepository<DocumentRecord>('documents', DOCUMENTS);
@@ -21,6 +22,18 @@ export const documentService = {
   },
   async byCategory(category: DocumentCategory): Promise<DocumentRecord[]> {
     return (await repo.list()).filter((d) => d.category === category);
+  },
+  /** Shared technical library — same membership rule as the Prisma path. */
+  async technical(): Promise<DocumentRecord[]> {
+    return (await repo.list())
+      .filter(isTechnicalLibraryDoc)
+      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+  },
+  async setTechnicalVisibility(
+    id: string,
+    level: 'post_nda' | 'internal',
+  ): Promise<DocumentRecord | undefined> {
+    return repo.update(id, { accessLevel: level });
   },
   /** Documents a portal company may see, gated by NDA signed state. */
   async forPortal(companyId: string, ndaSigned: boolean): Promise<DocumentRecord[]> {
