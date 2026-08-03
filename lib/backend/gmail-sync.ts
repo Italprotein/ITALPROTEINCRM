@@ -641,14 +641,25 @@ export async function runGmailSync(options?: { maxMessages?: number }): Promise<
         }
       }
 
-      // ── NDA auto-filing: every matched attachment, company resolved once.
+      // ── Company attribution, then NDA auto-filing.
       let ndaId: string | null = null;
-      let companyId: string | null = null;
       let ndaDetected = false;
+
+      // Attribute every inbound message we can place. This lookup used to live
+      // inside the NDA branch below, so a message was only ever linked to a
+      // company when the sender happened to attach an agreement: on production
+      // that left 18 of 317 inbound emails attributed, and every one of the 18
+      // was an NDA. Ordinary correspondence — samples, pricing, logistics —
+      // was invisible to anything reasoning about a company's history.
+      let companyId: string | null = await resolveCompanyId(from.email, senderDomain);
+
       const ndaMatches = pickNdaAttachments(attachments, subject);
       if (ndaMatches.length) {
         ndaDetected = true;
-        companyId = await resolveCompanyId(from.email, senderDomain);
+        // Creating a company from a sender we have never met stays on the NDA
+        // path deliberately. An agreement is evidence of a real relationship;
+        // an ordinary email is not, and auto-creating from every unknown domain
+        // would fill the CRM with couriers and newsletters.
         if (!companyId && senderDomain && !isFreemail(senderDomain)) {
           // A real organisation domain we simply have not met yet.
           const ownerId = admin?.id ?? (await fallbackOwnerId(admins));
