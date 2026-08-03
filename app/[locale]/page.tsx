@@ -144,16 +144,20 @@ export default function LandingPage() {
       </section>
 
       {/* ── Figures ────────────────────────────────────────────────── */}
-      <section className="border-b bg-brand-cream/40">
+      {/* Fixed white, not a theme token: this band was `bg-brand-cream/40`,
+          and 40% cream over a dark page background muddied into grey. The text
+          colours are pinned dark for the same reason — `text-foreground` flips
+          light in dark mode and would disappear against white. */}
+      <section className="border-b border-slate-200 bg-white">
         <div className="container py-14 sm:py-16">
-          <div className="grid grid-cols-2 gap-y-8 sm:grid-cols-4 sm:gap-y-0 sm:divide-x sm:divide-border/70">
+          <div className="grid grid-cols-2 gap-y-8 sm:grid-cols-4 sm:gap-y-0 sm:divide-x sm:divide-slate-200">
             {stats.map((stat, i) => (
               <Reveal key={stat.label} delay={i * 70} className="px-4 text-center">
-                <p className="font-display text-4xl font-bold leading-none tracking-[-0.02em] text-foreground tabular-nums sm:text-5xl">
+                <p className="font-display text-4xl font-bold leading-none tracking-[-0.02em] text-brand-navy tabular-nums sm:text-5xl">
                   {stat.value}
                   <span className="align-super text-2xl text-brand-goldDark sm:text-3xl">{stat.suffix}</span>
                 </p>
-                <Kicker className="mt-3 text-muted-foreground">{stat.label}</Kicker>
+                <Kicker className="mt-3 text-slate-500">{stat.label}</Kicker>
               </Reveal>
             ))}
           </div>

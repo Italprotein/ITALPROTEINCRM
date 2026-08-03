@@ -31,6 +31,7 @@ import { formatDate, isOverdue, flagEmoji } from '@/lib/formatting';
 import { cn, initials, uid } from '@/lib/utils';
 import { useRouter } from '@/lib/i18n/navigation';
 
+import { FollowUpPanel } from '@/components/crm/follow-up-panel';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
@@ -619,6 +620,10 @@ export default function TasksPage() {
           delay={0.2}
         />
       </div>
+
+      {/* Stalled conversations. Sits above the task list because it is work the
+          task list cannot show you: nobody creates a task for silence. */}
+      <FollowUpPanel />
 
       {/* Filter chips */}
       <div className="flex flex-wrap items-center gap-2">

@@ -2276,5 +2276,15 @@
     "uploadFailedDescription": "Riprova tra poco.",
     "uploadTooLarge": "Il file supera il limite di 20 MB.",
     "cancel": "Annulla"
+  },
+  "FollowUp": {
+    "title": "Da ricontattare",
+    "subtitle": "Aziende che ci hanno già risposto almeno una volta e da cui non sentiamo nulla da 10 giorni o più.",
+    "quietDays": "{days} giorni di silenzio",
+    "askAmina": "Chiedi ad Amina",
+    "noSubject": "(nessun oggetto)",
+    "empty": "Nessuna azienda da ricontattare. Tutte le conversazioni attive sono recenti.",
+    "needsApiMode": "L'elenco legge la posta reale: disponibile solo con il database di produzione collegato.",
+    "aminaPrompt": "Preparami il follow-up per {company}. Non ci scriviamo da {days} giorni; il loro ultimo messaggio del {date} aveva come oggetto \"{subject}\". Riassumimi in breve a che punto siamo, qual è il tema su cui ripartire e che cosa conviene chiedere adesso."
   }
 }

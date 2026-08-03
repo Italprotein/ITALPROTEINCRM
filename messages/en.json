@@ -2276,5 +2276,15 @@
     "uploadFailedDescription": "Please try again shortly.",
     "uploadTooLarge": "That file is larger than the 20 MB limit.",
     "cancel": "Cancel"
+  },
+  "FollowUp": {
+    "title": "Needs following up",
+    "subtitle": "Companies that have replied to us at least once and have gone quiet for 10 days or more.",
+    "quietDays": "{days} days quiet",
+    "askAmina": "Ask Amina",
+    "noSubject": "(no subject)",
+    "empty": "Nobody to chase. Every active conversation is recent.",
+    "needsApiMode": "This list reads real mail — available only with the production database connected.",
+    "aminaPrompt": "Brief me on the follow-up for {company}. We have not exchanged messages for {days} days; their last message on {date} was titled \"{subject}\". Summarise briefly where we stand, what the follow-up should be about, and what to ask them now."
   }
 }

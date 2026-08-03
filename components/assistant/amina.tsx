@@ -63,6 +63,27 @@ export function Amina() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Anywhere in the CRM can hand Amina a question:
+  //   window.dispatchEvent(new CustomEvent('amina:ask', { detail: { prompt } }))
+  // The follow-up list on the tasks page uses this to ask for a briefing on a
+  // company that has gone quiet. A DOM event rather than a context, so callers
+  // need no provider and Amina stays mounted once, in the app shell.
+  //
+  // The listener calls through a ref: subscribing once with `send` captured
+  // directly would freeze the first render's closure, so every prompt would be
+  // sent with an empty history and a null threadId.
+  const sendRef = React.useRef<(text: string) => void>(() => {});
+  React.useEffect(() => {
+    function onAsk(event: Event) {
+      const prompt = (event as CustomEvent<{ prompt?: string }>).detail?.prompt?.trim();
+      if (!prompt) return;
+      setOpen(true);
+      sendRef.current(prompt);
+    }
+    window.addEventListener('amina:ask', onAsk);
+    return () => window.removeEventListener('amina:ask', onAsk);
+  }, []);
+
   React.useEffect(() => {
     if (open) window.setTimeout(() => inputRef.current?.focus(), 60);
   }, [open]);
@@ -74,6 +95,9 @@ export function Amina() {
   function addMessage(message: Omit<ChatMessage, 'id'>) {
     setMessages((current) => [...current, { id: nextId(), ...message }]);
   }
+
+  // Keep the event listener above pointed at the current closure.
+  sendRef.current = (text: string) => void send(text);
 
   async function send(textOverride?: string) {
     const text = (textOverride ?? input).trim();
