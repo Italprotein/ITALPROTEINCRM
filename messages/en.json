@@ -2104,7 +2104,8 @@
     "labelDueDate": "Due date",
     "cancel": "Cancel",
     "creating": "Creating…",
-    "createTask": "Create task"
+    "createTask": "Create task",
+    "dropHere": "Drop here"
   },
   "AdminUsers": {
     "title": "Users & Roles",

@@ -813,6 +813,14 @@ function TaskBoard({
   onDelete: (t: Task) => void;
 }) {
   const t = useTranslations('AdminTasks');
+  // Native HTML5 drag-and-drop rather than a drag library: a four-lane board
+  // moving whole cards needs no collision detection or sort ordering, and the
+  // dropdown "Move to" below stays the keyboard-accessible path, so nothing is
+  // reachable only by pointer.
+  const [draggingId, setDraggingId] = React.useState<string | null>(null);
+  const [draggingStatus, setDraggingStatus] = React.useState<TaskStatus | null>(null);
+  const [dragOverLane, setDragOverLane] = React.useState<TaskStatus | null>(null);
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -831,14 +839,43 @@ function TaskBoard({
   return (
     <div className="flex gap-4 overflow-x-auto pb-3">
       {lanes.map(({ status, items }) => (
-        <div key={status} className="flex w-72 shrink-0 flex-col rounded-lg border bg-muted/40">
+        <div
+          key={status}
+          className={cn(
+            'flex w-72 shrink-0 flex-col rounded-lg border bg-muted/40 transition-colors',
+            // Only the lanes a drop would actually change light up, so dragging
+            // back to where the card came from reads as the no-op it is.
+            dragOverLane === status && draggingStatus !== status && 'border-brand-gold bg-brand-gold/10',
+          )}
+          onDragOver={(event) => {
+            if (!canEditTasks || !draggingId) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            setDragOverLane(status);
+          }}
+          onDragLeave={(event) => {
+            // Ignore the leave events fired while crossing child elements.
+            if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+            setDragOverLane((current) => (current === status ? null : current));
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            const id = event.dataTransfer.getData('text/plain') || draggingId;
+            const task = id ? rows.find((row) => row.id === id) : undefined;
+            setDraggingId(null);
+            setDragOverLane(null);
+            if (task && task.status !== status) onMove(task, status);
+          }}
+        >
           <div className="flex items-center justify-between gap-2 border-b px-3 py-2.5">
             <StatusBadge kind="taskStatus" value={status} />
             <span className="text-xs font-semibold tabular text-muted-foreground">{items.length}</span>
           </div>
           <div className="flex flex-col gap-2 p-2">
             {items.length === 0 ? (
-              <p className="px-2 py-6 text-center text-xs text-muted-foreground">{t('noTasks')}</p>
+              <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+                {dragOverLane === status ? t('dropHere') : t('noTasks')}
+              </p>
             ) : (
               items.map((task) => {
                 const overdue =
@@ -846,7 +883,23 @@ function TaskBoard({
                 return (
                   <div
                     key={task.id}
-                    className="rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
+                    draggable={canEditTasks}
+                    onDragStart={(event) => {
+                      event.dataTransfer.setData('text/plain', task.id);
+                      event.dataTransfer.effectAllowed = 'move';
+                      setDraggingId(task.id);
+                      setDraggingStatus(task.status);
+                    }}
+                    onDragEnd={() => {
+                      setDraggingId(null);
+                      setDraggingStatus(null);
+                      setDragOverLane(null);
+                    }}
+                    className={cn(
+                      'rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md',
+                      canEditTasks && 'cursor-grab active:cursor-grabbing',
+                      draggingId === task.id && 'opacity-40',
+                    )}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p

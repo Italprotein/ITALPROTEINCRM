@@ -2104,7 +2104,8 @@
     "labelDueDate": "Data di scadenza",
     "cancel": "Annulla",
     "creating": "Creazione…",
-    "createTask": "Crea task"
+    "createTask": "Crea task",
+    "dropHere": "Rilascia qui"
   },
   "AdminUsers": {
     "title": "Utenti e Ruoli",
