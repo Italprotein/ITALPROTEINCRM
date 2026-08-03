@@ -8,7 +8,7 @@ import { Link } from '@/lib/i18n/navigation';
 import { Logo } from '@/components/brand/logo';
 import { LanguageSwitcher } from '@/components/i18n/language-switcher';
 
-import { LANES, PARTNERS } from '@/components/landing/partners';
+import { MARKERS, PARTNERS } from '@/components/landing/partners';
 import { HoverBorderGradient } from '@/components/ui/hover-border-gradient';
 import { InfiniteMovingCards } from '@/components/ui/infinite-moving-cards';
 import { Spotlight } from '@/components/ui/spotlight-new';
@@ -29,10 +29,11 @@ import WorldMap from '@/components/ui/world-map';
  * operational figures here. The four numbers in the strip below are published
  * marketing claims and are fine.
  *
- * Reach is the second thesis: the world map's arcs each end somewhere Proamina®
- * actually goes. The timeline earns its ordering because first contact → NDA →
- * sample → testing → supply is a real sequence — it is the pipeline this CRM
- * tracks.
+ * Reach is the second thesis: the map marks every country Proamina® is present
+ * in — Italy in the brand's sky blue, each other market in yellow, with nothing
+ * drawn between them, so it states presence rather than implying routes. The
+ * timeline earns its ordering because first contact → NDA → sample → testing →
+ * supply is a real sequence — it is the pipeline this CRM tracks.
  *
  * Palette unchanged: brand-navy #0a1628 field, brand-gold #38bdf8 (a sky blue
  * despite the token name) as the accent, brand-teal #0eb89a as the second.
@@ -177,7 +178,7 @@ export default function LandingPage() {
           </h2>
         </div>
         <div className="mt-10">
-          <WorldMap dots={LANES} lineColor="#38bdf8" />
+          <WorldMap markers={MARKERS} />
         </div>
       </section>
 

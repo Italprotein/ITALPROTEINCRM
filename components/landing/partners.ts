@@ -19,22 +19,21 @@ export const PARTNERS = [
 ].map((p) => ({ ...p, quote: `${p.name} — ${p.title}` }));
 
 /**
- * Shipping lanes out of Bologna. Every arc ends somewhere Proamina® actually
- * goes, which is what makes the map worth showing: it is a statement of reach,
- * not an ornament.
+ * Where Proamina® is present. Italy is home and is drawn in the brand's sky
+ * blue; every other market is yellow. No lines between them — the map states
+ * presence, not routes.
  */
-const BOLOGNA = { lat: 44.49, lng: 11.34, label: 'Bologna' };
-
-export const LANES = [
-  { start: BOLOGNA, end: { lat: 51.51, lng: -0.13, label: 'United Kingdom' } },
-  { start: BOLOGNA, end: { lat: 47.38, lng: 8.54, label: 'Switzerland' } },
-  { start: BOLOGNA, end: { lat: 59.33, lng: 18.07, label: 'Sweden' } },
-  { start: BOLOGNA, end: { lat: 52.37, lng: 4.9, label: 'Netherlands' } },
-  { start: BOLOGNA, end: { lat: 50.85, lng: 4.35, label: 'Belgium' } },
-  { start: BOLOGNA, end: { lat: 40.42, lng: -3.7, label: 'Spain' } },
-  { start: BOLOGNA, end: { lat: 52.52, lng: 13.4, label: 'Germany' } },
-  { start: BOLOGNA, end: { lat: 25.2, lng: 55.27, label: 'United Arab Emirates' } },
-  { start: BOLOGNA, end: { lat: 24.71, lng: 46.68, label: 'Saudi Arabia' } },
-  { start: BOLOGNA, end: { lat: -33.87, lng: 151.21, label: 'Australia' } },
-  { start: BOLOGNA, end: { lat: 40.71, lng: -74.01, label: 'United States' } },
+export const MARKERS = [
+  { lat: 44.49, lng: 11.34, label: 'Italia — Bologna', home: true },
+  { lat: 51.51, lng: -0.13, label: 'United Kingdom' },
+  { lat: 47.38, lng: 8.54, label: 'Switzerland' },
+  { lat: 59.33, lng: 18.07, label: 'Sweden' },
+  { lat: 52.37, lng: 4.9, label: 'Netherlands' },
+  { lat: 50.85, lng: 4.35, label: 'Belgium' },
+  { lat: 40.42, lng: -3.7, label: 'Spain' },
+  { lat: 52.52, lng: 13.4, label: 'Germany' },
+  { lat: 25.2, lng: 55.27, label: 'United Arab Emirates' },
+  { lat: 24.71, lng: 46.68, label: 'Saudi Arabia' },
+  { lat: -33.87, lng: 151.21, label: 'Australia' },
+  { lat: 40.71, lng: -74.01, label: 'United States' },
 ];
