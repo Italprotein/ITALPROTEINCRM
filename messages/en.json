@@ -159,7 +159,36 @@
       }
     ],
     "partnersTitle": "In collaboration with",
-    "partnersSubtitle": "Brands and manufacturers already working with Proamina®."
+    "partnersSubtitle": "Brands and manufacturers already working with Proamina®.",
+    "reachEyebrow": "From Bologna, to 12 countries",
+    "reachTitle": "Where Proamina® goes",
+    "journey": [
+      {
+        "title": "First contact",
+        "body": "You tell us your product and your formulation goal. We come back with the technical data sheet and the dosage we would recommend for your application."
+      },
+      {
+        "title": "NDA",
+        "body": "We sign a confidentiality agreement before going into formulation detail. From then on the full technical documentation is open to you in the portal."
+      },
+      {
+        "title": "Sample",
+        "body": "We prepare and ship a batch-traced sample. You follow the shipment in the portal through to delivery confirmation."
+      },
+      {
+        "title": "Application testing",
+        "body": "You run Proamina® in your recipe and upload the results from the portal. Our R&D team answers on the same record."
+      },
+      {
+        "title": "Supply",
+        "body": "We agree volumes, price and recurring logistics. Orders, shipments and documents all stay in one place."
+      }
+    ],
+    "ctaInternal": "Enter the internal CRM",
+    "ctaExternal": "Open the company portal",
+    "ctaRegister": "Register your business",
+    "ctaBannerTitle": "Ready to power the ITALPROTEIN business?",
+    "ctaBannerSubtitle": "Get started — register your company, open the portal, or enter the team CRM."
   },
   "Public": {
     "positioning": "Maker of Proamina®, the patented 100% protein sweetener.",

@@ -1,171 +1,176 @@
-import Image from 'next/image';
-import { useTranslations } from 'next-intl';
-import { Bot, ChefHat, ClipboardCheck, FlaskConical, Package, Users } from 'lucide-react';
+'use client';
 
-import { FeatureRadar } from '@/components/landing/feature-radar';
-import { PartnerMarquee } from '@/components/landing/partner-marquee';
-import { Reveal } from '@/components/landing/reveal';
-import { Designation, Module } from '@/components/public/module';
-import { PublicShell } from '@/components/public/public-shell';
+import { useTranslations } from 'next-intl';
+
+import { Link } from '@/lib/i18n/navigation';
+import { LANES, PARTNERS } from '@/components/landing/partners';
+import { HoverBorderGradient } from '@/components/ui/hover-border-gradient';
+import { InfiniteMovingCards } from '@/components/ui/infinite-moving-cards';
+import { Spotlight } from '@/components/ui/spotlight-new';
+import { TextGenerateEffect } from '@/components/ui/text-generate-effect';
+import { Timeline } from '@/components/ui/timeline';
+import WorldMap from '@/components/ui/world-map';
 
 /*
- * Public landing page — laboratory-instrument direction, rebuilt as modules
- * inside the shared `PublicShell`.
+ * Public landing page, rebuilt on the Aceternity component set.
  *
- * The previous two versions of this page were a standard marketing stack —
- * hero, stats, features, CTA — with the call to action repeated three times
- * on the way down. `PublicShell`'s fixed rail now carries the two doors and
- * contact permanently, so this column never needs to repeat one: it holds
- * an opening headline and four content modules, and nothing that links to
- * `/team-login`, `/login` or `/register`.
+ * Nothing from the previous versions survives except the brand palette and the
+ * partner logos. The rail, the modules, the wordmark scan and the editorial
+ * hero are all gone.
  *
- * Every string below comes from the existing `Landing` namespace — no new
- * copy, no new keys. `radarTitle`/`featuresTitle`/`partnersTitle` double as
- * their module's mono designation, the same treatment the previous version
- * already gave `featuresTitle` and `partnersTitle` directly.
+ * The thesis is reach. With no product photograph, the most characteristic true
+ * thing about an ingredient house in Bologna is who buys from it and where it
+ * ships — so the world map is the signature, and every arc ends somewhere
+ * Proamina® actually goes. The timeline earns its ordering because first
+ * contact → NDA → sample → testing → supply is a real sequence: it is the
+ * pipeline this CRM tracks.
  *
- * The headline states the *product*, not the software. `heroTitle` ("the
- * operating system for the ITALPROTEIN business") describes this CRM, and
- * when it held the display slot a first-time visitor learned only that the
- * company sells itself internal software — what Italprotein actually makes
- * survived in an 11px caption and one trailing clause. So `heroSubtitle` is
- * split at its em dash: the product half leads at display weight beside the
- * Proamina® bottle, and the platform (`heroTitle` + `platformNote`) follows
- * behind a hairline as the supporting note it is. Split rather than rewritten
- * because the copy is fixed — see the "no new copy" rule above.
- *
- * A server component; its only client code is the scroll reveal (`Reveal`)
- * and the wordmark scan, which now lives in the rail.
+ * Palette unchanged: brand-navy #0a1628 field, brand-gold #38bdf8 (a sky blue
+ * despite the token name) as the accent, brand-teal #0eb89a as the second.
  */
-
-const CAPABILITY_ICONS = [FlaskConical, Package, ClipboardCheck, ChefHat, Bot, Users];
 
 export default function LandingPage() {
   const t = useTranslations('Landing');
-  const tCommon = useTranslations('Common');
-  const features = t.raw('features') as { title: string; desc: string }[];
   const stats = t.raw('stats') as { value: number; suffix: string; label: string }[];
-
-  /* `heroSubtitle` is one sentence hinged on an em dash: the platform clause,
-     then what the product is ("… Proamina® — Italprotein's patented 100%
-     protein sweetener."). Both locales carry the hinge; if a future
-     translation drops it the whole sentence simply becomes the definition
-     line, which still reads. */
-  const subtitle = t('heroSubtitle');
-  const hinge = subtitle.lastIndexOf(' — ');
-  const productLine = hinge === -1 ? subtitle : subtitle.slice(hinge + 3);
+  const steps = t.raw('journey') as { title: string; body: string }[];
 
   return (
-    <PublicShell>
-      {/* 1 — Headline. The largest type on the page names the product and
-          says what it is, next to a photograph of it: a first-time visitor
-          must learn what this company makes without hovering anything or
-          reading to the end of a paragraph. First thing in the column and
-          outside `Reveal`, so it paints on the first frame. */}
-      {/* Two columns only from `xl`: at exactly `lg` the rail has already
-          taken 26rem, so a 17rem product column would leave the headline
-          about 18rem to sit in. Below that the bottle stacks under the
-          text. */}
-      <div className="grid items-center gap-10 border-b border-white/10 py-12 sm:py-16 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-14">
-        <div>
-          <Designation className="text-sky-300/90">{t('eyebrow')}</Designation>
+    <main className="min-h-screen bg-brand-navy text-white">
 
-          <h1 className="mt-5 text-4xl font-extrabold leading-[1.02] tracking-[-0.035em] text-white sm:text-5xl xl:text-6xl">
-            {tCommon('productName')}
-            <span className="mt-4 block max-w-[22ch] text-xl font-semibold leading-snug tracking-[-0.01em] text-slate-200 sm:text-2xl">
-              {productLine}
-            </span>
-          </h1>
+      {/* ── Hero ─────────────────────────────────────────────────────── */}
+      <section className="relative flex min-h-[92vh] flex-col items-center justify-center overflow-hidden px-4 py-20">
+        <Spotlight
+          gradientFirst="radial-gradient(68% 68% at 50% 30%, rgba(56,189,248,0.10) 0%, rgba(56,189,248,0.03) 50%, transparent 80%)"
+          gradientSecond="radial-gradient(50% 50% at 50% 50%, rgba(14,184,154,0.08) 0%, transparent 80%)"
+          gradientThird="radial-gradient(50% 50% at 50% 50%, rgba(56,189,248,0.06) 0%, transparent 80%)"
+        />
 
-          {/* The platform, deliberately subordinate: behind a hairline, at
-              body size. It is what this site runs on, not what the company
-              sells. */}
-          <div className="mt-8 max-w-[52ch] border-l border-white/15 pl-4">
-            <p className="text-sm font-medium text-slate-300">{t('heroTitle')}</p>
-            <p className="mt-1.5 text-sm leading-relaxed text-slate-400">{t('platformNote')}</p>
-          </div>
+        <p className="relative z-10 font-mono text-[0.6875rem] uppercase tracking-[0.28em] text-sky-300/80">
+          {t('eyebrow')}
+        </p>
+
+        <TextGenerateEffect
+          words={t('heroTitle')}
+          className="relative z-10 mt-8 max-w-4xl text-center text-4xl font-extrabold tracking-[-0.03em] text-white sm:text-5xl lg:text-6xl"
+          duration={0.6}
+        />
+
+        <p className="relative z-10 mt-7 max-w-2xl text-center text-base leading-relaxed text-slate-400 sm:text-lg">
+          {t('heroSubtitle')}
+        </p>
+
+        <div className="relative z-10 mt-11 flex flex-wrap items-center justify-center gap-4">
+          {/* Link wraps the gradient rather than being passed as `as`: the
+              component's props do not forward href, so `as={Link}` typechecks
+              only by accident and drops the navigation. */}
+          <Link href="/team-login" className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
+            <HoverBorderGradient
+              as="span"
+              containerClassName="rounded-full"
+              className="block bg-brand-navy px-6 py-3 text-sm font-medium text-white"
+            >
+              {t('ctaInternal')}
+            </HoverBorderGradient>
+          </Link>
+          <Link
+            href="/login"
+            className="rounded-full border border-white/15 px-6 py-3 text-sm font-medium text-slate-300 transition-colors hover:border-sky-400/50 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+          >
+            {t('ctaExternal')}
+          </Link>
+          <Link
+            href="/register"
+            className="text-sm font-medium text-sky-300 underline-offset-4 transition-colors hover:text-sky-200 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+          >
+            {t('ctaRegister')}
+          </Link>
         </div>
 
-        {/* The product itself. `priority`: it is the largest above-the-fold
-            element on the page. */}
-        <div className="relative mx-auto w-full max-w-[14rem] sm:max-w-[16rem] xl:mx-0 xl:w-[17rem] xl:max-w-none">
-          <div
-            className="absolute left-1/2 top-1/2 h-[22rem] w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,theme(colors.brand.gold/0.18),transparent_65%)] blur-2xl"
-            aria-hidden
-          />
-          <Image
-            src="/marketing/proamina-bottle.png"
-            alt={t('heroCaption')}
-            width={500}
-            height={500}
-            priority
-            sizes="(max-width: 1024px) 60vw, 17rem"
-            className="relative z-10 h-auto w-full drop-shadow-2xl"
-          />
-        </div>
-      </div>
-
-      {/* 2 — Platform radar. */}
-      <Module designation={t('radarTitle')}>
-        <Reveal>
-          <p className="max-w-[54ch] leading-relaxed text-slate-400">{t('radarSubtitle')}</p>
-        </Reveal>
-        <Reveal delay={90} className="mt-10">
-          <FeatureRadar />
-        </Reveal>
-      </Module>
-
-      {/* 3 — Readings: the four stats as mono figures with their units. No
-          designation of its own, matching the previous version, which never
-          gave this strip a title either. */}
-      <div className="border-b border-white/10 py-14 sm:py-16">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4">
-          {stats.map((stat, i) => (
-            <Reveal key={stat.label} delay={i * 60}>
-              <p className="font-mono text-3xl font-semibold tabular-nums text-white sm:text-4xl">
-                {stat.value}
-                <span className="ml-0.5 text-lg text-sky-400">{stat.suffix || '·'}</span>
-              </p>
-              <Designation className="mt-2 text-slate-500">{stat.label}</Designation>
-            </Reveal>
+        {/* Figures, small and factual, directly under the doors. */}
+        <dl className="relative z-10 mt-16 grid w-full max-w-3xl grid-cols-2 gap-y-8 sm:grid-cols-4">
+          {stats.map((stat) => (
+            <div key={stat.label} className="text-center">
+              <dt className="sr-only">{stat.label}</dt>
+              <dd>
+                <span className="font-mono text-2xl font-semibold tabular-nums text-white sm:text-3xl">
+                  {stat.value}
+                  <span className="text-sky-400">{stat.suffix}</span>
+                </span>
+                <span className="mt-1.5 block font-mono text-[0.625rem] uppercase tracking-[0.16em] text-slate-500">
+                  {stat.label}
+                </span>
+              </dd>
+            </div>
           ))}
-        </div>
-      </div>
-
-      {/* 4 — Capabilities, as a specification list. */}
-      <Module designation={t('featuresTitle')}>
-        <dl className="divide-y divide-white/10 border-y border-white/10">
-          {features.map((feature, i) => {
-            const Icon = CAPABILITY_ICONS[i] ?? FlaskConical;
-            return (
-              <Reveal key={feature.title} delay={(i % 3) * 70}>
-                <div className="grid grid-cols-1 gap-2 py-6 sm:grid-cols-12 sm:gap-8">
-                  <dt className="flex items-start gap-3 sm:col-span-5">
-                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-sky-400" aria-hidden />
-                    <span className="font-semibold text-white">{feature.title}</span>
-                  </dt>
-                  <dd className="text-sm leading-relaxed text-slate-400 sm:col-span-7">{feature.desc}</dd>
-                </div>
-              </Reveal>
-            );
-          })}
         </dl>
-      </Module>
+      </section>
 
-      {/* 5 — Partners. No CTA anywhere in this column — the rail's doors
-          are the only call to action in the public face. */}
-      <Module designation={t('partnersTitle')}>
-        <Reveal>
-          <p className="max-w-md text-sm text-slate-400">{t('partnersSubtitle')}</p>
-        </Reveal>
-        <Reveal delay={90} className="mt-12">
-          <PartnerMarquee />
-        </Reveal>
-      </Module>
+      {/* ── Signature: where Proamina® goes ──────────────────────────── */}
+      <section className="border-t border-white/10 py-20 sm:py-28">
+        <div className="container">
+          <p className="text-center font-mono text-[0.6875rem] uppercase tracking-[0.28em] text-sky-300/80">
+            {t('reachEyebrow')}
+          </p>
+          <h2 className="mx-auto mt-5 max-w-[22ch] text-center text-2xl font-extrabold tracking-[-0.025em] sm:text-3xl lg:text-4xl">
+            {t('reachTitle')}
+          </h2>
+        </div>
+        <div className="mt-10">
+          <WorldMap dots={LANES} lineColor="#38bdf8" />
+        </div>
+      </section>
 
-      <footer className="py-10 text-center font-mono text-xs tracking-wide text-slate-500">
+      {/* ── Partners: the logos, the one asset kept ──────────────────── */}
+      <section className="border-t border-white/10 py-20 sm:py-24">
+        <div className="container">
+          <p className="text-center font-mono text-[0.6875rem] uppercase tracking-[0.28em] text-sky-300/80">
+            {t('partnersTitle')}
+          </p>
+          <p className="mx-auto mt-4 max-w-md text-center text-sm text-slate-400">
+            {t('partnersSubtitle')}
+          </p>
+        </div>
+        <div className="mt-12 flex justify-center">
+          <InfiniteMovingCards items={PARTNERS} direction="left" speed="slow" />
+        </div>
+      </section>
+
+      {/* ── How a supply relationship actually starts ────────────────── */}
+      <section className="border-t border-white/10">
+        <Timeline
+          data={steps.map((step) => ({
+            title: step.title,
+            content: (
+              <p className="max-w-xl text-sm leading-relaxed text-slate-400 sm:text-base">
+                {step.body}
+              </p>
+            ),
+          }))}
+        />
+      </section>
+
+      {/* ── Close ────────────────────────────────────────────────────── */}
+      <section className="border-t border-white/10 px-4 py-24 text-center sm:py-32">
+        <h2 className="mx-auto max-w-[20ch] text-2xl font-extrabold tracking-[-0.025em] sm:text-3xl lg:text-4xl">
+          {t('ctaBannerTitle')}
+        </h2>
+        <p className="mx-auto mt-5 max-w-xl text-slate-400">{t('ctaBannerSubtitle')}</p>
+        <div className="mt-10 flex justify-center">
+          <Link href="/register" className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
+            <HoverBorderGradient
+              as="span"
+              containerClassName="rounded-full"
+              className="block bg-brand-navy px-7 py-3 text-sm font-medium text-white"
+            >
+              {t('ctaRegister')}
+            </HoverBorderGradient>
+          </Link>
+        </div>
+      </section>
+
+      <footer className="border-t border-white/10 py-10 text-center font-mono text-xs tracking-wide text-slate-500">
         Creato Da : Amine , con {'<3'}
       </footer>
-    </PublicShell>
+    </main>
   );
 }

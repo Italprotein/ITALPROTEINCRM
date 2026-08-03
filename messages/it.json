@@ -159,7 +159,36 @@
       }
     ],
     "partnersTitle": "In collaborazione con",
-    "partnersSubtitle": "Marchi e produttori che già lavorano con Proamina®."
+    "partnersSubtitle": "Marchi e produttori che già lavorano con Proamina®.",
+    "reachEyebrow": "Da Bologna, in 12 paesi",
+    "reachTitle": "Dove arriva Proamina®",
+    "journey": [
+      {
+        "title": "Primo contatto",
+        "body": "Ci scrivi il tuo prodotto e l’obiettivo di formulazione. Rispondiamo con la scheda tecnica e la dosatura consigliata per la tua applicazione."
+      },
+      {
+        "title": "NDA",
+        "body": "Firmiamo un accordo di riservatezza prima di entrare nel dettaglio della formulazione. Da quel momento accedi alla documentazione tecnica completa dal portale."
+      },
+      {
+        "title": "Campione",
+        "body": "Prepariamo e spediamo il campione con il lotto tracciato. Segui la spedizione dal portale fino alla conferma di consegna."
+      },
+      {
+        "title": "Test applicativo",
+        "body": "Provi Proamina® nella tua ricetta. Carichi i risultati dal portale e il nostro team R&S risponde nel merito, sulla stessa scheda."
+      },
+      {
+        "title": "Fornitura",
+        "body": "Definiamo volumi, prezzo e logistica ricorrente. Ordini, spedizioni e documenti restano tutti nello stesso posto."
+      }
+    ],
+    "ctaInternal": "Entra nel CRM interno",
+    "ctaExternal": "Apri il portale aziende",
+    "ctaRegister": "Registra la tua azienda",
+    "ctaBannerTitle": "Pronto a potenziare il business di ITALPROTEIN?",
+    "ctaBannerSubtitle": "Inizia ora — registra la tua azienda, apri il portale o entra nel CRM del team."
   },
   "Public": {
     "positioning": "Produttore di Proamina®, il dolcificante 100% proteico brevettato.",
