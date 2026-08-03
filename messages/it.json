@@ -277,6 +277,9 @@
     "errorRateLimited": "Troppi tentativi. Attendi qualche minuto e riprova.",
     "errorGeneric": "Impossibile attivare l'account. Riprova."
   },
+  "Register": {
+    "eyebrow": "Registrazione azienda"
+  },
   "Access": {
     "menu": "Accedi",
     "register": "Registra la tua azienda",

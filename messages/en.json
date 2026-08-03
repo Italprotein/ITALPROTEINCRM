@@ -277,6 +277,9 @@
     "errorRateLimited": "Too many attempts. Please wait a few minutes and try again.",
     "errorGeneric": "The account could not be activated. Please try again."
   },
+  "Register": {
+    "eyebrow": "Company registration"
+  },
   "Access": {
     "menu": "Access",
     "register": "Register your business",
