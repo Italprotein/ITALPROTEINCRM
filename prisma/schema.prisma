@@ -1114,6 +1114,7 @@ model Company {
 
   // Documents / NDA / Google
   ndas                 NDA[]
+  emailMessages        EmailMessage[] @relation("CompanyEmailMessages")
   documents            Document[]
   googleDriveFileLinks GoogleDriveFileLink[]
 
@@ -2397,6 +2398,11 @@ model EmailMessage {
 
   matchedAdmin User? @relation("EmailMessageMatchedAdmin", fields: [matchedAdminUserId], references: [id], onDelete: SetNull)
   lead         Lead? @relation("LeadEmailMessages", fields: [leadId], references: [id], onDelete: SetNull)
+  // companyId carried no relation until 2026-08-03, so nothing stopped it
+  // pointing at a deleted company — production had two such orphans, both from
+  // companies auto-created by the Gmail sync and later removed. SetNull matches
+  // the lead relation above: losing the company must not delete the mail.
+  company      Company? @relation("CompanyEmailMessages", fields: [companyId], references: [id], onDelete: SetNull)
 
   @@index([direction])
   @@index([internalDate])
