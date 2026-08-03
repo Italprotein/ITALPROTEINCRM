@@ -15,13 +15,17 @@ import { PublicShell } from '@/components/public/public-shell';
  * hero, stats, features, CTA — with the call to action repeated three times
  * on the way down. `PublicShell`'s fixed rail now carries the two doors and
  * contact permanently, so this column never needs to repeat one: it holds
- * five content modules and nothing that links to `/team-login`, `/login` or
- * `/register`.
+ * an opening headline and four content modules, and nothing that links to
+ * `/team-login`, `/login` or `/register`.
  *
  * Every string below comes from the existing `Landing` namespace — no new
- * copy, no new keys. `radarTitle`/`featuresTitle`/`partnersTitle`/`heroTitle`
- * double as each module's mono designation, the same treatment the previous
- * version already gave `featuresTitle` and `partnersTitle` directly.
+ * copy, no new keys. `heroTitle` is the one piece of copy that states what
+ * ITALPROTEIN makes, so it renders as a real `<h1>` with display weight —
+ * the first thing in the column — rather than through the small mono
+ * `Designation` label every other module uses. `radarTitle`/`featuresTitle`/
+ * `partnersTitle` double as their module's mono designation, the same
+ * treatment the previous version already gave `featuresTitle` and
+ * `partnersTitle` directly.
  *
  * A server component; its only client code is the scroll reveal (`Reveal`)
  * and the wordmark scan, which now lives in the rail.
@@ -36,16 +40,29 @@ export default function LandingPage() {
 
   return (
     <PublicShell>
-      {/* 1 — Platform radar. First thing in the column, so it paints
-          immediately rather than waiting on the reveal observer. */}
+      {/* 1 — Headline. A first-time visitor needs to know what ITALPROTEIN
+          makes without hovering anything, so this carries real display
+          weight and is a genuine <h1> — not routed through `Module`'s mono
+          designation, which would bury it at 11px. First thing in the
+          column, so it paints immediately rather than waiting on Reveal. */}
+      <div className="border-b border-white/10 pb-14 sm:pb-16">
+        <h1 className="max-w-[20ch] text-3xl font-extrabold leading-[1.08] tracking-[-0.03em] text-white sm:text-4xl lg:text-5xl">
+          {t('heroTitle')}
+        </h1>
+        <p className="mt-6 max-w-[56ch] leading-relaxed text-slate-400">{t('heroSubtitle')}</p>
+      </div>
+
+      {/* 2 — Platform radar. */}
       <Module designation={t('radarTitle')}>
-        <p className="max-w-[54ch] leading-relaxed text-slate-400">{t('radarSubtitle')}</p>
-        <div className="mt-10">
+        <Reveal>
+          <p className="max-w-[54ch] leading-relaxed text-slate-400">{t('radarSubtitle')}</p>
+        </Reveal>
+        <Reveal delay={90} className="mt-10">
           <FeatureRadar />
-        </div>
+        </Reveal>
       </Module>
 
-      {/* 2 — Readings: the four stats as mono figures with their units. No
+      {/* 3 — Readings: the four stats as mono figures with their units. No
           designation of its own, matching the previous version, which never
           gave this strip a title either. */}
       <div className="border-b border-white/10 py-14 sm:py-16">
@@ -62,7 +79,7 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* 3 — Capabilities, as a specification list. */}
+      {/* 4 — Capabilities, as a specification list. */}
       <Module designation={t('featuresTitle')}>
         <dl className="divide-y divide-white/10 border-y border-white/10">
           {features.map((feature, i) => {
@@ -82,21 +99,14 @@ export default function LandingPage() {
         </dl>
       </Module>
 
-      {/* 4 — Partners. */}
+      {/* 5 — Partners. No CTA anywhere in this column — the rail's doors
+          are the only call to action in the public face. */}
       <Module designation={t('partnersTitle')}>
         <Reveal>
           <p className="max-w-md text-sm text-slate-400">{t('partnersSubtitle')}</p>
         </Reveal>
         <Reveal delay={90} className="mt-12">
           <PartnerMarquee />
-        </Reveal>
-      </Module>
-
-      {/* 5 — Closing statement. No CTA here — the rail's doors are the only
-          call to action anywhere in the public face. */}
-      <Module designation={t('heroTitle')}>
-        <Reveal>
-          <p className="max-w-[60ch] text-lg leading-relaxed text-slate-300">{t('heroSubtitle')}</p>
         </Reveal>
       </Module>
 
