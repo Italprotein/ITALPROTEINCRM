@@ -18,8 +18,8 @@ import { useRouter } from '@/lib/i18n/navigation';
  * owns it. Rendering one here too put two fixed rails on `/verify`, two logos
  * and a doubled `26rem` column offset.
  *
- * Copy runs through the `Verify` namespace. Behaviour — the verify request,
- * the `signIn` handoff and every error branch — is untouched.
+ * Copy runs through the `Verify` namespace. Behaviour — the verification
+ * request, the credentials handoff and every error branch — is untouched.
  */
 export function MfaChallenge() {
   const t = useTranslations('Verify');
