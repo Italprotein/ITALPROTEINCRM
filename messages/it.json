@@ -174,6 +174,13 @@
     "ctaBannerTitle": "Pronto a potenziare il business di ITALPROTEIN?",
     "ctaBannerSubtitle": "Inizia ora — registra la tua azienda, apri il portale o entra nel CRM del team."
   },
+  "Public": {
+    "positioning": "Produttore di Proamina®, il dolcificante 100% proteico brevettato.",
+    "doorTeam": "Team Italprotein",
+    "doorTeamHint": "Accesso riservato allo staff interno.",
+    "doorPortal": "Portale Aziende",
+    "doorPortalHint": "Accesso per clienti, distributori e partner."
+  },
   "Login": {
     "eyebrow": "Portale aziende",
     "heading": "Bentornato",
