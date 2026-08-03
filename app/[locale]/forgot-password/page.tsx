@@ -2,18 +2,16 @@
 
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
-import { ArrowRight, ChevronLeft, KeyRound, Loader2, MailCheck, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ChevronLeft, Loader2, MailCheck, ShieldCheck } from 'lucide-react';
 import { Link, useRouter } from '@/lib/i18n/navigation';
 import { confirmPasswordReset, requestPasswordReset } from '@/lib/services/auth.actions';
 import { isApiMode } from '@/lib/data-mode';
-import { Logo } from '@/components/brand/logo';
-import { LanguageSwitcher } from '@/components/i18n/language-switcher';
+import { Module } from '@/components/public/module';
+import { PublicShell } from '@/components/public/public-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 
 type Step = 'email' | 'code' | 'done';
 
@@ -79,29 +77,16 @@ function ForgotPasswordForm() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <div className="flex items-center justify-between border-b px-6 py-4">
-        <Logo tone="dark" href="/" />
-        <LanguageSwitcher tone="dark" />
-      </div>
-
-      <div className="flex flex-1 items-center justify-center px-6 py-12">
-        <motion.div
-          className="w-full max-w-sm"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <Badge variant="gold" className="mb-4">
-            <KeyRound className="h-3 w-3" /> {t('eyebrow')}
-          </Badge>
-          <h1 className="font-display text-3xl font-bold tracking-tight">{t('heading')}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+    <PublicShell>
+      <Module designation={t('eyebrow')}>
+        <div className="w-full max-w-sm">
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">{t('heading')}</h1>
+          <p className="mt-2 text-sm text-slate-400">
             {step === 'email' ? t('subheadingEmail') : step === 'code' ? t('subheadingCode', { email }) : t('subheadingDone')}
           </p>
 
           {!isApi && (
-            <p className="mt-6 rounded-lg border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">
+            <p className="mt-6 rounded-lg border border-dashed border-white/10 bg-white/[0.02] p-3 text-xs text-slate-400">
               {t('mockModeNote')}
             </p>
           )}
@@ -109,7 +94,7 @@ function ForgotPasswordForm() {
           {step === 'email' && (
             <form onSubmit={submitEmail} className="mt-8 space-y-4" noValidate>
               <div className="space-y-1.5">
-                <Label htmlFor="fp-email">{t('emailLabel')}</Label>
+                <Label htmlFor="fp-email" className="text-slate-200">{t('emailLabel')}</Label>
                 <Input
                   id="fp-email"
                   type="email"
@@ -136,7 +121,7 @@ function ForgotPasswordForm() {
                 <span>{t('codeSentNotice')}</span>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="fp-code">{t('codeLabel')}</Label>
+                <Label htmlFor="fp-code" className="text-slate-200">{t('codeLabel')}</Label>
                 <Input
                   id="fp-code"
                   inputMode="numeric"
@@ -149,7 +134,7 @@ function ForgotPasswordForm() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="fp-password">{t('newPasswordLabel')}</Label>
+                <Label htmlFor="fp-password" className="text-slate-200">{t('newPasswordLabel')}</Label>
                 <Input
                   id="fp-password"
                   type="password"
@@ -158,10 +143,10 @@ function ForgotPasswordForm() {
                   onChange={(e) => { setPassword(e.target.value); setError(''); }}
                   className="h-12"
                 />
-                <p className="text-xs text-muted-foreground">{t('passwordHint')}</p>
+                <p className="text-xs text-slate-400">{t('passwordHint')}</p>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="fp-confirm">{t('confirmPasswordLabel')}</Label>
+                <Label htmlFor="fp-confirm" className="text-slate-200">{t('confirmPasswordLabel')}</Label>
                 <Input
                   id="fp-confirm"
                   type="password"
@@ -183,7 +168,7 @@ function ForgotPasswordForm() {
               <button
                 type="button"
                 onClick={() => { setStep('email'); setCode(''); setError(''); }}
-                className="w-full text-center text-xs text-muted-foreground underline-offset-2 hover:underline"
+                className="w-full text-center text-xs text-slate-400 underline-offset-2 hover:underline"
               >
                 {t('resendCode')}
               </button>
@@ -205,14 +190,14 @@ function ForgotPasswordForm() {
           <div className="mt-6 text-center">
             <Link
               href={loginPath}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              className="inline-flex items-center gap-1 text-xs text-slate-400 underline-offset-2 hover:text-white hover:underline"
             >
               <ChevronLeft className="h-3 w-3" /> {t('backToLogin')}
             </Link>
           </div>
-        </motion.div>
-      </div>
-    </div>
+        </div>
+      </Module>
+    </PublicShell>
   );
 }
 

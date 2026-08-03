@@ -62,8 +62,8 @@ const COPY = {
 
 function Section({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-4 rounded-xl border bg-card p-5">
-      <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+    <div className="space-y-4 rounded-xl border border-white/10 bg-white/[0.03] p-5">
+      <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
         <Icon className="h-4 w-4 text-brand-gold" /> {title}
       </h2>
       {children}
@@ -74,7 +74,7 @@ function Section({ icon: Icon, title, children }: { icon: React.ElementType; tit
 function Field({ id, label, required, children }: { id: string; label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}{required ? ' *' : ''}</Label>
+      <Label htmlFor={id} className="text-slate-200">{label}{required ? ' *' : ''}</Label>
       {children}
     </div>
   );
@@ -160,12 +160,12 @@ export function RegisterForm() {
 
   if (done) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-16 text-center">
+      <div className="max-w-lg text-center">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success/10">
           <CheckCircle2 className="h-7 w-7 text-success" />
         </div>
-        <h1 className="mt-5 font-display text-2xl font-semibold text-foreground">{t.okTitle}</h1>
-        <p className="mt-3 text-muted-foreground">
+        <h1 className="mt-5 text-2xl font-extrabold tracking-tight text-white">{t.okTitle}</h1>
+        <p className="mt-3 text-slate-400">
           {t.okBody.replace('{ref}', done.ref).replace('{email}', done.email)}
         </p>
         <div className="mt-6 flex justify-center gap-3">
@@ -177,10 +177,10 @@ export function RegisterForm() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-10">
+    <div className="w-full max-w-2xl">
       <div className="mb-6">
-        <h1 className="font-display text-2xl font-semibold text-foreground">{t.heading}</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">{t.sub}</p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-white">{t.heading}</h1>
+        <p className="mt-2 text-sm text-slate-400">{t.sub}</p>
       </div>
 
       <div className="space-y-4">
@@ -262,7 +262,7 @@ export function RegisterForm() {
             <Checkbox checked={terms} onCheckedChange={(v) => setTerms(v === true)} className="mt-0.5" />
             <span>{t.terms} *</span>
           </label>
-          <label className="flex items-start gap-2.5 text-sm text-muted-foreground">
+          <label className="flex items-start gap-2.5 text-sm text-slate-400">
             <Checkbox checked={marketing} onCheckedChange={(v) => setMarketing(v === true)} className="mt-0.5" />
             <span>{t.marketing}</span>
           </label>

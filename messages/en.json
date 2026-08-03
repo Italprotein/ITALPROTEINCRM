@@ -94,15 +94,7 @@
     "eyebrow": "Italprotein Srl · Bologna, Italy",
     "heroTitle": "The operating system for the ITALPROTEIN business",
     "heroSubtitle": "One platform to manage companies, NDAs, samples, logistics, technical feedback and the commercial pipeline behind Proamina® — Italprotein's patented 100% protein sweetener.",
-    "ctaInternal": "Enter the internal CRM",
-    "ctaExternal": "Open the company portal",
-    "ctaRegister": "Register your business",
     "platformNote": "One connected platform for the Italprotein team and its partners — from first contact to delivered samples and technical feedback.",
-    "productsTitle": "Two connected products",
-    "internalTitle": "Internal Italprotein CRM",
-    "internalDesc": "For staff: companies, contacts, pipeline, NDAs, samples, logistics, application projects, technical feedback, finance and analytics — role by role.",
-    "externalTitle": "External Company Portal",
-    "externalDesc": "For clients, distributors and partners: a private space to view their samples, shipments, documents, projects, feedback and conversations.",
     "featuresTitle": "Built for daily operational work",
     "features": [
       {
@@ -130,9 +122,6 @@
         "desc": "Navigation and actions adapt to each staff role and each company contact."
       }
     ],
-    "footerNote": "Proamina® is a registered trademark. Produced and distributed by Italprotein Srl. For authorised B2B use only.",
-    "contactWebsite": "Website",
-    "radarBadge": "360° platform",
     "radarTitle": "One platform, every ITALPROTEIN workflow",
     "radarSubtitle": "A complete 360° view of the tools ITALPROTEIN collaborators use every day — from first contact to delivered samples and technical feedback.",
     "radarCenter": "ITALPROTEIN",
@@ -170,16 +159,20 @@
       }
     ],
     "partnersTitle": "In collaboration with",
-    "partnersSubtitle": "Brands and manufacturers already working with Proamina®.",
-    "ctaBannerTitle": "Ready to power the ITALPROTEIN business?",
-    "ctaBannerSubtitle": "Get started — register your company, open the portal, or enter the team CRM."
+    "partnersSubtitle": "Brands and manufacturers already working with Proamina®."
+  },
+  "Public": {
+    "positioning": "Maker of Proamina®, the patented 100% protein sweetener.",
+    "doorTeam": "Italprotein Team",
+    "doorTeamHint": "Restricted access for internal staff.",
+    "doorPortal": "Company Portal",
+    "doorPortalHint": "Access for clients, distributors and partners.",
+    "accessNav": "Access"
   },
   "Login": {
     "eyebrow": "Company portal",
     "heading": "Welcome back",
     "subheading": "Enter your company email to access the Proamina® portal.",
-    "sideTitle": "Your Proamina® portal.",
-    "sideSubtitle": "Track samples, orders, documents and test results — and talk to our team — all in one place.",
     "emailLabel": "Company email address",
     "emailPlaceholder": "name@company.com",
     "passwordLabel": "Password",
@@ -192,16 +185,12 @@
     "errorNotFound": "No account found for this email address. Check the spelling and try again.",
     "errorWrongWorkspace": "This address belongs to the Italprotein team. Please use the team login.",
     "altLink": "Italprotein team? Sign in here",
-    "badge": "Secure company access",
-    "futureNote": "Access is by invitation. Use the email address registered for you by your Italprotein contact.",
-    "backToSite": "Back to site"
+    "futureNote": "Access is by invitation. Use the email address registered for you by your Italprotein contact."
   },
   "TeamLogin": {
     "eyebrow": "Italprotein team",
     "heading": "Team sign in",
     "subheading": "Restricted to authorised Italprotein staff. Enter your team email.",
-    "sideTitle": "The Proamina® command centre.",
-    "sideSubtitle": "Companies, NDAs, samples, logistics and the full commercial pipeline — for the Italprotein team.",
     "emailLabel": "Team email address",
     "emailPlaceholder": "name@italprotein.com",
     "passwordLabel": "Password",
@@ -214,12 +203,26 @@
     "errorNotFound": "This email is not on the approved Italprotein team list.",
     "errorWrongWorkspace": "This is a client account. Please use the company portal login.",
     "altLink": "Are you a client? Open the company portal",
-    "badge": "Restricted · Italprotein team only",
     "futureNote": "Access is restricted to authorised Italprotein staff accounts.",
-    "backToSite": "Back to site",
     "twoFactorLabel": "Authentication code",
     "twoFactorPlaceholder": "6-digit code",
     "twoFactorHint": "Only if two-factor authentication is enabled on your account."
+  },
+  "Verify": {
+    "designation": "Secure sign-in",
+    "title": "Two-factor authentication",
+    "introApp": "Open your authenticator app and enter the current six-digit code.",
+    "introBackup": "Enter one of the recovery codes you saved when setting up two-factor authentication.",
+    "digitLabel": "Digit {index}",
+    "useApp": "Use authenticator code instead",
+    "useBackup": "Use a backup code",
+    "trustDevice": "Trust this device for 30 days",
+    "trustDeviceHint": "Do not select this on a shared or public device.",
+    "verifying": "Verifying…",
+    "verifyContinue": "Verify and continue",
+    "errorExpired": "This verification request expired. Return to sign in and try again.",
+    "errorInvalid": "That code is not valid. Check your authenticator or use a backup code.",
+    "errorTicket": "The secure sign-in ticket expired. Please sign in again."
   },
   "ForgotPassword": {
     "eyebrow": "Account recovery",
@@ -270,14 +273,12 @@
     "errorRateLimited": "Too many attempts. Please wait a few minutes and try again.",
     "errorGeneric": "The account could not be activated. Please try again."
   },
+  "Register": {
+    "eyebrow": "Company registration"
+  },
   "Access": {
-    "menu": "Access",
     "register": "Register your business",
-    "registerHint": "New company? Start here",
-    "portal": "Company portal",
-    "portalHint": "Clients & partners sign in",
-    "team": "Italprotein team",
-    "teamHint": "Reserved for staff"
+    "registerHint": "New company? Start here"
   },
   "Overview": {
     "title": "Overview",
