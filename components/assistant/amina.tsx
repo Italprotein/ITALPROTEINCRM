@@ -153,12 +153,28 @@ export function Amina() {
           addMessage({ role: 'assistant', content: t('taskLimitReached', { hours }) });
           return;
         }
+        // The provider's own allowance, not ours. Say so, and say when to come
+        // back — telling someone to retry a spent quota just spends more of it.
+        if (result.error === 'ai_quota_exhausted') {
+          const seconds = result.retryAfterSeconds;
+          addMessage({
+            role: 'assistant',
+            content: seconds
+              ? t('aiQuotaExhausted', { hours: Math.max(1, Math.ceil(seconds / 3600)) })
+              : t('aiQuotaExhaustedNoEta'),
+          });
+          return;
+        }
         const content =
           result.error === 'openai_not_configured'
             ? t('errorConfiguration')
             : result.error === 'gmail_not_connected' || result.error === 'gmail_reconnect_required'
               ? t('errorGmail')
-              : t('taskGenerationFailed');
+              : result.error === 'ai_provider_unavailable'
+                ? t('aiProviderUnavailable')
+                : result.error === 'ai_invalid_output'
+                  ? t('aiInvalidOutput')
+                  : t('taskGenerationFailed');
         addMessage({ role: 'assistant', content, failed: true });
         return;
       }

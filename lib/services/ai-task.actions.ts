@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 
+import { classifyAiFailure } from "@/lib/ai/ai-failure";
 import { generatePersonalizedReply, generateTaskCandidates, isCrmTaskAiConfigured } from "@/lib/ai/crm-task-ai";
 import { getAiProviderName } from "@/lib/ai/provider";
 import { getBackendEnv } from "@/lib/backend/env";
@@ -25,6 +26,12 @@ type AiTaskError =
   | "gmail_not_connected"
   | "gmail_reconnect_required"
   | "rate_limited"
+  /** The AI provider's own allowance is spent (Groq's free plan caps per day). */
+  | "ai_quota_exhausted"
+  /** The AI provider is unreachable or erroring. */
+  | "ai_provider_unavailable"
+  /** The provider replied but the output was empty or off-schema. */
+  | "ai_invalid_output"
   | "source_not_found"
   | "forbidden"
   | "generation_failed"
@@ -230,8 +237,29 @@ export async function generateAiTasksFromInbox(
       .catch(() => undefined);
 
     return { ok: true, tasks: created, consideredEmails: available.length };
-  } catch {
-    return { ok: false, error: "generation_failed" };
+  } catch (error) {
+    // Never swallow this. A spent provider quota, an outage, a rejected key and
+    // unusable model output need four different answers from the UI — collapsing
+    // them into one code is what made Amina blame the Gmail connection when the
+    // connection was fine.
+    const failure = classifyAiFailure(error);
+    console.error(
+      `[ai-tasks] generation failed for ${user.id} (${failure.kind}): ${failure.detail}`,
+    );
+    switch (failure.kind) {
+      case "quota_exhausted":
+        return {
+          ok: false,
+          error: "ai_quota_exhausted",
+          retryAfterSeconds: failure.retryAfterSeconds,
+        };
+      case "provider_refused":
+        return { ok: false, error: "openai_not_configured" };
+      case "invalid_output":
+        return { ok: false, error: "ai_invalid_output" };
+      default:
+        return { ok: false, error: "ai_provider_unavailable" };
+    }
   }
 }
 

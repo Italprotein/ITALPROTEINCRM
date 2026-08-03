@@ -311,9 +311,15 @@ export function OperationalOverviewDashboard() {
       if (!result.ok) {
         const description = result.error === 'rate_limited'
           ? t('aiErrorRateLimited')
-          : result.error === 'openai_not_configured'
-            ? t('aiErrorNotConfigured')
-            : t('aiErrorUnknown');
+          : result.error === 'ai_quota_exhausted'
+            ? t('aiErrorQuotaExhausted')
+            : result.error === 'openai_not_configured'
+              ? t('aiErrorNotConfigured')
+              : result.error === 'ai_provider_unavailable'
+                ? t('aiErrorProviderDown')
+                : result.error === 'ai_invalid_output'
+                  ? t('aiErrorInvalidOutput')
+                  : t('aiErrorUnknown');
         toast({ variant: 'danger', title: t('aiFailed'), description });
       } else {
         toast({ variant: 'success', title: t('aiTasksReady'), description: t('aiTasksReadyDetail', { count: result.tasks.length }) });
