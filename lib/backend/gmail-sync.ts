@@ -4,6 +4,7 @@ import {
   getAttachmentBytes,
   getGmailAuth,
   getMessage,
+  getThread,
   headerValue,
   listAttachmentMeta,
   listMessageIds,
@@ -152,6 +153,38 @@ async function resolveCompanyId(senderEmail: string, domain: string): Promise<st
     if (company) return company.id;
   }
   return null;
+}
+
+async function resolveUniqueCompanyFromEmails(
+  emails: string[],
+  adminEmails: Set<string>,
+): Promise<{ companyId: string | null; counterpartyEmail: string | null }> {
+  const externalEmails = [...new Set(emails.map((email) => email.toLowerCase()))].filter((email) => {
+    const domain = domainOf(email);
+    return domain && domain !== "italprotein.com" && !adminEmails.has(email);
+  });
+  const resolved = await Promise.all(
+    externalEmails.slice(0, 20).map(async (email) => ({
+      email,
+      companyId: await resolveCompanyId(email, domainOf(email)),
+    })),
+  );
+  const companyIds = [...new Set(resolved.map((item) => item.companyId).filter(Boolean))];
+  if (companyIds.length !== 1) return { companyId: null, counterpartyEmail: externalEmails[0] ?? null };
+  const companyId = companyIds[0] ?? null;
+  const resolvedDomains = new Set(
+    resolved.filter((item) => item.companyId === companyId).map((item) => domainOf(item.email)),
+  );
+  const hasUnknownOutsideCompanyDomain = resolved.some(
+    (item) => !item.companyId && !resolvedDomains.has(domainOf(item.email)),
+  );
+  if (hasUnknownOutsideCompanyDomain) {
+    return { companyId: null, counterpartyEmail: externalEmails[0] ?? null };
+  }
+  return {
+    companyId,
+    counterpartyEmail: resolved.find((item) => item.companyId === companyId)?.email ?? externalEmails[0] ?? null,
+  };
 }
 
 async function fallbackOwnerId(admins: MemberRecord[]): Promise<string | null> {
@@ -316,8 +349,8 @@ async function fileNdaFromAttachment(options: {
     emailDate,
     description:
       confidence === "high"
-        ? `Received by email from ${senderEmail} (Gmail sync).`
-        : `Received by email from ${senderEmail} (Gmail sync; matched via subject — verify).`,
+        ? `Imported from the Gmail thread with ${senderEmail}.`
+        : `Imported from the Gmail thread with ${senderEmail} (NDA filename match — verify).`,
   });
   if (!stored) return null;
 
@@ -519,12 +552,23 @@ async function reconcileStoredLeadOwnership(
 
 // ── Main sync ──────────────────────────────────────────────────────────────
 
-export async function runGmailSync(options?: { maxMessages?: number }): Promise<GmailSyncResult> {
-  const empty = { fetched: 0, created: 0, ndasCreated: 0, leadsCreated: 0, leadsUpdated: 0 };
+export async function runGmailSync(options?: {
+  maxMessages?: number;
+  ndaBackfill?: boolean;
+}): Promise<GmailSyncResult> {
+  const empty = {
+    fetched: 0,
+    created: 0,
+    ndasCreated: 0,
+    ndaFilesImported: 0,
+    leadsCreated: 0,
+    leadsUpdated: 0,
+  };
   const auth = await getGmailAuth();
   if (!auth) return { ok: false, error: "gmail_not_connected", ...empty };
 
-  const maxMessages = options?.maxMessages ?? 200;
+  const ndaBackfill = options?.ndaBackfill ?? false;
+  const maxMessages = options?.maxMessages ?? (ndaBackfill ? 500 : 200);
   const mailboxEmail = auth.email.toLowerCase();
   const admins = await loadMembers();
   const adminEmails = new Set(admins.map((a) => a.email).filter(Boolean));
@@ -540,72 +584,90 @@ export async function runGmailSync(options?: { maxMessages?: number }): Promise<
 
   let refs;
   try {
-    const [regular, courier] = await Promise.all([
-      listMessageIds(auth, query, maxMessages),
-      listMessageIds(
+    if (ndaBackfill) {
+      // Search Inbox and Sent so the NDA page rescans established company
+      // threads instead of looking only at new inbound messages.
+      refs = await listMessageIds(
         auth,
-        "newer_than:2y {from:(dhl.com) from:(brt.it) from:(poste.it) from:(sda.it) subject:(DHL) subject:(BRT)}",
-        500,
-      ),
-    ]);
-    refs = [...new Map([...regular, ...courier].map((item) => [item.id, item])).values()];
+        'newer_than:5y has:attachment {filename:nda filename:"n.d.a"}',
+        maxMessages,
+      );
+    } else {
+      const [regular, courier] = await Promise.all([
+        listMessageIds(auth, query, maxMessages),
+        listMessageIds(
+          auth,
+          "newer_than:2y {from:(dhl.com) from:(brt.it) from:(poste.it) from:(sda.it) subject:(DHL) subject:(BRT)}",
+          500,
+        ),
+      ]);
+      refs = [...new Map([...regular, ...courier].map((item) => [item.id, item])).values()];
+    }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "gmail_list_failed", ...empty };
   }
 
-  const existing = new Set(
-    (
-      await prisma.emailMessage.findMany({
-        where: { gmailMessageId: { in: refs.map((r) => r.id) } },
-        select: { gmailMessageId: true },
-      })
-    ).map((r) => r.gmailMessageId),
+  const existingRows = await prisma.emailMessage.findMany({
+    where: { gmailMessageId: { in: refs.map((r) => r.id) } },
+    select: { id: true, gmailMessageId: true, gmailThreadId: true, companyId: true },
+  });
+  const existingByMessageId = new Map(
+    existingRows.map((row) => [row.gmailMessageId, row]),
   );
-  const fresh = refs.filter((r) => !existing.has(r.id));
+  const candidates = ndaBackfill
+    ? refs
+    : refs.filter((ref) => !existingByMessageId.has(ref.id));
+  const threadCompanyIds = new Map<string, string>();
+  for (const row of existingRows) {
+    if (row.companyId) threadCompanyIds.set(row.gmailThreadId, row.companyId);
+  }
 
   const result: GmailSyncResult = { ok: true, ...empty, fetched: refs.length };
-  for (const ref of fresh) {
+  for (const ref of candidates) {
     try {
       const message = await getMessage(auth, ref.id);
       const from = parseAddressList(headerValue(message, "From"))[0];
       if (!from) continue;
-      const to = parseAddressList(headerValue(message, "To")).map((a) => a.email);
-      const cc = parseAddressList(headerValue(message, "Cc")).map((a) => a.email);
+      const to = parseAddressList(headerValue(message, "To")).map((a) => a.email.toLowerCase());
+      const cc = parseAddressList(headerValue(message, "Cc")).map((a) => a.email.toLowerCase());
       const subject = headerValue(message, "Subject") ?? "";
       const body = extractBodyText(message.payload);
       const attachments = listAttachmentMeta(message.payload);
       const emailDate = new Date(Number(message.internalDate ?? Date.now()));
-      const direction = from.email === mailboxEmail ? "outbound" : "inbound";
-      const senderDomain = domainOf(from.email);
+      const fromEmail = from.email.toLowerCase();
+      const direction = fromEmail === mailboxEmail ? "outbound" : "inbound";
+      const senderDomain = domainOf(fromEmail);
 
-      const row = await prisma.emailMessage.create({
-        data: {
-          gmailMessageId: message.id,
-          gmailThreadId: message.threadId,
-          direction,
-          fromAddress: from.email,
-          fromName: from.name ?? null,
-          toAddresses: to,
-          ccAddresses: cc,
-          subject: subject || null,
-          snippet: message.snippet ?? null,
-          bodyText: body ? body.slice(0, 20_000) : null,
-          internalDate: emailDate,
-          hasAttachments: attachments.length > 0,
-          attachmentNames: attachments.map((a) => a.filename),
-        },
-      });
-      result.created += 1;
+      const existingRow = existingByMessageId.get(message.id);
+      const row = existingRow ?? (await prisma.emailMessage.create({
+          data: {
+            gmailMessageId: message.id,
+            gmailThreadId: message.threadId,
+            direction,
+            fromAddress: fromEmail,
+            fromName: from.name ?? null,
+            toAddresses: to,
+            ccAddresses: cc,
+            subject: subject || null,
+            snippet: message.snippet ?? null,
+            bodyText: body ? body.slice(0, 20_000) : null,
+            internalDate: emailDate,
+            hasAttachments: attachments.length > 0,
+            attachmentNames: attachments.map((a) => a.filename),
+          },
+        }));
+      if (!existingRow) result.created += 1;
 
-      // External senders only from here on (skip our own mailbox + admins).
+      // Normal sync continues with external inbound messages. The NDA backfill
+      // also continues with sent messages so it can inspect the whole thread.
       const isExternal =
         direction === "inbound" &&
         senderDomain !== "italprotein.com" &&
-        !adminEmails.has(from.email);
-      if (!isExternal) continue;
+        !adminEmails.has(fromEmail);
+      if (!isExternal && !ndaBackfill) continue;
 
       // ── Lead attribution: first Italprotein member named by the sender.
-      const admin = matchLeadMember(body, admins);
+      const admin = isExternal && !ndaBackfill ? matchLeadMember(body, admins) : null;
 
       // ── My Leads: store the counterparty company NAME under the admin.
       let leadId: string | null = null;
@@ -651,7 +713,42 @@ export async function runGmailSync(options?: { maxMessages?: number }): Promise<
       // that left 18 of 317 inbound emails attributed, and every one of the 18
       // was an NDA. Ordinary correspondence — samples, pricing, logistics —
       // was invisible to anything reasoning about a company's history.
-      let companyId: string | null = await resolveCompanyId(from.email, senderDomain);
+      let companyId: string | null =
+        existingRow?.companyId ?? threadCompanyIds.get(message.threadId) ?? null;
+      if (!companyId) {
+        const linkedThreadMessage = await prisma.emailMessage.findFirst({
+          where: { gmailThreadId: message.threadId, companyId: { not: null } },
+          orderBy: { internalDate: "desc" },
+          select: { companyId: true },
+        });
+        companyId = linkedThreadMessage?.companyId ?? null;
+      }
+
+      let counterpartyEmail = fromEmail;
+      if (isExternal && !companyId) {
+        companyId = await resolveCompanyId(fromEmail, senderDomain);
+      } else if (direction === "outbound") {
+        const resolvedRecipients = await resolveUniqueCompanyFromEmails([...to, ...cc], adminEmails);
+        counterpartyEmail = resolvedRecipients.counterpartyEmail ?? fromEmail;
+        if (!companyId) {
+          companyId = resolvedRecipients.companyId;
+        }
+      }
+      if (!companyId && ndaBackfill) {
+        // If the attachment message itself is not enough, inspect every sender
+        // and recipient in its Gmail thread and accept only one unambiguous CRM
+        // company. This prevents cross-company filing on multi-party threads.
+        const thread = await getThread(auth, message.threadId).catch(() => ({ messages: [] }));
+        const threadEmails = (thread.messages ?? []).flatMap((threadMessage) => [
+          ...parseAddressList(headerValue(threadMessage, "From")).map((address) => address.email),
+          ...parseAddressList(headerValue(threadMessage, "To")).map((address) => address.email),
+          ...parseAddressList(headerValue(threadMessage, "Cc")).map((address) => address.email),
+        ]);
+        const resolvedThread = await resolveUniqueCompanyFromEmails(threadEmails, adminEmails);
+        companyId = resolvedThread.companyId;
+        counterpartyEmail = resolvedThread.counterpartyEmail ?? counterpartyEmail;
+      }
+      if (companyId) threadCompanyIds.set(message.threadId, companyId);
 
       const ndaMatches = pickNdaAttachments(attachments, subject);
       if (ndaMatches.length) {
@@ -660,7 +757,7 @@ export async function runGmailSync(options?: { maxMessages?: number }): Promise<
         // path deliberately. An agreement is evidence of a real relationship;
         // an ordinary email is not, and auto-creating from every unknown domain
         // would fill the CRM with couriers and newsletters.
-        if (!companyId && senderDomain && !isFreemail(senderDomain)) {
+        if (!companyId && isExternal && senderDomain && !isFreemail(senderDomain)) {
           // A real organisation domain we simply have not met yet.
           const ownerId = admin?.id ?? (await fallbackOwnerId(admins));
           const name = companyName ?? from.name ?? from.email.split("@")[0];
@@ -682,11 +779,12 @@ export async function runGmailSync(options?: { maxMessages?: number }): Promise<
               attachment: match.attachment,
               confidence: match.confidence,
               companyId,
-              senderEmail: from.email,
+              senderEmail: counterpartyEmail,
               emailDate,
             });
             if (filed) {
               ndaId = filed.ndaId;
+              result.ndaFilesImported += 1;
               if (filed.createdNda) result.ndasCreated += 1;
             }
           } else {
@@ -695,7 +793,7 @@ export async function runGmailSync(options?: { maxMessages?: number }): Promise<
               auth,
               message,
               attachment: match.attachment,
-              senderEmail: from.email,
+              senderEmail: counterpartyEmail,
               emailDate,
             });
           }
@@ -706,11 +804,11 @@ export async function runGmailSync(options?: { maxMessages?: number }): Promise<
         await prisma.emailMessage.update({
           where: { id: row.id },
           data: {
-            matchedAdminUserId: admin?.id ?? null,
-            leadId,
-            ndaId,
-            ndaDetected,
-            companyId,
+            ...(admin ? { matchedAdminUserId: admin.id } : {}),
+            ...(leadId ? { leadId } : {}),
+            ...(ndaId ? { ndaId } : {}),
+            ...(ndaDetected ? { ndaDetected: true } : {}),
+            ...(companyId ? { companyId } : {}),
           },
         });
       }
@@ -720,8 +818,10 @@ export async function runGmailSync(options?: { maxMessages?: number }): Promise<
     }
   }
 
-  const reconciled = await reconcileStoredLeadOwnership(admins, adminEmails);
-  result.leadsCreated = reconciled.created;
-  result.leadsUpdated = reconciled.updated;
+  if (!ndaBackfill) {
+    const reconciled = await reconcileStoredLeadOwnership(admins, adminEmails);
+    result.leadsCreated = reconciled.created;
+    result.leadsUpdated = reconciled.updated;
+  }
   return result;
 }

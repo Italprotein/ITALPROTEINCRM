@@ -23,7 +23,7 @@ import type {
   SendEmailResult,
 } from "@/lib/types";
 
-const EMPTY_SYNC = { fetched: 0, created: 0, ndasCreated: 0, leadsCreated: 0, leadsUpdated: 0 };
+const EMPTY_SYNC = { fetched: 0, created: 0, ndasCreated: 0, ndaFilesImported: 0, leadsCreated: 0, leadsUpdated: 0 };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // AUTHZ: the shared Italprotein mailbox is an internal communications log — no

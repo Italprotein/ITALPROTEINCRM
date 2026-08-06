@@ -30,6 +30,7 @@ export const emailService = {
       fetched: 0,
       created: 0,
       ndasCreated: 0,
+      ndaFilesImported: 0,
       leadsCreated: 0,
       leadsUpdated: 0,
     };

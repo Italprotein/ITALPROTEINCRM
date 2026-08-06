@@ -126,7 +126,7 @@ export default function NdasPage() {
   const canEditNdas = !!role && canEdit(role, 'ndas');
 
   const [rows, setRows] = React.useState<NDA[] | null>(null);
-  const [syncingDrive, setSyncingDrive] = React.useState(false);
+  const [syncingEmail, setSyncingEmail] = React.useState(false);
   const [companies, setCompanies] = React.useState<Map<string, Company>>(new Map());
   const [stats, setStats] = React.useState<Stats | null>(null);
   const [technicalCount, setTechnicalCount] = React.useState<number | null>(null);
@@ -285,18 +285,27 @@ export default function NdasPage() {
     toast({ variant: 'info', title: t('toastDownloadStartedTitle'), description: t('toastDownloadStartedDescription', { reference: n.reference }) });
   }
 
-  async function syncDriveNdas() {
-    setSyncingDrive(true);
-    const response = await fetch('/api/ndas/sync-drive', { method: 'POST' });
-    const result = await response.json();
-    setSyncingDrive(false);
-    if (!response.ok) {
-      toast({ variant: 'danger', title: 'Drive sync failed', description: result.error ?? 'Could not read Clienti Industriali.' });
-      return;
+  async function syncEmailNdas() {
+    setSyncingEmail(true);
+    try {
+      const response = await fetch('/api/ndas/sync-email', { method: 'POST' });
+      const result = await response.json();
+      if (!response.ok) {
+        toast({ variant: 'danger', title: 'Email NDA sync failed', description: result.error ?? 'Could not read the connected Gmail mailbox.' });
+        return;
+      }
+      setRows(await ndaService.list());
+      refreshStats();
+      toast({
+        variant: 'success',
+        title: 'Email NDAs synced',
+        description: `${result.ndaFilesImported} NDA files imported from company email threads.`,
+      });
+    } catch {
+      toast({ variant: 'danger', title: 'Email NDA sync failed', description: 'Could not read the connected Gmail mailbox.' });
+    } finally {
+      setSyncingEmail(false);
     }
-    setRows(await ndaService.list());
-    refreshStats();
-    toast({ variant: 'success', title: 'Drive NDAs synced', description: `${result.synced} latest NDA files updated across ${result.matched} matched companies.` });
   }
 
   function createFollowUpTask(n: NDA) {
@@ -558,9 +567,9 @@ export default function NdasPage() {
         actions={
           canPrepare ? (
             <>
-              <Button variant="outline" onClick={() => void syncDriveNdas()} disabled={syncingDrive}>
-                <RefreshCw className={syncingDrive ? 'animate-spin' : ''} />
-                {syncingDrive ? 'Syncing Drive…' : 'Sync Drive NDAs'}
+              <Button variant="outline" onClick={() => void syncEmailNdas()} disabled={syncingEmail}>
+                <RefreshCw className={syncingEmail ? 'animate-spin' : ''} />
+                {syncingEmail ? 'Syncing email…' : 'Sync Email NDAs'}
               </Button>
               <Button variant="outline" onClick={() => setUploadOpen(true)}>
                 <Upload />

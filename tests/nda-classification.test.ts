@@ -4,6 +4,7 @@ import {
   isItalproteinNdaDocumentName,
   isNdaEligibleFileName,
   pickNdaAttachments,
+  textContainsNdaWording,
   textMentionsItalprotein,
   textMentionsNda,
 } from "@/lib/backend/nda-classification";
@@ -38,6 +39,8 @@ describe("ITALPROTEIN NDA document classification", () => {
     expect(textMentionsItalprotein("Quarterly protein market report")).toBe(false);
     expect(textMentionsNda("NDA to sign")).toBe(true);
     expect(textMentionsNda("Agenda for Monday")).toBe(false);
+    expect(textContainsNdaWording("Client N.D.A. signed.pdf")).toBe(true);
+    expect(textContainsNdaWording("Non-disclosure agreement.pdf")).toBe(false);
   });
 });
 
@@ -56,15 +59,16 @@ describe("NDA attachment picking", () => {
     expect(picked.every((p) => p.confidence === "high")).toBe(true);
   });
 
-  it("uses the subject only as a tie-breaker for NDA-named files", () => {
+  it("files NDA-named documents without requiring ITALPROTEIN in the subject", () => {
     const attachments = [meta("NDA draft.pdf")];
-    expect(pickNdaAttachments(attachments, "Italprotein partnership")).toEqual([
+    expect(pickNdaAttachments(attachments, "Partnership documents")).toEqual([
       { attachment: attachments[0], confidence: "medium" },
     ]);
-    // Without the company token in the subject, an NDA-only name stays unfiled.
-    expect(pickNdaAttachments(attachments, "Partnership documents")).toEqual([]);
     // A subject mention alone never drags in a non-NDA-named file.
     expect(pickNdaAttachments([meta("brochure.pdf")], "Italprotein NDA attached")).toEqual([]);
+    // Synonyms do not qualify: the requested filename wording is specifically NDA.
+    expect(pickNdaAttachments([meta("Non-disclosure agreement.pdf")], "Documents")).toEqual([]);
+    expect(pickNdaAttachments([meta("Accordo di riservatezza Italprotein.pdf")], "Documents")).toEqual([]);
   });
 
   it("accepts CAdES signatures and rejects non-document types", () => {

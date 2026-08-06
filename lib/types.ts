@@ -971,6 +971,7 @@ export interface GmailSyncResult {
   fetched: number;
   created: number;
   ndasCreated: number;
+  ndaFilesImported: number;
   leadsCreated: number;
   leadsUpdated: number;
 }

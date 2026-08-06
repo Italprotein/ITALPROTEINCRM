@@ -2,12 +2,10 @@
  * ITALPROTEIN NDA detection. Pure string logic — no Prisma — so the whole
  * rule is unit-testable (tests/nda-classification.test.ts).
  *
- * A document qualifies for automatic NDA filing only when its NAME carries
- * both the ITALPROTEIN token and an NDA token. The email body is deliberately
- * ignored: every message in an Italprotein thread mentions "Italprotein"
- * somewhere (signature, footer, address), so body text adds zero signal and
- * only widens the match. The subject may corroborate an NDA-named file whose
- * name lacks the company token.
+ * Gmail filing is intentionally filename-only: an eligible document must carry
+ * the standalone wording "NDA" in its NAME. Email subjects and bodies are
+ * ignored because signatures, quoted history and ordinary discussion widen the
+ * match without proving that a particular attachment is an NDA.
  *
  * This classifier never infers signature status. A filename is untrusted
  * metadata; only a staff review may mark an NDA signed.
@@ -27,6 +25,9 @@ export function normalizeForMatch(value: string): string {
 const ITALPROTEIN_TOKEN = /\bITAL ?PROTEIN\b/;
 // "NDA", "N.D.A.", "non-disclosure", "accordo di riservatezza" — but not "agenda" or "standard".
 const NDA_TOKEN = /\bN ?D ?A\b|\bNON ?DISCLOSURE\b|\bACCORDO DI RISERVATEZZA\b|\bRISERVATEZZA\b/;
+// Gmail auto-filing follows the narrower business rule: the filename itself
+// must contain the wording NDA (separator variants such as N.D.A. are fine).
+const NDA_WORDING_TOKEN = /\bN ?D ?A\b/;
 
 export function textMentionsItalprotein(value: string): boolean {
   return ITALPROTEIN_TOKEN.test(normalizeForMatch(value));
@@ -34,6 +35,10 @@ export function textMentionsItalprotein(value: string): boolean {
 
 export function textMentionsNda(value: string): boolean {
   return NDA_TOKEN.test(normalizeForMatch(value));
+}
+
+export function textContainsNdaWording(value: string): boolean {
+  return NDA_WORDING_TOKEN.test(normalizeForMatch(value));
 }
 
 export function isItalproteinNdaDocumentName(filename: string): boolean {
@@ -64,25 +69,24 @@ export interface NdaAttachmentMatch<T extends { filename: string }> {
 }
 
 /**
- * Select EVERY attachment that should be auto-filed as an ITALPROTEIN NDA.
+ * Select EVERY attachment that should be auto-filed from a company email
+ * thread. Only the filename supplies classification evidence.
  *
- * - high:   the filename itself names both ITALPROTEIN and NDA.
- * - medium: the filename names only NDA, and the subject supplies the
- *           ITALPROTEIN token (tie-breaker; still filed as under_review).
+ * - high:   the filename names both ITALPROTEIN and NDA.
+ * - medium: the filename contains the standalone NDA wording.
  */
 export function pickNdaAttachments<T extends { filename: string }>(
   attachments: T[],
-  subject: string,
+  _subject: string,
 ): NdaAttachmentMatch<T>[] {
-  const subjectHasItalprotein = textMentionsItalprotein(subject);
   const matches: NdaAttachmentMatch<T>[] = [];
   for (const attachment of attachments) {
     if (!isNdaEligibleFileName(attachment.filename)) continue;
-    if (isItalproteinNdaDocumentName(attachment.filename)) {
-      matches.push({ attachment, confidence: "high" });
-    } else if (subjectHasItalprotein && textMentionsNda(attachment.filename)) {
-      matches.push({ attachment, confidence: "medium" });
-    }
+    if (!textContainsNdaWording(attachment.filename)) continue;
+    matches.push({
+      attachment,
+      confidence: textMentionsItalprotein(attachment.filename) ? "high" : "medium",
+    });
   }
   return matches;
 }
