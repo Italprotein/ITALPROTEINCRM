@@ -37,12 +37,13 @@ export default function WorldMap({
   const svgRef = useRef<SVGSVGElement>(null);
   const map = new DottedMap({ height: 100, grid: "diagonal" });
 
-  // This map only ever renders on the navy public page, and the app toggles a
-  // `dark` class itself rather than using next-themes — so the palette is fixed
-  // here instead of pulling in a theme provider the project does not have.
+  // Dark grid dots: the landing page is light. This was white-transparent while
+  // the page was navy, which would have made the whole map invisible here. The
+  // app toggles a `dark` class itself rather than using next-themes, so the
+  // value is fixed rather than pulled from a theme provider that does not exist.
   const svgMap = map.getSVG({
     radius: 0.22,
-    color: "#FFFFFF40",
+    color: "#0a162833",
     shape: "circle",
     backgroundColor: "transparent",
   });
@@ -58,7 +59,7 @@ export default function WorldMap({
           data URI generated at render; next/image cannot optimise it. */}
       <img
         src={`data:image/svg+xml;utf8,${encodeURIComponent(svgMap)}`}
-        className="pointer-events-none h-full w-full select-none [mask-image:linear-gradient(to_bottom,transparent,white_10%,white_90%,transparent)]"
+        className="pointer-events-none h-full w-full select-none [mask-image:linear-gradient(to_bottom,transparent,black_12%,black_88%,transparent)]"
         alt=""
         height="495"
         width="1056"
