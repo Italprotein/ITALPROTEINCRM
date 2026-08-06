@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 
 type PartnerItem = {
   logo?: string;
-  quote: string;
   name: string;
   title?: string;
 };
@@ -83,7 +82,6 @@ export function InfiniteMovingCards({
                       {item.title}
                     </span>
                   ) : null}
-                  <blockquote className="sr-only">{item.quote}</blockquote>
                 </div>
               </li>
             ))}
