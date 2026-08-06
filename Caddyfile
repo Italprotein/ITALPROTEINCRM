@@ -3,7 +3,20 @@
 # APP_DOMAIN comes from .env.production (e.g. crm.italprotein.com).
 {$APP_DOMAIN} {
 	encode zstd gzip
+	root * /srv/error-pages
+
 	reverse_proxy app:3000 {
+		# If the application responds with a gateway/service failure of its own,
+		# replace only the response body with the branded recovery page while
+		# preserving the original HTTP status code.
+		@upstream_failure status 502 503 504
+		handle_response @upstream_failure {
+			rewrite /502.html
+			header Cache-Control "no-store, max-age=0"
+			header X-Robots-Tag "noindex, nofollow"
+			file_server
+		}
+
 		# Next.js builds absolute URLs for redirects from the incoming request
 		# (e.g. NextResponse.redirect(new URL(path, request.url))). Without the
 		# original host and scheme forwarded, it resolves them against the
@@ -13,5 +26,14 @@
 		header_up X-Forwarded-Host {host}
 		header_up X-Forwarded-Proto {scheme}
 		header_up X-Real-IP {remote_host}
+	}
+
+	# Connection failures happen before Next.js can render anything. Caddy serves
+	# the same self-contained page directly for those transport-level failures.
+	handle_errors 502 503 504 {
+		rewrite /502.html
+		header Cache-Control "no-store, max-age=0"
+		header X-Robots-Tag "noindex, nofollow"
+		file_server
 	}
 }

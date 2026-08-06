@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#07182b" />
+    <title>Service temporarily unavailable — ITALPROTEIN CRM</title>
+    <script>
+      (function () {
+        var theme;
+        try { theme = localStorage.getItem('ui:theme'); } catch (_) {}
+        if (theme !== 'light' && theme !== 'dark') {
+          theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
+    <style>
+      :root {
+        --page: #f3f7fb;
+        --surface: #ffffff;
+        --ink: #07182b;
+        --muted: #5f7187;
+        --rule: rgba(13, 92, 165, 0.19);
+        --grid: rgba(10, 103, 191, 0.07);
+        --blue: #0869cf;
+        --blue-deep: #064e9e;
+        --cyan: #35a9e7;
+        --yellow: #f2c94c;
+        --shadow: rgba(11, 50, 87, 0.12);
+        --panel: rgba(255, 255, 255, 0.78);
+      }
+
+      :root[data-theme='dark'] {
+        --page: #061321;
+        --surface: #0a1d31;
+        --ink: #f3f8fc;
+        --muted: #9eb0c4;
+        --rule: rgba(86, 166, 234, 0.22);
+        --grid: rgba(77, 165, 235, 0.07);
+        --blue: #41a5f5;
+        --blue-deep: #1778d4;
+        --cyan: #6ac9f6;
+        --yellow: #f2c94c;
+        --shadow: rgba(0, 0, 0, 0.32);
+        --panel: rgba(9, 29, 49, 0.78);
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html, body { min-height: 100%; }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        min-height: 100vh;
+        min-height: 100svh;
+        overflow-x: hidden;
+        color: var(--ink);
+        background:
+          linear-gradient(var(--grid) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+          radial-gradient(circle at 82% 18%, rgba(53, 169, 231, 0.12), transparent 30rem),
+          var(--page);
+        background-size: 48px 48px, 48px 48px, auto, auto;
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a { color: inherit; }
+
+      .shell {
+        position: relative;
+        isolation: isolate;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        width: min(100% - 48px, 1240px);
+        min-height: 100vh;
+        min-height: 100svh;
+        margin-inline: auto;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        padding-block: 28px;
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 13px;
+        text-decoration: none;
+      }
+
+      .brand-mark {
+        position: relative;
+        width: 31px;
+        height: 31px;
+        border: 1px solid var(--blue);
+        border-radius: 50%;
+      }
+
+      .brand-mark::before,
+      .brand-mark::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+      }
+
+      .brand-mark::before {
+        inset: 6px;
+        border: 1px solid var(--cyan);
+      }
+
+      .brand-mark::after {
+        top: 2px;
+        right: 1px;
+        width: 7px;
+        height: 7px;
+        background: var(--yellow);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--yellow) 18%, transparent);
+      }
+
+      .brand-name {
+        font-family: "Arial Narrow", "Roboto Condensed", "Helvetica Neue", sans-serif;
+        font-size: 15px;
+        font-weight: 760;
+        letter-spacing: 0.18em;
+      }
+
+      .system-tag,
+      .eyebrow,
+      .readout-label,
+      .footer-note {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+
+      .system-tag {
+        color: var(--muted);
+        font-size: 10px;
+        white-space: nowrap;
+      }
+
+      .content {
+        display: grid;
+        grid-template-columns: minmax(0, 1.04fr) minmax(360px, 0.96fr);
+        align-items: center;
+        gap: clamp(48px, 8vw, 112px);
+        padding-block: clamp(72px, 11vh, 132px);
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 22px;
+        color: var(--blue);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .signal-dot {
+        width: 8px;
+        height: 8px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: var(--yellow);
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--yellow) 28%, transparent);
+        animation: signal 2.8s ease-out infinite;
+      }
+
+      h1 {
+        max-width: 750px;
+        margin: 0;
+        font-family: "Arial Narrow", "Roboto Condensed", "Helvetica Neue", sans-serif;
+        font-size: clamp(46px, 6vw, 82px);
+        font-stretch: condensed;
+        font-weight: 760;
+        letter-spacing: -0.055em;
+        line-height: 0.96;
+        text-wrap: balance;
+      }
+
+      .translation {
+        margin: 22px 0 0;
+        color: var(--blue);
+        font-size: clamp(16px, 1.8vw, 20px);
+        font-weight: 650;
+      }
+
+      .description {
+        max-width: 610px;
+        margin: 16px 0 0;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.7;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 16px;
+        margin-top: 34px;
+      }
+
+      .retry {
+        display: inline-flex;
+        min-height: 48px;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 0 22px;
+        border: 1px solid var(--blue);
+        background: var(--blue-deep);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: transform 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+      }
+
+      .retry:hover {
+        transform: translateY(-2px);
+        background: var(--blue);
+        box-shadow: 0 12px 28px color-mix(in srgb, var(--blue) 24%, transparent);
+      }
+
+      .retry:focus-visible,
+      .support:focus-visible,
+      .brand:focus-visible {
+        outline: 3px solid var(--yellow);
+        outline-offset: 4px;
+      }
+
+      .retry svg { transition: transform 180ms ease; }
+      .retry:hover svg { transform: translateX(3px); }
+
+      .support {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 650;
+        text-underline-offset: 4px;
+        text-decoration-color: var(--rule);
+      }
+
+      .support:hover { color: var(--blue); }
+
+      .instrument {
+        position: relative;
+        min-height: 430px;
+        border: 1px solid var(--rule);
+        background: var(--panel);
+        box-shadow: 0 30px 80px var(--shadow);
+        backdrop-filter: blur(10px);
+        overflow: hidden;
+      }
+
+      .instrument::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(135deg, color-mix(in srgb, var(--cyan) 8%, transparent), transparent 45%),
+          repeating-linear-gradient(90deg, transparent 0 30px, var(--grid) 31px 32px);
+        pointer-events: none;
+      }
+
+      .instrument-head {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .instrument-title {
+        font-family: "SFMono-Regular", Consolas, monospace;
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 9px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .indicator::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--yellow);
+      }
+
+      .code-wrap {
+        position: relative;
+        display: grid;
+        min-height: 304px;
+        place-items: center;
+        padding: 32px;
+      }
+
+      .orbit {
+        position: absolute;
+        width: min(76%, 330px);
+        aspect-ratio: 1;
+        border: 1px solid var(--rule);
+        border-radius: 50%;
+        animation: rotate 18s linear infinite;
+      }
+
+      .orbit::before,
+      .orbit::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+      }
+
+      .orbit::before {
+        top: 17%;
+        right: 2%;
+        width: 11px;
+        height: 11px;
+        background: var(--cyan);
+        box-shadow: 0 0 20px color-mix(in srgb, var(--cyan) 55%, transparent);
+      }
+
+      .orbit::after {
+        bottom: 11%;
+        left: 10%;
+        width: 9px;
+        height: 9px;
+        background: var(--yellow);
+        box-shadow: 0 0 18px color-mix(in srgb, var(--yellow) 55%, transparent);
+      }
+
+      .orbit-inner {
+        position: absolute;
+        width: min(52%, 225px);
+        aspect-ratio: 1;
+        border: 1px solid color-mix(in srgb, var(--blue) 26%, transparent);
+        border-radius: 50%;
+        transform: rotate(56deg) scaleY(0.42);
+      }
+
+      .error-code {
+        position: relative;
+        z-index: 1;
+        margin: 0;
+        color: var(--ink);
+        font-family: "Arial Narrow", "Roboto Condensed", "Helvetica Neue", sans-serif;
+        font-size: clamp(112px, 15vw, 184px);
+        font-weight: 800;
+        letter-spacing: -0.08em;
+        line-height: 0.8;
+        text-shadow: 8px 8px 0 color-mix(in srgb, var(--blue) 13%, transparent);
+      }
+
+      .readouts {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border-top: 1px solid var(--rule);
+      }
+
+      .readout {
+        min-width: 0;
+        padding: 14px 16px 16px;
+      }
+
+      .readout + .readout { border-left: 1px solid var(--rule); }
+
+      .readout-label {
+        display: block;
+        margin-bottom: 7px;
+        color: var(--muted);
+        font-size: 8px;
+      }
+
+      .readout-value {
+        display: block;
+        overflow: hidden;
+        color: var(--ink);
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 11px;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding-block: 22px 28px;
+        border-top: 1px solid var(--rule);
+      }
+
+      .footer-note {
+        margin: 0;
+        color: var(--muted);
+        font-size: 8px;
+        line-height: 1.6;
+      }
+
+      .trace {
+        display: flex;
+        width: min(38vw, 280px);
+        height: 14px;
+        align-items: center;
+        gap: 3px;
+      }
+
+      .trace i {
+        display: block;
+        height: 1px;
+        flex: 1;
+        background: var(--rule);
+      }
+
+      .trace i:nth-child(6),
+      .trace i:nth-child(7) {
+        height: 5px;
+        background: var(--yellow);
+      }
+
+      @keyframes signal {
+        0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--yellow) 30%, transparent); }
+        60%, 100% { box-shadow: 0 0 0 10px transparent; }
+      }
+
+      @keyframes rotate { to { transform: rotate(360deg); } }
+
+      @media (max-width: 860px) {
+        .shell { width: min(100% - 32px, 680px); }
+        .content {
+          grid-template-columns: 1fr;
+          gap: 56px;
+          padding-block: 64px;
+        }
+        .instrument { min-height: 390px; }
+        .code-wrap { min-height: 270px; }
+      }
+
+      @media (max-width: 520px) {
+        .shell { width: min(100% - 24px, 480px); }
+        .topbar { padding-block: 20px; }
+        .system-tag { display: none; }
+        .content { gap: 42px; padding-block: 50px; }
+        h1 { font-size: clamp(42px, 13vw, 60px); }
+        .description { font-size: 15px; }
+        .actions { align-items: stretch; flex-direction: column; }
+        .retry, .support { width: 100%; justify-content: center; }
+        .instrument { min-height: 340px; }
+        .code-wrap { min-height: 230px; padding: 22px; }
+        .error-code { font-size: clamp(104px, 40vw, 150px); }
+        .readout { padding-inline: 10px; }
+        .readout-label { letter-spacing: 0.07em; }
+        .readout-value { font-size: 9px; }
+        .footer { align-items: flex-start; }
+        .trace { width: 100px; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="Return to ITALPROTEIN CRM">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-name">ITALPROTEIN</span>
+        </a>
+        <span class="system-tag">CRM / Recovery interface</span>
+      </header>
+
+      <section class="content" aria-labelledby="error-title">
+        <div class="message">
+          <p class="eyebrow"><span class="signal-dot" aria-hidden="true"></span>Temporary connection issue</p>
+          <h1 id="error-title">The CRM is temporarily unreachable.</h1>
+          <p class="translation" lang="it">Il CRM non è raggiungibile in questo momento.</p>
+          <p class="description">
+            The secure application service is not responding right now. Please wait a moment and try again. If the interruption continues, contact ITALPROTEIN support.
+          </p>
+          <div class="actions">
+            <a class="retry" href="" aria-label="Try loading this page again">
+              Try again
+              <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true">
+                <path d="M3 8.5h10.5M9.5 4.5l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </a>
+            <a class="support" href="mailto:ad@italprotein.com">Contact support</a>
+          </div>
+        </div>
+
+        <aside class="instrument" aria-label="Gateway status: error 502">
+          <div class="instrument-head">
+            <span class="instrument-title">Application gateway</span>
+            <span class="indicator">Stand by</span>
+          </div>
+          <div class="code-wrap" aria-hidden="true">
+            <span class="orbit"></span>
+            <span class="orbit-inner"></span>
+            <p class="error-code">502</p>
+          </div>
+          <div class="readouts" aria-hidden="true">
+            <div class="readout">
+              <span class="readout-label">Status</span>
+              <span class="readout-value">INTERRUPTED</span>
+            </div>
+            <div class="readout">
+              <span class="readout-label">Service</span>
+              <span class="readout-value">CRM</span>
+            </div>
+            <div class="readout">
+              <span class="readout-label">Action</span>
+              <span class="readout-value">RETRY</span>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <footer class="footer">
+        <p class="footer-note">ITALPROTEIN SRL<br />Secure business systems</p>
+        <span class="trace" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      </footer>
+    </main>
+  </body>
+</html>

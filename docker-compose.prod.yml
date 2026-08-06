@@ -96,6 +96,7 @@ services:
       APP_DOMAIN: "${APP_DOMAIN:?set APP_DOMAIN in .env.production}"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./ops/caddy:/srv/error-pages:ro
       - caddy_data:/data
       - caddy_config:/config
 
