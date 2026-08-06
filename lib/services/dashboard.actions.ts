@@ -185,7 +185,7 @@ export async function getCommandCenterBrief(): Promise<CommandCenterBrief> {
         kind: "nda" as const,
         title: row.reference,
         detail: companyName.get(row.companyId) ?? "NDA awaiting signature",
-        href: "/admin/ndas" as const,
+        href: `/admin/ndas?detail=${encodeURIComponent(row.id)}` as const,
         severity: "warning" as const,
       })),
     ].slice(0, 6),

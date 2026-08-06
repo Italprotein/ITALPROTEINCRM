@@ -135,7 +135,7 @@
       "projects": "Progetti",
       "analytics": "Analisi"
     },
-    "heroCaption": "Proamina® · dolcificante 100% proteico · brevetto Italprotein",
+    "heroCaption": "Proamina® · 100% proteine · brevetto Italprotein",
     "stats": [
       {
         "value": 36,
@@ -145,10 +145,10 @@
       {
         "value": 100,
         "suffix": "%",
-        "label": "Dolcificante proteico"
+        "label": "Proteine"
       },
       {
-        "value": 12,
+        "value": 21,
         "suffix": "",
         "label": "Paesi raggiunti"
       },
@@ -160,8 +160,10 @@
     ],
     "partnersTitle": "In collaborazione con",
     "partnersSubtitle": "Marchi e produttori che già lavorano con Proamina®.",
-    "reachEyebrow": "Da Bologna, in 12 paesi",
-    "reachTitle": "Dove arriva Proamina®",
+    "reachTitle": "Dove arriviamo",
+    "journeyEyebrow": "Dall’obiettivo di formulazione alla fornitura ricorrente",
+    "journeyTitle": "Come prende forma una collaborazione Proamina®",
+    "journeySubtitle": "Una sequenza tecnica e commerciale chiara mantiene connessi formulazione, campioni, feedback e decisioni di fornitura.",
     "journey": [
       {
         "title": "Primo contatto",

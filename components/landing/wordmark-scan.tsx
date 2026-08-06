@@ -8,19 +8,25 @@ import { TextHoverEffect } from '@/components/ui/text-hover-effect';
  * The page's signature: the ITALPROTEIN wordmark under a densitometer.
  *
  * A hover effect on its own is decoration. Tying it to a ruler that reports the
- * cursor's position as a measured value is what makes it belong to an ingredient
- * house — the gesture reads as passing an instrument across a sample rather than
- * as a gradient trick. At rest the ruler shows the full width, so the readout is
- * never blank and never implies a live measurement that isn't happening.
+ * ingredient house — the gesture reads as passing an instrument across a sample
+ * rather than as a generic gradient trick.
  */
 export function WordmarkScan({ caption }: { caption: string }) {
   const [scan, setScan] = React.useState<number | null>(null);
 
   return (
     <figure className="w-full">
-      <TextHoverEffect text="ITALPROTEIN" onScan={setScan} className="h-28 sm:h-40 lg:h-48" />
+      <TextHoverEffect
+        text="ITALPROTEIN"
+        onScan={setScan}
+        className={
+          'h-28 sm:h-40 lg:h-48 ' +
+          '[&>text:first-of-type]:fill-brand-blue/15 [&>text:first-of-type]:stroke-brand-blue/75 ' +
+          'dark:[&>text:first-of-type]:fill-brand-blueBright/10 dark:[&>text:first-of-type]:stroke-brand-blueBright/60'
+        }
+      />
 
-      <div className="mt-2 flex items-center gap-3 border-t border-sky-400/20 pt-2.5">
+      <div className="mt-2 border-t border-brand-blue/20 pt-2.5 dark:border-brand-blueBright/20">
         {/* Tick ruler. The lit tick tracks the cursor across the wordmark. */}
         <div className="relative flex h-3 flex-1 items-end gap-px overflow-hidden" aria-hidden>
           {Array.from({ length: 60 }).map((_, i) => {
@@ -31,21 +37,18 @@ export function WordmarkScan({ caption }: { caption: string }) {
                 className={
                   'flex-1 rounded-full transition-[height,background-color] duration-150 ' +
                   (lit
-                    ? 'h-3 bg-sky-300'
+                    ? 'h-3 bg-brand-blueBright'
                     : i % 10 === 0
-                      ? 'h-2 bg-sky-400/40'
-                      : 'h-1 bg-sky-400/20')
+                      ? 'h-2 bg-brand-blue/40 dark:bg-brand-blueBright/40'
+                      : 'h-1 bg-brand-blue/20 dark:bg-brand-blueBright/20')
                 }
               />
             );
           })}
         </div>
-        <p className="w-24 shrink-0 text-right font-mono text-[0.6875rem] tabular-nums text-sky-300/90">
-          {scan === null ? '100.0 %' : `${scan.toFixed(1)} %`}
-        </p>
       </div>
 
-      <figcaption className="mt-3 font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-slate-500">
+      <figcaption className="mt-3 font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-muted-foreground">
         {caption}
       </figcaption>
     </figure>

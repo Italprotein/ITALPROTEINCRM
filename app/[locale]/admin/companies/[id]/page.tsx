@@ -24,7 +24,7 @@ import {
   ExternalLink,
   Download,
   Lock,
-  Check,
+  ChevronRight,
   MessageSquareText,
   Activity as ActivityIcon,
   Handshake,
@@ -86,7 +86,6 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { toast } from '@/components/ui/use-toast';
 import { getLabel } from '@/lib/labels';
 import { cn, sleep } from '@/lib/utils';
@@ -174,8 +173,6 @@ export default function CompanyProfilePage() {
   const canLogActivity = !!role && canEdit(role, 'activities');
   const canRequestSample = !!role && canEdit(role, 'samples');
   const canCreateTask = !!role && canEdit(role, 'tasks');
-  const canMarkNdaSent = !!role && canEdit(role, 'ndas') && can(role, 'nda.send');
-  const canMarkNdaSigned = !!role && can(role, 'nda.mark_signed');
   // Mirrors the guard on linkDriveFileToCompany, so the button is only shown
   // to someone the server will actually let through.
   const canLinkDriveFiles = !!role && can(role, 'company.edit');
@@ -248,9 +245,6 @@ export default function CompanyProfilePage() {
   type Action = 'activity' | 'task' | 'note' | 'sample' | 'contact' | null;
   const [action, setAction] = React.useState<Action>(null);
 
-  /* ── NDA + task mutations ── */
-  const [ndaConfirm, setNdaConfirm] = React.useState<{ nda: NDA; to: NDA['status']; label: string } | null>(null);
-
   if (notFound) {
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -302,24 +296,6 @@ export default function CompanyProfilePage() {
         d ? { ...d, tasks: d.tasks.map((t) => (t.id === task.id ? { ...t, status: task.status } : t)) } : d,
       );
       toast({ title: 'Action failed', description: 'Please try again.', variant: 'danger' });
-    }
-  };
-
-  const applyNdaStatus = async () => {
-    if (!ndaConfirm) return;
-    const { nda, to, label } = ndaConfirm;
-    const patch: Partial<NDA> =
-      to === 'sent' ? { status: to, dateSent: new Date().toISOString().slice(0, 10) } : { status: to };
-    try {
-      await sleep(400);
-      await ndaService.update(nda.id, patch);
-      setData((d) => (d ? { ...d, ndas: d.ndas.map((n) => (n.id === nda.id ? { ...n, ...patch } : n)) } : d));
-      setCompany((current) => (current ? { ...current, ndaStatus: to } : current));
-      toast({ title: t('toastNdaMarked', { label }), description: nda.reference, variant: 'success' });
-    } catch {
-      toast({ title: 'Action failed', description: 'Please try again.', variant: 'danger' });
-    } finally {
-      setNdaConfirm(null);
     }
   };
 
@@ -681,66 +657,28 @@ export default function CompanyProfilePage() {
                 description={t('noNdaDescription')}
               />
             ) : (
-              <div className="space-y-4">
+              <div className="overflow-hidden rounded-lg border bg-card">
                 {data.ndas.map((n) => (
-                  <Card key={n.id}>
-                    <CardContent className="space-y-4 p-5">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="flex items-center gap-2 font-semibold">
-                            {n.reference}
-                            <StatusBadge kind="ndaType" value={n.type} />
-                          </p>
-                          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                            <span>{t('sentDate', { date: formatDate(n.dateSent) })}</span>
-                            <span>{t('effectiveDate', { date: formatDate(n.effectiveDate) })}</span>
-                            <span>{t('expiresDate', { date: formatDate(n.expiryDate) })}</span>
-                          </div>
-                        </div>
-                        <StatusBadge kind="ndaStatus" value={n.status} />
-                      </div>
-
-                      {n.versions.length > 0 && (
-                        <div className="rounded-md border bg-muted/30 p-3">
-                          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            {t('versions')}
-                          </p>
-                          <ul className="space-y-1 text-sm">
-                            {n.versions.map((v) => (
-                              <li key={v.version} className="flex items-center justify-between gap-2">
-                                <span className="font-medium">v{v.version}</span>
-                                <span className="text-muted-foreground">{formatDate(v.date)}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      <div className="flex flex-wrap gap-2">
-                        {canMarkNdaSent && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={n.status === 'fully_signed'}
-                            onClick={() => setNdaConfirm({ nda: n, to: 'sent', label: t('ndaLabelSent') })}
-                          >
-                            {t('markSent')}
-                          </Button>
-                        )}
-                        {canMarkNdaSigned && (
-                          <Button
-                            variant="success"
-                            size="sm"
-                            disabled={n.status === 'fully_signed'}
-                            onClick={() => setNdaConfirm({ nda: n, to: 'fully_signed', label: t('ndaLabelSigned') })}
-                          >
-                            <Check />
-                            {t('markSigned')}
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <Link
+                    key={n.id}
+                    href={`/admin/ndas?detail=${encodeURIComponent(n.id)}`}
+                    className="group flex min-h-16 items-center gap-3 border-b px-4 py-3 transition-colors last:border-b-0 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-navy/10 text-brand-navy dark:bg-brand-blueBright/10 dark:text-brand-blueBright">
+                      <FileSignature className="h-4 w-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-sm font-semibold text-foreground">{n.reference}</span>
+                        <StatusBadge kind="ndaType" value={n.type} />
+                      </span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {t('sentDate', { date: formatDate(n.dateSent) })}
+                      </span>
+                    </span>
+                    <StatusBadge kind="ndaStatus" value={n.status} />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
+                  </Link>
                 ))}
               </div>
             )}
@@ -1402,22 +1340,6 @@ export default function CompanyProfilePage() {
         }}
       />
 
-      {/* ── NDA status confirm ── */}
-      <ConfirmDialog
-        open={!!ndaConfirm}
-        onOpenChange={(o) => !o && setNdaConfirm(null)}
-        title={t('confirmNdaTitle', { label: ndaConfirm?.label ?? '' })}
-        description={
-          ndaConfirm
-            ? t('confirmNdaDescription', {
-                reference: ndaConfirm.nda.reference,
-                status: getLabel('ndaStatus', ndaConfirm.to),
-              })
-            : undefined
-        }
-        confirmLabel={t('confirmLabel')}
-        onConfirm={() => void applyNdaStatus()}
-      />
     </div>
   );
 }

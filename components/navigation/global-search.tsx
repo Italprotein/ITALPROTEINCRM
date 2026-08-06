@@ -113,7 +113,7 @@ export function GlobalSearch() {
     }
     for (const n of data.ndas) {
       if (match(n.reference, companyName(n.companyId), n.status))
-        out.push({ group: 'NDAs', id: n.id, label: n.reference, detail: `${companyName(n.companyId)} · ${getLabel('ndaStatus', n.status)}`, href: `/admin/ndas` });
+        out.push({ group: 'NDAs', id: n.id, label: n.reference, detail: `${companyName(n.companyId)} · ${getLabel('ndaStatus', n.status)}`, href: `/admin/ndas?detail=${encodeURIComponent(n.id)}` });
     }
     for (const s of data.samples) {
       if (match(s.reference, s.requestedProduct, companyName(s.companyId), s.status))

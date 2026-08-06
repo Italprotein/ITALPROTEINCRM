@@ -299,7 +299,7 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
         icon: CalendarClock,
         title: t('ndaExpiringSoon', { reference: n.reference }),
         meta: d != null ? t('expiresInDays', { count: d }) : t('expiring'),
-        href: '/admin/ndas',
+        href: `/admin/ndas?detail=${encodeURIComponent(n.id)}`,
       });
     }
     return rows.slice(0, 8);

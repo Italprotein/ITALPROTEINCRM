@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import {
   FileSignature,
   Clock,
@@ -116,6 +117,7 @@ export default function NdasPage() {
   const locale = useLocale() as Locale;
   const t = useTranslations('AdminNdas');
   const router = useRouter();
+  const requestedDetailId = useSearchParams().get('detail');
   const { session } = useSession();
   const role = session?.role;
   const canPrepare = !!role && can(role, 'nda.prepare');
@@ -136,9 +138,21 @@ export default function NdasPage() {
   // dialogs / sheet
   const [createOpen, setCreateOpen] = React.useState(false);
   const [uploadOpen, setUploadOpen] = React.useState(false);
-  const [detailId, setDetailId] = React.useState<string | null>(null);
   const [noteFor, setNoteFor] = React.useState<NDA | null>(null);
   const [revisionFor, setRevisionFor] = React.useState<NDA | null>(null);
+
+  const detailId = requestedDetailId;
+
+  const openDetail = React.useCallback(
+    (id: string) => {
+      router.replace(`/admin/ndas?detail=${encodeURIComponent(id)}`, { scroll: false });
+    },
+    [router],
+  );
+
+  const closeDetail = React.useCallback(() => {
+    router.replace('/admin/ndas', { scroll: false });
+  }, [router]);
 
   React.useEffect(() => {
     ndaService.list().then(setRows);
@@ -452,7 +466,7 @@ export default function NdasPage() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
-          <DropdownMenuItem onSelect={() => setDetailId(n.id)}>
+          <DropdownMenuItem onSelect={() => openDetail(n.id)}>
             <Eye />
             {t('actionViewDetails')}
           </DropdownMenuItem>
@@ -508,7 +522,7 @@ export default function NdasPage() {
   function mobileCard(n: NDA) {
     const { soon, days } = expiringWindow(n.expiryDate);
     return (
-      <Card className="p-3" onClick={() => setDetailId(n.id)}>
+      <Card className="p-3" onClick={() => openDetail(n.id)}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="font-mono text-sm font-semibold text-foreground">{n.reference}</p>
@@ -595,7 +609,7 @@ export default function NdasPage() {
         }
         pageSize={12}
         rowActions={rowActions}
-        onRowClick={(n) => setDetailId(n.id)}
+        onRowClick={(n) => openDetail(n.id)}
         toolbar={toolbar}
         enableColumnVisibility
         enableDensityToggle
@@ -614,22 +628,21 @@ export default function NdasPage() {
         canSend={canSend}
         canMarkSigned={canMarkSigned}
         canEditNdas={canEditNdas}
-        onOpenChange={(o) => !o && setDetailId(null)}
+        onOpenChange={(o) => !o && closeDetail()}
         onMarkSent={markSent}
         onMarkSigned={markSigned}
         onRequestRevision={(n) => {
-          setDetailId(null);
+          closeDetail();
           setRevisionFor(n);
         }}
         onReplace={replaceDocument}
         onAddNote={(n) => {
-          setDetailId(null);
+          closeDetail();
           setNoteFor(n);
         }}
         onDownload={download}
         onFollowUp={createFollowUpTask}
         onOpenCompany={(id) => {
-          setDetailId(null);
           router.push('/admin/companies/' + id);
         }}
       />

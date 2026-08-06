@@ -135,7 +135,7 @@
       "projects": "Projects",
       "analytics": "Analytics"
     },
-    "heroCaption": "Proamina® · 100% protein sweetener · Italprotein patent",
+    "heroCaption": "Proamina® · 100% protein · Italprotein patent",
     "stats": [
       {
         "value": 36,
@@ -145,10 +145,10 @@
       {
         "value": 100,
         "suffix": "%",
-        "label": "Protein sweetener"
+        "label": "Protein"
       },
       {
-        "value": 12,
+        "value": 21,
         "suffix": "",
         "label": "Countries reached"
       },
@@ -160,8 +160,10 @@
     ],
     "partnersTitle": "In collaboration with",
     "partnersSubtitle": "Brands and manufacturers already working with Proamina®.",
-    "reachEyebrow": "From Bologna, to 12 countries",
-    "reachTitle": "Where Proamina® goes",
+    "reachTitle": "Where we reach",
+    "journeyEyebrow": "From formulation goal to recurring supply",
+    "journeyTitle": "How a Proamina® relationship takes shape",
+    "journeySubtitle": "A clear technical and commercial sequence keeps formulation detail, samples, feedback and supply decisions connected.",
     "journey": [
       {
         "title": "First contact",

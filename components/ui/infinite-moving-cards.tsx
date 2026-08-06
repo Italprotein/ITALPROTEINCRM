@@ -1,129 +1,95 @@
-"use client";
+'use client';
 
-import Image from "next/image";
-import { cn } from "@/lib/utils";
-import React, { useEffect, useState } from "react";
+import type { CSSProperties } from 'react';
+import Image from 'next/image';
 
-export const InfiniteMovingCards = ({
+import { cn } from '@/lib/utils';
+
+type PartnerItem = {
+  logo?: string;
+  quote: string;
+  name: string;
+  title?: string;
+};
+
+const SPEEDS = {
+  fast: '28s',
+  normal: '48s',
+  slow: '80s',
+} as const;
+
+export function InfiniteMovingCards({
   items,
-  direction = "left",
-  speed = "fast",
+  direction = 'left',
+  speed = 'fast',
   pauseOnHover = true,
   className,
 }: {
-  items: {
-    logo?: string;
-    quote: string;
-    name: string;
-    title: string;
-  }[];
-  direction?: "left" | "right";
-  speed?: "fast" | "normal" | "slow";
+  items: PartnerItem[];
+  direction?: 'left' | 'right';
+  speed?: keyof typeof SPEEDS;
   pauseOnHover?: boolean;
   className?: string;
-}) => {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const scrollerRef = React.useRef<HTMLUListElement>(null);
-
-  useEffect(() => {
-    addAnimation();
-  }, []);
-  const [start, setStart] = useState(false);
-  function addAnimation() {
-    if (containerRef.current && scrollerRef.current) {
-      const scrollerContent = Array.from(scrollerRef.current.children);
-
-      scrollerContent.forEach((item) => {
-        const duplicatedItem = item.cloneNode(true);
-        if (scrollerRef.current) {
-          scrollerRef.current.appendChild(duplicatedItem);
-        }
-      });
-
-      getDirection();
-      getSpeed();
-      setStart(true);
-    }
-  }
-  const getDirection = () => {
-    if (containerRef.current) {
-      if (direction === "left") {
-        containerRef.current.style.setProperty(
-          "--animation-direction",
-          "forwards",
-        );
-      } else {
-        containerRef.current.style.setProperty(
-          "--animation-direction",
-          "reverse",
-        );
-      }
-    }
+}) {
+  const animationStyle: CSSProperties = {
+    animationDuration: SPEEDS[speed],
+    animationDirection: direction === 'left' ? 'normal' : 'reverse',
   };
-  const getSpeed = () => {
-    if (containerRef.current) {
-      if (speed === "fast") {
-        containerRef.current.style.setProperty("--animation-duration", "20s");
-      } else if (speed === "normal") {
-        containerRef.current.style.setProperty("--animation-duration", "40s");
-      } else {
-        containerRef.current.style.setProperty("--animation-duration", "80s");
-      }
-    }
-  };
+
   return (
     <div
-      ref={containerRef}
       className={cn(
-        "scroller relative z-20 max-w-7xl overflow-hidden [mask-image:linear-gradient(to_right,transparent,white_20%,white_80%,transparent)]",
+        'group relative w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_7%,black_93%,transparent)]',
+        'motion-reduce:overflow-x-auto motion-reduce:[mask-image:none]',
         className,
       )}
     >
-      <ul
-        ref={scrollerRef}
+      <div
+        style={animationStyle}
         className={cn(
-          "flex w-max min-w-full shrink-0 flex-nowrap gap-4 py-4",
-          start && "animate-scroll",
-          pauseOnHover && "hover:[animation-play-state:paused]",
+          'flex w-max animate-marquee will-change-transform motion-reduce:animate-none motion-reduce:transform-none motion-reduce:will-change-auto',
+          pauseOnHover && 'group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused]',
         )}
       >
-        {items.map((item) => (
-          <li
-            className="relative flex h-28 w-44 shrink-0 flex-col items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/95 px-6"
-            key={item.name}
-          >
-            {/* Adapted from the registry's testimonial card to carry a partner
-                logo. Most of the logo files are opaque-white JPG/PNG with no
-                alpha, so the tile stays light rather than inheriting the navy
-                field — a dark tile would frame each mark in a white rectangle. */}
-            {item.logo ? (
-              <Image
-                src={item.logo}
-                alt={item.name}
-                width={150}
-                height={56}
-                className="max-h-10 w-auto object-contain"
-              />
-            ) : (
-              <span className="text-sm font-semibold text-neutral-800">{item.name}</span>
+        {[0, 1].map((track) => (
+          <ul
+            key={track}
+            aria-hidden={track === 1 ? true : undefined}
+            className={cn(
+              'flex shrink-0 flex-nowrap gap-4 py-3 pr-4 sm:gap-5 sm:pr-5',
+              track === 1 && 'motion-reduce:hidden',
             )}
-            {item.title ? (
-              <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-neutral-500">
-                {item.title}
-              </span>
-            ) : null}
-            <blockquote className="sr-only">
-              <span>{item.quote}</span>
-              <div>
-                <span className="flex flex-col gap-1">
-                  <span>{item.name}</span>
-                  <span>{item.title}</span>
-                </span>
-              </div>
-            </blockquote>
-          </li>
+          >
+            {items.map((item) => (
+              <li
+                key={`${track}-${item.name}`}
+                className="group/logo flex h-24 w-40 shrink-0 items-center justify-center rounded-xl border border-border/80 bg-card p-2 shadow-xs transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:border-brand-goldDark/40 hover:shadow-md motion-reduce:transform-none sm:h-28 sm:w-48"
+              >
+                <div className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-lg bg-white px-5 py-3">
+                  {item.logo ? (
+                    <Image
+                      src={item.logo}
+                      alt={item.name}
+                      width={160}
+                      height={64}
+                      sizes="(max-width: 640px) 8rem, 10rem"
+                      className="max-h-10 w-auto max-w-full object-contain transition-transform duration-300 group-hover/logo:scale-[1.04] motion-reduce:transform-none sm:max-h-12"
+                    />
+                  ) : (
+                    <span className="text-center text-sm font-semibold text-brand-navy">{item.name}</span>
+                  )}
+                  {item.title ? (
+                    <span className="font-mono text-[0.5625rem] font-medium uppercase tracking-[0.16em] text-slate-500">
+                      {item.title}
+                    </span>
+                  ) : null}
+                  <blockquote className="sr-only">{item.quote}</blockquote>
+                </div>
+              </li>
+            ))}
+          </ul>
         ))}
-      </ul>
+      </div>
     </div>
   );
-};
+}

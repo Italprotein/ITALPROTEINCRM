@@ -94,10 +94,16 @@ const config: Config = {
         },
         // ── raw brand palette (from official assets) ──
         brand: {
-          navy: '#0a1628',
+          // Exact navy sampled from the existing landing-page footer.
+          navy: '#0A1628',
           navy800: '#0d1f38',
           navy700: '#112840',
           navy600: '#1b3a5b',
+          blue: '#0284C7',
+          blueBright: '#38BDF8',
+          blueSoft: '#BAE6FD',
+          yellow: '#FACC15',
+          yellowStrong: '#EAB308',
           // Accent re-themed from gold → light blue (token names kept so the whole app re-themes from here).
           gold: '#38bdf8',
           goldLight: '#7dd3fc',
@@ -118,7 +124,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'Inter', 'system-ui', 'sans-serif'],
-        display: ['var(--font-display)', 'Playfair Display', 'Georgia', 'serif'],
+        display: ['var(--font-display)', 'IBM Plex Sans Condensed', 'Arial Narrow', 'sans-serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       fontSize: {
@@ -132,6 +138,8 @@ const config: Config = {
         lg: '0 12px 32px -8px rgb(10 22 40 / 0.14), 0 4px 10px -4px rgb(10 22 40 / 0.08)',
         ring: '0 0 0 1px rgb(10 22 40 / 0.06)',
         'gold-glow': '0 0 24px rgb(56 189 248 / 0.40)',
+        'blue-halo': '0 18px 55px -28px rgb(2 132 199 / 0.45)',
+        'yellow-pin': '0 0 0 1px rgb(10 22 40 / 0.16), 0 0 16px rgb(250 204 21 / 0.28)',
       },
       // The site's signature ease, shared by the landing reveals and the motion
       // presets. Named here because the inline arbitrary value
@@ -176,6 +184,10 @@ const config: Config = {
           '0%, 100%': { opacity: '0.5', transform: 'scale(1)' },
           '50%': { opacity: '0.85', transform: 'scale(1.06)' },
         },
+        'map-pulse': {
+          '0%, 100%': { opacity: '0.24', transform: 'scale(0.82)' },
+          '50%': { opacity: '0.08', transform: 'scale(1.75)' },
+        },
         'spin-slow': {
           from: { transform: 'rotate(0deg)' },
           to: { transform: 'rotate(360deg)' },
@@ -208,6 +220,7 @@ const config: Config = {
         'scale-in': 'scale-in 0.3s cubic-bezier(0.22,1,0.36,1) forwards',
         float: 'float 4s ease-in-out infinite',
         'pulse-glow': 'pulse-glow 3s ease-in-out infinite',
+        'map-pulse': 'map-pulse 3.4s ease-in-out infinite',
         'spin-slow': 'spin-slow 28s linear infinite',
         'bounce-in': 'bounce-in 0.5s cubic-bezier(0.22,1,0.36,1) forwards',
         shimmer: 'shimmer 1.5s infinite',

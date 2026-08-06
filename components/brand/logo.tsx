@@ -47,7 +47,7 @@ export function Logo({ variant = 'full', tone = 'dark', className, showProduct =
           )}
         >
           ITAL
-          <span className={cn(onDarkChrome ? 'text-brand-molecular' : 'text-brand-molecular dark:text-brand-gold')}>
+          <span className={cn(onDarkChrome ? 'text-brand-blueBright' : 'text-brand-molecular dark:text-brand-blueBright')}>
             PROTE
           </span>
           IN
@@ -58,7 +58,7 @@ export function Logo({ variant = 'full', tone = 'dark', className, showProduct =
               // Hidden on the narrowest phones: the tag is decorative, and in a
               // header row it was the ~30px that pushed the lockup off-screen.
               'hidden font-sans text-2xs font-semibold uppercase tracking-[0.16em] min-[420px]:inline',
-              onDarkChrome ? 'text-brand-gold' : 'text-brand-goldDark dark:text-brand-gold',
+              onDarkChrome ? 'text-brand-blueBright' : 'text-brand-molecular dark:text-brand-blueBright',
             )}
           >
             · Proamina®

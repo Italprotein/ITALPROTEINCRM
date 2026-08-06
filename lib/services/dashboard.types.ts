@@ -36,7 +36,7 @@ export interface CommandCenterRisk {
   kind: "shipment" | "nda";
   title: string;
   detail: string;
-  href: "/admin/shipments" | "/admin/ndas";
+  href: "/admin/shipments" | `/admin/ndas?detail=${string}`;
   severity: "danger" | "warning";
 }
 

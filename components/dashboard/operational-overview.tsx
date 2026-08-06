@@ -224,7 +224,7 @@ async function buildDemoBrief(role: Role): Promise<CommandCenterBrief> {
     })),
     risks: [
       ...delayed.map((row) => ({ id: `shipment-${row.id}`, kind: 'shipment' as const, title: row.reference, detail: `${row.courier ?? 'Courier'} · ${row.recipient}`, href: '/admin/shipments' as const, severity: 'danger' as const })),
-      ...awaiting.map((row) => ({ id: `nda-${row.id}`, kind: 'nda' as const, title: row.reference, detail: names.get(row.companyId) ?? 'NDA', href: '/admin/ndas' as const, severity: 'warning' as const })),
+      ...awaiting.map((row) => ({ id: `nda-${row.id}`, kind: 'nda' as const, title: row.reference, detail: names.get(row.companyId) ?? 'NDA', href: `/admin/ndas?detail=${encodeURIComponent(row.id)}` as const, severity: 'warning' as const })),
     ].slice(0, 6),
     recentActivity: activity.map((row) => ({ id: row.id, type: row.type, title: row.title, at: row.at, companyName: row.companyId ? names.get(row.companyId) : undefined })),
     integrations: {

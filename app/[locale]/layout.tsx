@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter, Playfair_Display } from 'next/font/google';
+import { IBM_Plex_Sans_Condensed, Inter } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
@@ -10,8 +10,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
 import '../globals.css';
 
-/** Applies the persisted theme before paint to avoid a light→dark flash. */
-const themeScript = `(function(){try{var t=localStorage.getItem('ui:theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`;
+/** Applies the stored or system theme before paint to avoid a wrong-theme flash. */
+const themeScript = `(function(){var r=document.documentElement,t;try{t=localStorage.getItem('ui:theme')}catch(e){}if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';r.classList.toggle('dark',t==='dark');r.dataset.theme=t;r.style.colorScheme=t})();`;
 
 const inter = Inter({
   subsets: ['latin'],
@@ -20,11 +20,11 @@ const inter = Inter({
   weight: ['300', '400', '500', '600', '700', '800'],
 });
 
-const playfair = Playfair_Display({
+const plexDisplay = IBM_Plex_Sans_Condensed({
   subsets: ['latin'],
   variable: '--font-display',
   display: 'swap',
-  weight: ['400', '600', '700', '800'],
+  weight: ['400', '500', '600', '700'],
 });
 
 export const metadata: Metadata = {
@@ -54,7 +54,7 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={`${inter.variable} ${playfair.variable}`} suppressHydrationWarning>
+    <html lang={locale} className={`${inter.variable} ${plexDisplay.variable}`} suppressHydrationWarning>
       <head>
         {/* Anti-flash theme init. suppressHydrationWarning: the content is a
             static, deterministic string, so any server/client diff here comes

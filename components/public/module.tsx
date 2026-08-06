@@ -24,9 +24,12 @@ export function Designation({ children, className }: { children: ReactNode; clas
 export function ModuleRule({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="h-2.5 w-px bg-sky-400" aria-hidden />
-      <Designation className="text-sky-300/90">{label}</Designation>
-      <span className="h-px flex-1 bg-white/10" aria-hidden />
+      <span className="h-3 w-px bg-brand-goldDark dark:bg-brand-gold" aria-hidden />
+      <Designation className="text-brand-molecular dark:text-brand-gold">{label}</Designation>
+      <span className="h-px flex-1 bg-border" aria-hidden />
+      <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-muted-foreground" aria-hidden>
+        ITALPROTEIN / PROAMINA
+      </span>
     </div>
   );
 }
@@ -49,9 +52,33 @@ export function Module({
   className?: string;
 }) {
   return (
-    <section className={cn('border-b border-white/10 py-14 last:border-b-0 sm:py-16', className)}>
+    <section
+      className={cn(
+        'relative mx-auto w-full max-w-4xl overflow-hidden rounded-2xl border border-border/80 bg-card/95 px-5 py-7 text-card-foreground shadow-lg shadow-brand-navy/[0.06] backdrop-blur-sm ',
+        'motion-safe:animate-fade-up dark:shadow-black/20 sm:px-8 sm:py-9 lg:px-10 lg:py-10',
+        className,
+      )}
+    >
+      <div
+        className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-navy via-brand-goldDark to-brand-gold dark:from-brand-goldDark dark:via-brand-gold dark:to-brand-teal"
+        aria-hidden
+      />
       <ModuleRule label={designation} />
-      <div className="mt-8">{children}</div>
+      {/* Several secondary public flows predate theme tokens. These scoped
+          compatibility selectors keep their existing logic and markup usable
+          in light mode while the shared shell moves to semantic surfaces. */}
+      <div
+        className={
+          'mt-8 text-foreground ' +
+          '[&_:not(button).text-white]:!text-foreground [&_.text-slate-200]:!text-foreground ' +
+          '[&_.text-slate-300]:!text-foreground [&_.text-slate-400]:!text-muted-foreground ' +
+          '[&_.text-slate-500]:!text-muted-foreground [&_.border-white\\/10]:!border-border ' +
+          '[&_.border-white\\/15]:!border-border [&_.text-brand-goldLight]:!text-brand-molecular ' +
+          'dark:[&_.text-brand-goldLight]:!text-brand-gold'
+        }
+      >
+        {children}
+      </div>
     </section>
   );
 }
