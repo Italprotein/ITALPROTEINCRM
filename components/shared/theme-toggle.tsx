@@ -88,7 +88,7 @@ export function ThemeToggle({ tone = 'dark', className }: { tone?: 'light' | 'da
       title={`Switch to ${nextTheme} mode`}
       className={cn(
         'relative inline-flex h-11 w-16 shrink-0 touch-manipulation items-center rounded-full border p-1.5 transition-[background-color,border-color,box-shadow] duration-300',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blueBright focus-visible:ring-offset-2',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         tone === 'light'
           ? 'border-white/20 bg-white/[0.08] text-white hover:border-white/35 hover:bg-white/[0.14] focus-visible:ring-offset-brand-navy'
           : 'border-border bg-secondary text-foreground shadow-xs hover:border-brand-blue/35 hover:bg-accent focus-visible:ring-offset-background',

@@ -80,13 +80,13 @@ function ForgotPasswordForm() {
     <PublicShell>
       <Module designation={t('eyebrow')}>
         <div className="w-full max-w-sm">
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">{t('heading')}</h1>
-          <p className="mt-2 text-sm text-slate-400">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{t('heading')}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
             {step === 'email' ? t('subheadingEmail') : step === 'code' ? t('subheadingCode', { email }) : t('subheadingDone')}
           </p>
 
           {!isApi && (
-            <p className="mt-6 rounded-lg border border-dashed border-white/10 bg-white/[0.02] p-3 text-xs text-slate-400">
+            <p className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
               {t('mockModeNote')}
             </p>
           )}
@@ -94,7 +94,7 @@ function ForgotPasswordForm() {
           {step === 'email' && (
             <form onSubmit={submitEmail} className="mt-8 space-y-4" noValidate>
               <div className="space-y-1.5">
-                <Label htmlFor="fp-email" className="text-slate-200">{t('emailLabel')}</Label>
+                <Label htmlFor="fp-email" className="text-foreground">{t('emailLabel')}</Label>
                 <Input
                   id="fp-email"
                   type="email"
@@ -106,7 +106,7 @@ function ForgotPasswordForm() {
                   className="h-12"
                 />
               </div>
-              {error && <p className="text-xs text-destructive">{error}</p>}
+              {error && <p className="text-xs text-danger-text">{error}</p>}
               <Button type="submit" disabled={!email.trim() || busy || !isApi} className="h-12 w-full gap-2 text-sm font-semibold">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                 {busy ? t('sendingCode') : t('sendCode')}
@@ -121,7 +121,7 @@ function ForgotPasswordForm() {
                 <span>{t('codeSentNotice')}</span>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="fp-code" className="text-slate-200">{t('codeLabel')}</Label>
+                <Label htmlFor="fp-code" className="text-foreground">{t('codeLabel')}</Label>
                 <Input
                   id="fp-code"
                   inputMode="numeric"
@@ -134,7 +134,7 @@ function ForgotPasswordForm() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="fp-password" className="text-slate-200">{t('newPasswordLabel')}</Label>
+                <Label htmlFor="fp-password" className="text-foreground">{t('newPasswordLabel')}</Label>
                 <Input
                   id="fp-password"
                   type="password"
@@ -143,10 +143,10 @@ function ForgotPasswordForm() {
                   onChange={(e) => { setPassword(e.target.value); setError(''); }}
                   className="h-12"
                 />
-                <p className="text-xs text-slate-400">{t('passwordHint')}</p>
+                <p className="text-xs text-muted-foreground">{t('passwordHint')}</p>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="fp-confirm" className="text-slate-200">{t('confirmPasswordLabel')}</Label>
+                <Label htmlFor="fp-confirm" className="text-foreground">{t('confirmPasswordLabel')}</Label>
                 <Input
                   id="fp-confirm"
                   type="password"
@@ -156,7 +156,7 @@ function ForgotPasswordForm() {
                   className="h-12"
                 />
               </div>
-              {error && <p className="text-xs text-destructive">{error}</p>}
+              {error && <p className="text-xs text-danger-text">{error}</p>}
               <Button
                 type="submit"
                 disabled={code.length !== 6 || !password || !confirm || busy}
@@ -168,7 +168,7 @@ function ForgotPasswordForm() {
               <button
                 type="button"
                 onClick={() => { setStep('email'); setCode(''); setError(''); }}
-                className="w-full text-center text-xs text-slate-400 underline-offset-2 hover:underline"
+                className="w-full text-center text-xs text-muted-foreground underline-offset-2 hover:underline"
               >
                 {t('resendCode')}
               </button>
@@ -190,7 +190,7 @@ function ForgotPasswordForm() {
           <div className="mt-6 text-center">
             <Link
               href={loginPath}
-              className="inline-flex items-center gap-1 text-xs text-slate-400 underline-offset-2 hover:text-white hover:underline"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
               <ChevronLeft className="h-3 w-3" /> {t('backToLogin')}
             </Link>

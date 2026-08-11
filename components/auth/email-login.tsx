@@ -139,7 +139,7 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
       ? 'border-destructive bg-danger-subtle/40 ring-2 ring-destructive/15'
       : state === 'success'
         ? 'border-success bg-success-subtle/40 ring-2 ring-success/15'
-        : 'border-input bg-background/70 hover:border-brand-goldDark/35 focus-within:border-brand-goldDark focus-within:ring-2 focus-within:ring-brand-goldDark/15 dark:focus-within:border-brand-gold';
+        : 'border-input bg-background/70 hover:border-brand-blue/35 focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/15 dark:focus-within:border-brand-blueBright';
 
   useEffect(() => {
     if (!isApi) return;
@@ -165,7 +165,7 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
                 {t('heading')}
               </h1>
             </div>
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-brand-goldDark/20 bg-info-subtle text-brand-goldDark dark:text-brand-gold" aria-hidden>
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-brand-blue/25 bg-brand-blue/10 text-brand-molecular dark:text-brand-blueBright" aria-hidden>
               <ShieldCheck className="h-5 w-5" />
             </span>
           </div>
@@ -174,7 +174,7 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
         <form onSubmit={handleSubmit} className="mt-8 max-w-md space-y-5" noValidate>
           <div className="space-y-1.5">
             <label htmlFor={emailId} className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              {isTeam ? <Lock className="h-3.5 w-3.5 text-brand-goldDark dark:text-brand-gold" /> : <Mail className="h-3.5 w-3.5 text-brand-goldDark dark:text-brand-gold" />}
+              {isTeam ? <Lock className="h-3.5 w-3.5 text-brand-molecular dark:text-brand-blueBright" /> : <Mail className="h-3.5 w-3.5 text-brand-molecular dark:text-brand-blueBright" />}
               {t('emailLabel')}
             </label>
 
@@ -208,9 +208,9 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
 
             {state === 'error' && (
               <div id={`${emailId}-status`} className="space-y-1" role="alert" aria-live="polite">
-                <p className="text-xs font-medium text-destructive">{errorMsg}</p>
+                <p className="text-xs font-medium text-danger-text">{errorMsg}</p>
                 {wrongWorkspace && (
-                  <Link href={altHref} className="inline-flex min-h-9 items-center gap-1 text-xs font-semibold text-brand-molecular underline-offset-4 hover:text-brand-navy hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-brand-gold dark:hover:text-white">
+                  <Link href={altHref} className="inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-brand-molecular underline-offset-4 hover:text-brand-navy hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-brand-blueBright dark:hover:text-white">
                     {t('altLink')} <ArrowRight className="h-3 w-3" />
                   </Link>
                 )}
@@ -225,12 +225,12 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label htmlFor={passwordId} className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <Lock className="h-3.5 w-3.5 text-brand-goldDark dark:text-brand-gold" />
+                  <Lock className="h-3.5 w-3.5 text-brand-molecular dark:text-brand-blueBright" />
                   {t('passwordLabel')}
                 </label>
                 <Link
                   href={`/forgot-password?workspace=${workspace}`}
-                  className="inline-flex min-h-9 items-center text-xs font-medium text-muted-foreground underline-offset-4 hover:text-brand-molecular hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:text-brand-gold"
+                  className="inline-flex min-h-11 items-center text-xs font-medium text-muted-foreground underline-offset-4 hover:text-brand-molecular hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:text-brand-blueBright"
                 >
                   {t('forgotPassword')}
                 </Link>
@@ -259,16 +259,16 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(event) => setRememberMe(event.target.checked)}
-                className="h-4 w-4 rounded border-input accent-brand-goldDark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:accent-brand-gold"
+                className="h-4 w-4 rounded border-input accent-brand-molecular focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:accent-brand-blueBright"
               />
-              Remember my email on this device
+              {t('rememberMe')}
             </label>
           )}
 
           <Button
             type="submit"
             disabled={!email.trim() || (isApi && !password) || state === 'submitting' || state === 'success'}
-            className="h-12 w-full gap-2 bg-brand-navy text-sm font-semibold text-white shadow-md shadow-brand-navy/10 transition-[background-color,color,transform,box-shadow] hover:bg-brand-molecular hover:shadow-lg focus-visible:ring-brand-molecular dark:bg-brand-molecular dark:hover:bg-brand-blueBright dark:hover:text-brand-navy sm:h-13"
+            className="h-12 w-full gap-2 bg-brand-navy text-sm font-semibold text-white shadow-md shadow-brand-navy/10 transition-[background-color,color,transform,box-shadow] hover:bg-brand-molecular hover:shadow-lg focus-visible:ring-ring dark:bg-brand-molecular dark:hover:bg-brand-blueBright dark:hover:text-brand-navy sm:h-13"
           >
             {state === 'submitting' ? (
               <span className="flex items-center gap-2">

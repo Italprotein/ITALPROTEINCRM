@@ -75,7 +75,7 @@ export function Logo({ variant = 'full', tone = 'dark', className, showProduct =
       // The wordmark itself names the link, so no aria-label is needed.
       className={cn(
         'inline-flex rounded-md transition-opacity hover:opacity-80',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         className,
       )}
     >

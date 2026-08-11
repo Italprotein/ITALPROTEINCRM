@@ -63,8 +63,8 @@ function ActivationForm() {
     <PublicShell>
       <Module designation={t('eyebrow')}>
         <div className="max-w-sm">
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">{t('heading')}</h1>
-          <p className="mt-2 text-sm text-slate-400">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{t('heading')}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
             {loginPath ? t('subheadingDone') : t('subheading')}
           </p>
 
@@ -81,7 +81,7 @@ function ActivationForm() {
           ) : (
             <form onSubmit={submit} className="mt-8 space-y-4" noValidate>
               <div className="space-y-1.5">
-                <Label htmlFor="activation-password" className="text-slate-200">{t('passwordLabel')}</Label>
+                <Label htmlFor="activation-password" className="text-foreground">{t('passwordLabel')}</Label>
                 <Input
                   id="activation-password"
                   type="password"
@@ -91,10 +91,10 @@ function ActivationForm() {
                   disabled={!token || busy}
                   className="h-12"
                 />
-                <p className="text-xs text-slate-400">{t('passwordHint')}</p>
+                <p className="text-xs text-muted-foreground">{t('passwordHint')}</p>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="activation-confirm" className="text-slate-200">{t('confirmLabel')}</Label>
+                <Label htmlFor="activation-confirm" className="text-foreground">{t('confirmLabel')}</Label>
                 <Input
                   id="activation-confirm"
                   type="password"
@@ -105,7 +105,7 @@ function ActivationForm() {
                   className="h-12"
                 />
               </div>
-              {error ? <p className="text-xs text-destructive">{error}</p> : null}
+              {error ? <p className="text-xs text-danger-text">{error}</p> : null}
               <Button
                 type="submit"
                 disabled={!token || !password || !confirm || busy}

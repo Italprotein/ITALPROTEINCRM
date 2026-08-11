@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import DottedMap from 'dotted-map';
-import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '@/lib/utils';
 
 export interface MapMarker {
@@ -10,15 +9,15 @@ export interface MapMarker {
   lng: number;
   /** Country name shown in the accessible tooltip. */
   label: string;
-  /** Optional legacy treatment for callers that need to distinguish a base. */
-  home?: boolean;
 }
 
 interface MapProps {
   markers?: readonly MapMarker[];
-  homeColor?: string;
+  /** Colour of every marker. The map states presence, so all pins read alike. */
   marketColor?: string;
   className?: string;
+  label?: string;
+  markersLabel?: string;
 }
 
 const MAP_WIDTH = 800;
@@ -53,27 +52,23 @@ function tooltipAlignment(lng: number) {
 
 export default function WorldMap({
   markers = [],
-  homeColor = '#FACC15',
   marketColor = '#FACC15',
   className,
+  label = 'Italprotein international outreach map',
+  markersLabel = `${markers.length} outreach locations`,
 }: MapProps) {
   const [activeMarker, setActiveMarker] = React.useState<number | null>(null);
-  const reduceMotion = useReducedMotion();
   const lightMap = React.useMemo(() => makeMap('#0A16282B'), []);
   const darkMap = React.useMemo(() => makeMap('#D7E8F626'), []);
 
   return (
     <div className={cn('w-full font-sans', className)}>
-      <motion.div
-        className="relative isolate aspect-[2/1] w-full"
-        initial={reduceMotion ? false : { opacity: 0, y: 14 }}
-        animate={reduceMotion ? { opacity: 1, y: 0 } : undefined}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.22 }}
-        transition={reduceMotion ? { duration: 0 } : { duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-        aria-label="Italprotein international outreach map"
-        role="group"
-      >
+      {/* No entrance animation lives here. The map is revealed by the page's
+          `Reveal` wrapper, so the whole page has one entrance mechanism and
+          this route no longer pulls in framer-motion just to fade a section
+          in. (`Reveal` is also observer-driven, so this is a consistency and
+          bundle win, not a no-JS one.) */}
+      <div className="relative isolate aspect-[2/1] w-full" aria-label={label} role="group">
         <div
           className="pointer-events-none absolute inset-[4%_0] rounded-[32%] bg-[radial-gradient(ellipse_at_center,hsl(var(--brand-blue)/0.08),transparent_68%)] blur-2xl dark:bg-[radial-gradient(ellipse_at_center,hsl(var(--brand-blue-bright)/0.08),transparent_68%)]"
           aria-hidden
@@ -99,21 +94,19 @@ export default function WorldMap({
           draggable={false}
         />
 
-        <div className="absolute inset-0" aria-label={`${markers.length} outreach locations`} role="group">
+        <div className="absolute inset-0" aria-label={markersLabel} role="group">
           {markers.map((marker, index) => {
             const { x, y } = projectPoint(marker.lat, marker.lng);
-            const color = marker.home ? homeColor : marketColor;
-            const tooltipId = `map-marker-${index}`;
+            const color = marketColor;
             const isActive = activeMarker === index;
 
             return (
               <button
                 key={`${marker.label}-${marker.lat}-${marker.lng}`}
                 type="button"
-                className="map-marker-hit group/marker pointer-events-auto absolute z-10 flex -translate-x-1/2 -translate-y-1/2 touch-manipulation items-center justify-center rounded-full focus-visible:z-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blueBright focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className="map-marker-hit group/marker pointer-events-auto absolute z-10 flex -translate-x-1/2 -translate-y-1/2 touch-manipulation items-center justify-center rounded-full focus-visible:z-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 style={{ left: `${x}%`, top: `${y}%` }}
                 aria-label={marker.label}
-                aria-describedby={tooltipId}
                 onClick={() => setActiveMarker((current) => (current === index ? null : index))}
                 onBlur={() => setActiveMarker(null)}
                 onKeyDown={(event) => {
@@ -129,13 +122,15 @@ export default function WorldMap({
                   aria-hidden
                 />
                 <span
-                  className="relative h-1.5 w-1.5 rounded-full border border-white/70 shadow-[0_0_0_1px_rgb(10_22_40/0.16)] transition-transform duration-300 group-hover/marker:scale-125 group-focus-visible/marker:scale-125 dark:border-brand-navy/80"
+                  // `shadow-yellow-pin` is the navy ring plus the warm halo the
+                  // token was defined for; the hand-written arbitrary shadow
+                  // here only ever applied the ring half and dropped the glow.
+                  className="relative h-1.5 w-1.5 rounded-full border border-white/70 shadow-yellow-pin transition-transform duration-300 group-hover/marker:scale-125 group-focus-visible/marker:scale-125 dark:border-brand-navy/80"
                   style={{ backgroundColor: color }}
                   aria-hidden
                 />
                 <span
-                  id={tooltipId}
-                  role="tooltip"
+                  aria-hidden
                   className={cn(
                     'pointer-events-none absolute bottom-full mb-1.5 whitespace-nowrap rounded-md border border-border/80 bg-popover px-2.5 py-1.5 text-[11px] font-semibold tracking-[0.02em] text-popover-foreground opacity-0 shadow-lg transition-[opacity,transform] duration-200 motion-safe:translate-y-1',
                     'group-hover/marker:translate-y-0 group-hover/marker:opacity-100 group-focus-visible/marker:translate-y-0 group-focus-visible/marker:opacity-100',
@@ -149,7 +144,7 @@ export default function WorldMap({
             );
           })}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

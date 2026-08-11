@@ -24,8 +24,8 @@ export function Designation({ children, className }: { children: ReactNode; clas
 export function ModuleRule({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="h-3 w-px bg-brand-goldDark dark:bg-brand-gold" aria-hidden />
-      <Designation className="text-brand-molecular dark:text-brand-gold">{label}</Designation>
+      <span className="h-3 w-px bg-brand-blue dark:bg-brand-blueBright" aria-hidden />
+      <Designation className="text-brand-molecular dark:text-brand-blueBright">{label}</Designation>
       <span className="h-px flex-1 bg-border" aria-hidden />
       <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-muted-foreground" aria-hidden>
         ITALPROTEIN / PROAMINA
@@ -60,23 +60,11 @@ export function Module({
       )}
     >
       <div
-        className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-navy via-brand-goldDark to-brand-gold dark:from-brand-goldDark dark:via-brand-gold dark:to-brand-teal"
+        className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-navy via-brand-blue to-brand-blueBright dark:from-brand-blue dark:via-brand-blueBright dark:to-brand-teal"
         aria-hidden
       />
       <ModuleRule label={designation} />
-      {/* Several secondary public flows predate theme tokens. These scoped
-          compatibility selectors keep their existing logic and markup usable
-          in light mode while the shared shell moves to semantic surfaces. */}
-      <div
-        className={
-          'mt-8 text-foreground ' +
-          '[&_:not(button).text-white]:!text-foreground [&_.text-slate-200]:!text-foreground ' +
-          '[&_.text-slate-300]:!text-foreground [&_.text-slate-400]:!text-muted-foreground ' +
-          '[&_.text-slate-500]:!text-muted-foreground [&_.border-white\\/10]:!border-border ' +
-          '[&_.border-white\\/15]:!border-border [&_.text-brand-goldLight]:!text-brand-molecular ' +
-          'dark:[&_.text-brand-goldLight]:!text-brand-gold'
-        }
-      >
+      <div className="mt-8 text-foreground">
         {children}
       </div>
     </section>

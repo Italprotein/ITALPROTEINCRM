@@ -24,7 +24,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
           traces without turning the auth surface into a decorative hero. */}
       <div className="pointer-events-none fixed inset-0" aria-hidden>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_12%,rgba(2,132,199,0.10),transparent_32%),linear-gradient(135deg,transparent_0%,transparent_63%,rgba(56,189,248,0.045)_63%,rgba(56,189,248,0.045)_78%,transparent_78%)] dark:bg-[radial-gradient(circle_at_82%_12%,rgba(56,189,248,0.09),transparent_30%),linear-gradient(135deg,transparent_0%,transparent_63%,rgba(56,189,248,0.035)_63%,rgba(56,189,248,0.035)_78%,transparent_78%)]" />
-        <div className="absolute bottom-12 right-0 h-px w-[38vw] bg-gradient-to-l from-brand-goldDark/30 to-transparent dark:from-brand-gold/20" />
+        <div className="absolute bottom-12 right-0 h-px w-[38vw] bg-gradient-to-l from-brand-blue/30 to-transparent dark:from-brand-blueBright/20" />
       </div>
       <Rail />
       <main className="relative lg:pl-[25rem]">

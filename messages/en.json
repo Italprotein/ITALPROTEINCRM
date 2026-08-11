@@ -92,6 +92,10 @@
   },
   "Landing": {
     "eyebrow": "Italprotein Srl · Bologna, Italy",
+    "statsRegion": "Key figures",
+    "navPrimary": "Primary navigation",
+    "mapLabel": "Italprotein international presence map",
+    "mapMarkers": "{count} locations reached",
     "heroTitle": "The operating system for the ITALPROTEIN business",
     "heroSubtitle": "One platform to manage companies, NDAs, samples, logistics, technical feedback and the commercial pipeline behind Proamina® — Italprotein's patented 100% protein sweetener.",
     "platformNote": "One connected platform for the Italprotein team and its partners — from first contact to delivered samples and technical feedback.",
@@ -122,19 +126,6 @@
         "desc": "Navigation and actions adapt to each staff role and each company contact."
       }
     ],
-    "radarTitle": "One platform, every ITALPROTEIN workflow",
-    "radarSubtitle": "A complete 360° view of the tools ITALPROTEIN collaborators use every day — from first contact to delivered samples and technical feedback.",
-    "radarCenter": "ITALPROTEIN",
-    "radarNodes": {
-      "companies": "Companies",
-      "pipeline": "Pipeline",
-      "samples": "Samples",
-      "shipments": "Logistics",
-      "ndas": "NDAs",
-      "feedback": "Feedback",
-      "projects": "Projects",
-      "analytics": "Analytics"
-    },
     "heroCaption": "Proamina® · 100% protein · Italprotein patent",
     "stats": [
       {
@@ -160,6 +151,7 @@
     ],
     "partnersTitle": "In collaboration with",
     "partnersSubtitle": "Brands and manufacturers already working with Proamina®.",
+    "partnersRegion": "Partner logos",
     "reachTitle": "Where we reach",
     "journeyEyebrow": "From formulation goal to recurring supply",
     "journeyTitle": "How a Proamina® relationship takes shape",
@@ -216,7 +208,8 @@
     "errorNotFound": "No account found for this email address. Check the spelling and try again.",
     "errorWrongWorkspace": "This address belongs to the Italprotein team. Please use the team login.",
     "altLink": "Italprotein team? Sign in here",
-    "futureNote": "Access is by invitation. Use the email address registered for you by your Italprotein contact."
+    "futureNote": "Access is by invitation. Use the email address registered for you by your Italprotein contact.",
+    "rememberMe": "Remember my email on this device"
   },
   "TeamLogin": {
     "eyebrow": "Italprotein team",
@@ -235,9 +228,7 @@
     "errorWrongWorkspace": "This is a client account. Please use the company portal login.",
     "altLink": "Are you a client? Open the company portal",
     "futureNote": "Access is restricted to authorised Italprotein staff accounts.",
-    "twoFactorLabel": "Authentication code",
-    "twoFactorPlaceholder": "6-digit code",
-    "twoFactorHint": "Only if two-factor authentication is enabled on your account."
+    "rememberMe": "Remember my email on this device"
   },
   "Verify": {
     "designation": "Secure sign-in",

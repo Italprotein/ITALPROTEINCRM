@@ -23,12 +23,14 @@ export function InfiniteMovingCards({
   speed = 'fast',
   pauseOnHover = true,
   className,
+  ariaLabel = 'Partner logos',
 }: {
   items: PartnerItem[];
   direction?: 'left' | 'right';
   speed?: keyof typeof SPEEDS;
   pauseOnHover?: boolean;
   className?: string;
+  ariaLabel?: string;
 }) {
   const animationStyle: CSSProperties = {
     animationDuration: SPEEDS[speed],
@@ -37,9 +39,13 @@ export function InfiniteMovingCards({
 
   return (
     <div
+      tabIndex={0}
+      role="group"
+      aria-label={ariaLabel}
       className={cn(
         'group relative w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_7%,black_93%,transparent)]',
         'motion-reduce:overflow-x-auto motion-reduce:[mask-image:none]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         className,
       )}
     >
@@ -62,7 +68,7 @@ export function InfiniteMovingCards({
             {items.map((item) => (
               <li
                 key={`${track}-${item.name}`}
-                className="group/logo flex h-24 w-40 shrink-0 items-center justify-center rounded-xl border border-border/80 bg-card p-2 shadow-xs transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:border-brand-goldDark/40 hover:shadow-md motion-reduce:transform-none sm:h-28 sm:w-48"
+                className="group/logo flex h-24 w-40 shrink-0 items-center justify-center rounded-xl border border-border/80 bg-card p-2 shadow-xs transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:border-brand-blue/40 hover:shadow-md motion-reduce:transform-none sm:h-28 sm:w-48"
               >
                 <div className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-lg bg-white px-5 py-3">
                   {item.logo ? (

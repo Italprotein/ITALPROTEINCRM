@@ -57,6 +57,14 @@
     --danger: 0 72% 50%;
     --danger-foreground: 0 0% 100%;
     --danger-subtle: 0 84% 96%;
+    /* Error COPY, as opposed to error fills. `--danger` and `--destructive` are
+       tuned to carry white text as a background (22 call sites do exactly
+       that), which makes them too dark to read AS text on a dark surface —
+       2.9:1 on `--danger-subtle`, 3.1:1 on `--card`. Lightening those tokens
+       would break every filled chip, so error text gets its own value.
+       Light: 5.1:1 on --danger-subtle, 5.8:1 on --card. `--danger`'s own 50%
+       lightness only reached 4.3:1 on the subtle fill, so this is darker. */
+    --danger-text: 0 74% 45%;
     --info: 221 83% 53%;
     --info-foreground: 0 0% 100%;
     --info-subtle: 221 92% 96%;
@@ -107,6 +115,8 @@
     --success-subtle: 160 40% 16%;
     --warning-subtle: 38 50% 18%;
     --danger-subtle: 0 50% 20%;
+    /* 6.4:1 on --card, 5.0:1 on --danger-subtle. */
+    --danger-text: 0 90% 70%;
     --info-subtle: 221 50% 20%;
     --gold: 199 92% 66%;
     --gold-foreground: 216 60% 10%;
@@ -135,12 +145,21 @@
 }
 
 @layer components {
-  /* Individual pins keep a precise hit area so dense European/Gulf locations
-     do not cover one another. The map's country index supplies the separate
-     44px, non-overlapping controls used by touch and keyboard visitors. */
+  /* Pins stay small so dense European/Gulf clusters stay individually
+     distinguishable rather than merging into one blob. Every pin is a real
+     `<button>`, so keyboard visitors can reach each one directly regardless
+     of its visual size. Coarse pointers (touch) get an enlarged hit area
+     below, since fingers need more room than a mouse cursor does. */
   .map-marker-hit {
     width: 0.875rem;
     height: 0.875rem;
+  }
+
+  @media (pointer: coarse) {
+    .map-marker-hit {
+      width: 1.75rem;
+      height: 1.75rem;
+    }
   }
 
   /* Brand display heading */

@@ -77,6 +77,8 @@ const config: Config = {
           DEFAULT: 'hsl(var(--danger))',
           foreground: 'hsl(var(--danger-foreground))',
           subtle: 'hsl(var(--danger-subtle))',
+          // For error copy only — see the note in app/globals.css.
+          text: 'hsl(var(--danger-text))',
         },
         info: {
           DEFAULT: 'hsl(var(--info))',

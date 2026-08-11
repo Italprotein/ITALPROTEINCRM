@@ -65,7 +65,7 @@ export function Rail() {
         'lg:border-b-0 lg:border-r lg:px-8 lg:py-8'
       }
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-brand-navy via-brand-goldDark to-brand-gold dark:from-brand-goldDark dark:via-brand-gold dark:to-brand-teal" aria-hidden />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-brand-navy via-brand-blue to-brand-blueBright dark:from-brand-blue dark:via-brand-blueBright dark:to-brand-teal" aria-hidden />
 
       <div className="flex flex-col gap-6 lg:h-full lg:gap-7">
         <div className="flex min-h-11 items-center justify-between gap-4">
@@ -73,7 +73,7 @@ export function Rail() {
             <Logo variant="mark" tone="dark" href="/" className="shrink-0 focus-visible:ring-offset-background" />
             <div className="min-w-0 border-l border-border pl-3">
               <p className="truncate text-xs font-bold tracking-[0.12em] text-brand-navy dark:text-white">ITALPROTEIN</p>
-              <p className="mt-0.5 truncate font-mono text-[0.625rem] uppercase tracking-[0.15em] text-brand-molecular dark:text-brand-gold">
+              <p className="mt-0.5 truncate font-mono text-[0.625rem] uppercase tracking-[0.15em] text-brand-molecular dark:text-brand-blueBright">
                 Proamina® · Access
               </p>
             </div>
@@ -102,10 +102,10 @@ export function Rail() {
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'group relative flex min-h-[6.5rem] items-start gap-3 overflow-hidden rounded-xl border p-3.5 transition-[border-color,background-color,transform] duration-200 ',
-                  'hover:-translate-y-0.5 hover:border-brand-goldDark/45 hover:bg-accent/70 motion-reduce:transform-none ',
+                  'hover:-translate-y-0.5 hover:border-brand-blue/45 hover:bg-accent/70 motion-reduce:transform-none ',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:min-h-0 lg:p-4',
                   active
-                    ? 'border-brand-goldDark/45 bg-info-subtle dark:border-brand-gold/40'
+                    ? 'border-brand-blue/45 bg-brand-blue/10 dark:border-brand-blueBright/40'
                     : 'border-border bg-background/60',
                 )}
               >
@@ -113,7 +113,7 @@ export function Rail() {
                   <door.icon className="h-4 w-4" aria-hidden />
                 </span>
                 <span className="min-w-0">
-                  <span className="block font-mono text-[0.5625rem] font-semibold uppercase tracking-[0.13em] text-brand-molecular dark:text-brand-gold">
+                  <span className="block font-mono text-[0.5625rem] font-semibold uppercase tracking-[0.13em] text-brand-molecular dark:text-brand-blueBright">
                     {door.label}
                   </span>
                   <span className="mt-1 block text-sm font-semibold text-foreground">{door.title}</span>
@@ -121,7 +121,7 @@ export function Rail() {
                     {door.hint}
                   </span>
                 </span>
-                {active && <span className="absolute inset-y-3 left-0 w-0.5 bg-brand-goldDark dark:bg-brand-gold" aria-hidden />}
+                {active && <span className="absolute inset-y-3 left-0 w-0.5 bg-brand-blue dark:bg-brand-blueBright" aria-hidden />}
               </Link>
             );
           })}
@@ -135,12 +135,12 @@ export function Rail() {
             href="/register"
             className={
               'group col-span-2 flex min-h-11 items-center gap-3 rounded-xl border border-dashed border-border bg-background/30 px-3.5 py-3 ' +
-              'transition-colors duration-200 hover:border-brand-goldDark/45 hover:bg-accent/60 ' +
+              'transition-colors duration-200 hover:border-brand-blue/45 hover:bg-accent/60 ' +
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:col-span-1'
             }
           >
             <UserPlus
-              className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-brand-goldDark dark:group-hover:text-brand-gold"
+              className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-brand-molecular dark:group-hover:text-brand-blueBright"
               aria-hidden
             />
             <span className="min-w-0">
@@ -158,7 +158,7 @@ export function Rail() {
           <div className="grid grid-cols-1 gap-1 text-xs sm:grid-cols-3 lg:grid-cols-1">
             <a
               href={siteContact.emailHref}
-              className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-2 font-mono text-muted-foreground transition-colors hover:bg-accent hover:text-brand-molecular focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:text-brand-gold"
+              className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-2 font-mono text-muted-foreground transition-colors hover:bg-accent hover:text-brand-molecular focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:text-brand-blueBright"
             >
               <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden />
               <span className="truncate">{siteContact.email}</span>
@@ -167,7 +167,7 @@ export function Rail() {
               <a
                 key={phone.id}
                 href={phone.href}
-                className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 font-mono text-muted-foreground transition-colors hover:bg-accent hover:text-brand-molecular focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:text-brand-gold"
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 font-mono text-muted-foreground transition-colors hover:bg-accent hover:text-brand-molecular focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:text-brand-blueBright"
               >
                 <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 <span>{phone.display}</span>
@@ -177,14 +177,14 @@ export function Rail() {
               href={siteContact.website}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-2 font-mono text-muted-foreground transition-colors hover:bg-accent hover:text-brand-molecular focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:text-brand-gold"
+              className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-2 font-mono text-muted-foreground transition-colors hover:bg-accent hover:text-brand-molecular focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:text-brand-blueBright"
             >
               <Globe2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
               <span className="truncate">{siteContact.website.replace(/^https?:\/\//, '')}</span>
             </a>
           </div>
           <p className="font-mono text-[0.5625rem] uppercase tracking-[0.15em] text-muted-foreground">
-            Parma, Italia · B2B
+            Bologna, Italia · B2B
           </p>
         </div>
       </div>

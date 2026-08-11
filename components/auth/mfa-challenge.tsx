@@ -74,11 +74,11 @@ export function MfaChallenge() {
   return (
     <Module designation={t('designation')}>
       <div className="max-w-md">
-        <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-white">
+        <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl border border-brand-blue/25 bg-brand-blue/10 text-brand-molecular dark:text-brand-blueBright">
           {backupMode ? <KeyRound className="h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-white">{t('title')}</h1>
-        <p className="mt-2 text-sm leading-relaxed text-slate-400">
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{t('title')}</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           {backupMode ? t('introBackup') : t('introApp')}
         </p>
 
@@ -90,7 +90,7 @@ export function MfaChallenge() {
               onChange={(event) => setBackupCode(event.target.value)}
               autoComplete="one-time-code"
               placeholder="XXXX-XXXX"
-              className="h-12 w-full rounded-lg border border-white/10 bg-white/[0.03] px-4 font-mono uppercase tracking-widest text-white outline-none focus:border-brand-gold focus:ring-2 focus:ring-brand-gold/20"
+              className="h-12 w-full rounded-lg border border-border bg-muted/40 px-4 font-mono uppercase tracking-widest text-foreground outline-none focus:border-brand-molecular focus:ring-2 focus:ring-ring/25"
             />
           ) : (
             <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
@@ -116,7 +116,7 @@ export function MfaChallenge() {
                     }
                   }}
                   maxLength={1}
-                  className="h-12 min-w-0 rounded-lg border border-white/10 bg-white/[0.03] px-0 text-center text-lg font-semibold text-white tabular outline-none focus:border-brand-gold focus:ring-2 focus:ring-brand-gold/20 sm:h-14 sm:text-xl"
+                  className="h-12 min-w-0 rounded-lg border border-border bg-muted/40 px-0 text-center text-lg font-semibold text-foreground tabular outline-none focus:border-brand-molecular focus:ring-2 focus:ring-ring/25 sm:h-14 sm:text-xl"
                 />
               ))}
             </div>
@@ -125,25 +125,25 @@ export function MfaChallenge() {
           <button
             type="button"
             onClick={() => { setBackupMode((value) => !value); setError(''); }}
-            className="text-sm font-medium text-brand-goldLight underline-offset-4 hover:underline"
+            className="text-sm font-medium text-brand-molecular dark:text-brand-blueBright underline-offset-4 hover:underline"
           >
             {backupMode ? t('useApp') : t('useBackup')}
           </button>
 
-          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-muted/40 p-3">
             <input
               type="checkbox"
               checked={rememberDevice}
               onChange={(event) => setRememberDevice(event.target.checked)}
-              className="mt-0.5 h-4 w-4 accent-brand-gold"
+              className="mt-0.5 h-4 w-4 accent-brand-molecular dark:accent-brand-blueBright"
             />
             <span>
-              <span className="block text-sm font-medium text-white">{t('trustDevice')}</span>
-              <span className="block text-xs text-slate-400">{t('trustDeviceHint')}</span>
+              <span className="block text-sm font-medium text-foreground">{t('trustDevice')}</span>
+              <span className="block text-xs text-muted-foreground">{t('trustDeviceHint')}</span>
             </span>
           </label>
 
-          {error && <p role="alert" className="rounded-lg bg-danger-subtle p-3 text-sm text-danger">{error}</p>}
+          {error && <p role="alert" className="rounded-lg bg-danger-subtle p-3 text-sm text-danger-text">{error}</p>}
           <Button className="h-12 w-full" disabled={busy || (backupMode ? !backupCode.trim() : digits.some((digit) => !digit))}>
             {busy
               ? <><Loader2 className="animate-spin" /> {t('verifying')}</>

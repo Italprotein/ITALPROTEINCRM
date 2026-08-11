@@ -28,19 +28,19 @@ export default function NotFound() {
     <PublicShell>
       <Module designation="404">
         <div className="max-w-lg">
-          <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
             {t('notFoundTitle')}
           </h1>
-          <p className="mt-4 leading-relaxed text-slate-400">{t('notFoundBody')}</p>
+          <p className="mt-4 leading-relaxed text-muted-foreground">{t('notFoundBody')}</p>
           <Link
             href="/"
             className={
-              'mt-8 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 ' +
-              'text-sm font-medium text-white transition-colors hover:border-sky-400/40 hover:bg-white/[0.06] ' +
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 focus-visible:ring-offset-brand-navy'
+              'mt-8 inline-flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2.5 ' +
+              'text-sm font-medium text-foreground transition-colors hover:border-brand-blue/45 hover:bg-accent ' +
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
             }
           >
-            <ArrowLeft className="h-4 w-4 shrink-0 text-sky-400" aria-hidden />
+            <ArrowLeft className="h-4 w-4 shrink-0 text-brand-molecular dark:text-brand-blueBright" aria-hidden />
             {tCommon('backToHome')}
           </Link>
         </div>
