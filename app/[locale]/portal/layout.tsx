@@ -1,8 +1,10 @@
-import { setRequestLocale } from 'next-intl/server';
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages, setRequestLocale } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { getCurrentUser } from '@/lib/backend/session';
 import { isApiMode } from '@/lib/data-mode';
+import { pickMessages, PORTAL_NAMESPACES } from '@/lib/i18n/public-namespaces';
 
 export default async function PortalLayout({
   children,
@@ -13,10 +15,15 @@ export default async function PortalLayout({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  const messages = await getMessages();
   if (isApiMode) {
     const user = await getCurrentUser();
     if (!user) redirect(`/${locale}/login`);
     if (user.kind !== 'external') redirect(`/${locale}/admin`);
   }
-  return <PortalShell>{children}</PortalShell>;
+  return (
+    <NextIntlClientProvider locale={locale} messages={pickMessages(messages, PORTAL_NAMESPACES)}>
+      <PortalShell>{children}</PortalShell>
+    </NextIntlClientProvider>
+  );
 }
