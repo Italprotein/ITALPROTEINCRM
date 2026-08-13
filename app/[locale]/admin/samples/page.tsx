@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import {
   FlaskConical,
   Clock,
@@ -143,6 +144,19 @@ export default function SamplesPage() {
     sampleService.getStatistics().then(setStats);
     companyService.list().then((cs) => setCompanies(new Map(cs.map((c) => [c.id, c]))));
   }, []);
+
+  // QuickCreate deep link (topbar "+" → Sample): open the existing create
+  // dialog and strip the param, same gate as the page's own "New sample
+  // request".
+  const searchParams = useSearchParams();
+  React.useEffect(() => {
+    if (searchParams.get('new') !== '1' || !canWrite) return;
+    setCreateOpen(true);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('new');
+    const qs = params.toString();
+    router.replace(qs ? `/admin/samples?${qs}` : '/admin/samples');
+  }, [searchParams, canWrite, router]);
 
   const companyName = React.useCallback(
     (id: string) => {

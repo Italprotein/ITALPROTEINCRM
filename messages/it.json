@@ -71,12 +71,10 @@
     "import_export": "Scarica dati",
     "settings": "Impostazioni",
     "audit": "Registro Attività",
-    "group_commercial": "Commerciale",
+    "group_main": "Principale",
     "group_operations": "Operazioni",
-    "group_technical": "Tecnico & R&S",
-    "group_legal_finance": "Legale & Finanza",
-    "group_productivity": "Produttività",
-    "group_insights": "Analisi",
+    "group_intelligence": "Intelligence",
+    "group_partnerships": "Partnership",
     "group_admin": "Amministrazione",
     "integrations": "Integrazioni"
   },
@@ -2309,5 +2307,24 @@
     "empty": "Nessuna azienda da ricontattare. Tutte le conversazioni attive sono recenti.",
     "needsApiMode": "L'elenco legge la posta reale: disponibile solo con il database di produzione collegato.",
     "aminaPrompt": "Preparami il follow-up per {company}. Non ci scriviamo da {days} giorni; il loro ultimo messaggio del {date} aveva come oggetto \"{subject}\". Riassumimi in breve a che punto siamo, qual è il tema su cui ripartire e che cosa conviene chiedere adesso."
+  },
+  "QuickCreate": {
+    "label": "Crea rapido",
+    "company": "Azienda",
+    "task": "Attività",
+    "opportunity": "Opportunità",
+    "sample": "Campione"
+  },
+  "Search": {
+    "trigger": "Cerca aziende, campioni, NDA, tracking…",
+    "placeholder": "Cerca ovunque…",
+    "empty": "Nessun risultato per “{query}”.",
+    "hint": "Cerca tra aziende, agenzie, contatti, NDA, campioni, spedizioni, documenti e attività.",
+    "recent": "Recenti",
+    "navigate": "naviga",
+    "open": "apri",
+    "close": "chiudi",
+    "openSearch": "Apri la ricerca",
+    "documents": "Documenti"
   }
 }

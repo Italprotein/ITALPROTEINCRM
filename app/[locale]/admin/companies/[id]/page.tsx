@@ -88,6 +88,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/use-toast';
 import { getLabel } from '@/lib/labels';
+import { pushRecent } from '@/lib/recent-records';
 import { cn, sleep } from '@/lib/utils';
 import {
   formatCurrency,
@@ -242,6 +243,18 @@ export default function CompanyProfilePage() {
   React.useEffect(() => {
     void load();
   }, [load]);
+
+  // Record this visit for the global search palette's "Recent" section, once
+  // the company has actually loaded (guards the not-found / still-loading case).
+  React.useEffect(() => {
+    if (!company) return;
+    pushRecent({
+      type: 'company',
+      id,
+      label: company.tradingName || company.legalName,
+      href: '/admin/companies/' + id,
+    });
+  }, [id, company]);
 
   /* ── quick-action dialog state ── */
   type Action = 'activity' | 'task' | 'note' | 'sample' | 'contact' | null;

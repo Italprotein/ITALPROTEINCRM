@@ -6,6 +6,7 @@ import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { AccountMenu } from '@/components/navigation/account-menu';
 import { GlobalSearch } from '@/components/navigation/global-search';
 import { NotificationPopover } from '@/components/navigation/notification-popover';
+import { QuickCreate } from '@/components/navigation/quick-create';
 
 export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   return (
@@ -22,6 +23,7 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
       <GlobalSearch />
 
       <div className="ml-auto flex items-center gap-1.5">
+        <QuickCreate />
         <ThemeToggle tone="dark" />
         <LanguageSwitcher tone="dark" />
         <NotificationPopover />

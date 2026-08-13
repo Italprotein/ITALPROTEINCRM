@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import {
   Building2,
   Activity as ActivityIcon,
@@ -116,6 +117,18 @@ export default function CompaniesPage() {
     companyService.list().then(setRows);
     companyService.getStatistics().then(setStats);
   }, []);
+
+  // QuickCreate deep link (topbar "+" → Company): open the existing create
+  // dialog and strip the param, same gate as the page's own "Add company".
+  const searchParams = useSearchParams();
+  React.useEffect(() => {
+    if (searchParams.get('new') !== '1' || !canCreateCompany) return;
+    setCreateOpen(true);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('new');
+    const qs = params.toString();
+    router.replace(qs ? `/admin/companies?${qs}` : '/admin/companies');
+  }, [searchParams, canCreateCompany, router]);
 
   /* ── derived filter option lists ── */
   const countryOptions = React.useMemo(() => {

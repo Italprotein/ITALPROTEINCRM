@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import {
   ListTodo,
   AlertTriangle,
@@ -136,6 +137,18 @@ export default function TasksPage() {
     taskService.getStatistics().then(setStats);
     companyService.list().then((cs) => setCompanies(new Map(cs.map((c) => [c.id, c]))));
   }, []);
+
+  // QuickCreate deep link (topbar "+" → Task): open the existing create
+  // dialog and strip the param, same gate as the page's own "New task".
+  const searchParams = useSearchParams();
+  React.useEffect(() => {
+    if (searchParams.get('new') !== '1' || !canEditTasks) return;
+    setCreateOpen(true);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('new');
+    const qs = params.toString();
+    router.replace(qs ? `/admin/tasks?${qs}` : '/admin/tasks');
+  }, [searchParams, canEditTasks, router]);
 
   const companyName = React.useCallback(
     (id?: string) => {

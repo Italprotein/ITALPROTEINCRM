@@ -71,12 +71,10 @@
     "import_export": "Download Data",
     "settings": "Settings",
     "audit": "Audit Log",
-    "group_commercial": "Commercial",
+    "group_main": "Main",
     "group_operations": "Operations",
-    "group_technical": "Technical & R&D",
-    "group_legal_finance": "Legal & Finance",
-    "group_productivity": "Productivity",
-    "group_insights": "Insights",
+    "group_intelligence": "Intelligence",
+    "group_partnerships": "Partnerships",
     "group_admin": "Administration",
     "integrations": "Integrations"
   },
@@ -2309,5 +2307,24 @@
     "empty": "Nobody to chase. Every active conversation is recent.",
     "needsApiMode": "This list reads real mail — available only with the production database connected.",
     "aminaPrompt": "Brief me on the follow-up for {company}. We have not exchanged messages for {days} days; their last message on {date} was titled \"{subject}\". Summarise briefly where we stand, what the follow-up should be about, and what to ask them now."
+  },
+  "QuickCreate": {
+    "label": "Quick create",
+    "company": "Company",
+    "task": "Task",
+    "opportunity": "Opportunity",
+    "sample": "Sample"
+  },
+  "Search": {
+    "trigger": "Search companies, samples, NDAs, tracking…",
+    "placeholder": "Search everything…",
+    "empty": "No results for “{query}”.",
+    "hint": "Search across companies, agencies, contacts, NDAs, samples, shipments, documents and tasks.",
+    "recent": "Recent",
+    "navigate": "navigate",
+    "open": "open",
+    "close": "close",
+    "openSearch": "Open search",
+    "documents": "Documents"
   }
 }
