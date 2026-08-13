@@ -139,7 +139,9 @@ function Stars({ value, t }: { value?: number; t: T }) {
       {Array.from({ length: 5 }).map((_, i) => (
         <Star
           key={i}
-          className={cn('h-4 w-4', i < n ? 'fill-brand-gold text-brand-gold' : 'text-muted-foreground/40')}
+          // fill- (not text-) is the star's dominant color; fill-brand-gold measured 2.14:1 on
+          // card (light), below the 3:1 UI bar — navy/blueBright swap, see task-2-report.md.
+          className={cn('h-4 w-4', i < n ? 'fill-brand-navy text-brand-navy dark:fill-brand-blueBright dark:text-brand-blueBright' : 'text-muted-foreground/40')}
         />
       ))}
     </span>
@@ -354,7 +356,7 @@ export default function CompanyProfilePage() {
                         href={company.website}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 text-info hover:underline"
+                        className="inline-flex items-center gap-1.5 text-info-text hover:underline"
                       >
                         <Globe className="h-3.5 w-3.5" />
                         {t('website')}
@@ -614,7 +616,7 @@ export default function CompanyProfilePage() {
                         <div className="min-w-0">
                           <p className="flex items-center gap-1.5 font-medium">
                             {c.firstName} {c.lastName}
-                            {c.isPrimary && <Star className="h-3.5 w-3.5 fill-brand-gold text-brand-gold" />}
+                            {c.isPrimary && <Star className="h-3.5 w-3.5 fill-brand-navy text-brand-navy dark:fill-brand-blueBright dark:text-brand-blueBright" />}
                           </p>
                           {c.jobTitle && <p className="truncate text-sm text-muted-foreground">{c.jobTitle}</p>}
                         </div>
@@ -629,7 +631,7 @@ export default function CompanyProfilePage() {
                       </div>
                       <Separator />
                       <div className="space-y-1.5 text-sm">
-                        <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-info hover:underline">
+                        <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-info-text hover:underline">
                           <Mail className="h-3.5 w-3.5 shrink-0" />
                           <span className="truncate">{c.email}</span>
                         </a>
@@ -799,7 +801,7 @@ export default function CompanyProfilePage() {
           <TabsContent value="documents">
             <TabHeading title={t('tabDocuments')} count={data.documents.length} />
             {!ndaSigned && (
-              <div className="mb-4 flex items-center gap-2 rounded-md border border-warning/40 bg-warning-subtle/50 p-3 text-sm text-warning-foreground">
+              <div className="mb-4 flex items-center gap-2 rounded-md border border-warning/40 bg-warning-subtle/50 p-3 text-sm text-warning-text">
                 <Lock className="h-4 w-4 shrink-0" />
                 {t('postNdaLocked')}
               </div>
@@ -945,7 +947,7 @@ export default function CompanyProfilePage() {
                             <StatusBadge kind="taskStatus" value={task.status} />
                             <PriorityBadge value={task.priority} />
                             {task.dueDate && (
-                              <span className={cn('tabular', overdue ? 'font-medium text-danger' : 'text-muted-foreground')}>
+                              <span className={cn('tabular', overdue ? 'font-medium text-danger-text' : 'text-muted-foreground')}>
                                 {t('dueDate', { date: formatDate(task.dueDate) })}
                               </span>
                             )}

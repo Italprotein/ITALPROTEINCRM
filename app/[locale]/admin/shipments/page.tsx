@@ -324,7 +324,7 @@ export default function ShipmentsPage() {
       sortValue: (s) => (s.actualDelivery ? new Date(s.actualDelivery).getTime() : 0),
       cell: (s) =>
         s.actualDelivery ? (
-          <span className="whitespace-nowrap text-sm font-medium text-success">
+          <span className="whitespace-nowrap text-sm font-medium text-success-text">
             {formatDate(s.actualDelivery, locale)}
           </span>
         ) : (
@@ -435,7 +435,7 @@ export default function ShipmentsPage() {
           {canWrite ? (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-danger focus:text-danger" onSelect={() => setIssueFor(s)}>
+              <DropdownMenuItem className="text-danger-text focus:text-danger-text" onSelect={() => setIssueFor(s)}>
                 <Flag />
                 Report issue
               </DropdownMenuItem>

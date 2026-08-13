@@ -9,13 +9,15 @@ interface KpiCardProps {
   tone?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'gold';
 }
 
+// Tone colors verified with scripts/check-contrast.mjs (see task-2-report.md);
+// same reasoning as components/shared/stat-card.tsx's toneMap.
 const toneMap: Record<NonNullable<KpiCardProps['tone']>, string> = {
   default: 'bg-brand-navy/5 text-brand-navy',
-  success: 'bg-success-subtle text-success',
-  warning: 'bg-warning-subtle text-warning-foreground',
-  danger: 'bg-danger-subtle text-danger',
-  info: 'bg-info-subtle text-info',
-  gold: 'bg-brand-gold/15 text-brand-goldDark',
+  success: 'bg-success-subtle text-success-text',
+  warning: 'bg-warning-subtle text-warning-text',
+  danger: 'bg-danger-subtle text-danger-text',
+  info: 'bg-info-subtle text-info-text',
+  gold: 'bg-brand-gold/15 text-brand-navy dark:text-brand-blueBright',
 };
 
 export function KpiCard({ label, value, icon: Icon, hint, tone = 'default' }: KpiCardProps) {

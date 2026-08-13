@@ -37,10 +37,11 @@ const STEP_COLOR = [
   '#84cc16', '#4ade80', '#22c55e', '#16a34a', '#15803d',
 ];
 
+// *-text tokens verified with scripts/check-contrast.mjs (see task-2-report.md).
 const TERMINAL: { stage: RelationshipStage; icon: typeof Trophy; tone: string }[] = [
-  { stage: 'customer', icon: Trophy, tone: 'text-success-foreground bg-success-subtle border-success/40' },
-  { stage: 'lost', icon: XCircle, tone: 'text-danger bg-danger-subtle border-danger/40' },
-  { stage: 'dormant', icon: PauseCircle, tone: 'text-warning-foreground bg-warning-subtle border-warning/40' },
+  { stage: 'customer', icon: Trophy, tone: 'text-success-text bg-success-subtle border-success/40' },
+  { stage: 'lost', icon: XCircle, tone: 'text-danger-text bg-danger-subtle border-danger/40' },
+  { stage: 'dormant', icon: PauseCircle, tone: 'text-warning-text bg-warning-subtle border-warning/40' },
 ];
 
 export function PipelineFunnel({ companies }: { companies: Company[] }) {
@@ -98,7 +99,7 @@ export function PipelineFunnel({ companies }: { companies: Company[] }) {
               <span className="w-16 shrink-0 text-xs text-muted-foreground tabular sm:w-28">
                 {overallRate}%
                 {i > 0 && (
-                  <span className={cn('ml-1.5', stepRate < 50 ? 'text-danger' : 'text-muted-foreground/70')}>
+                  <span className={cn('ml-1.5', stepRate < 50 ? 'text-danger-text' : 'text-muted-foreground/70')}>
                     ({stepRate}%)
                   </span>
                 )}

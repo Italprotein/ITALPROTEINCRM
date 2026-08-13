@@ -96,7 +96,7 @@ export function FollowUpPanel() {
                       {candidate.lastInboundSubject ?? t('noSubject')}
                     </span>
                   </span>
-                  <span className="flex shrink-0 items-center gap-1 self-center text-2xs font-medium text-brand-goldDark opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                  <span className="flex shrink-0 items-center gap-1 self-center text-2xs font-medium text-brand-navy opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 dark:text-brand-blueBright">
                     <Sparkles className="h-3.5 w-3.5" />
                     {t('askAmina')}
                   </span>

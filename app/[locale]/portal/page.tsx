@@ -371,7 +371,11 @@ export default function PortalDashboard() {
             <CardContent>
               {pendingActions.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-success-subtle text-success">
+                  {/* text-success-text: --success (34%->30%) was retuned in Task 2 for
+                      Button variant="success" contrast, dropping this icon on
+                      success-subtle below even the 3:1 UI bar in dark mode (was 3.33,
+                      now 2.68) — see task-2-report.md. */}
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-success-subtle text-success-text">
                     <CheckCircle2 className="h-5 w-5" />
                   </span>
                   <p className="text-sm font-medium">You are all caught up</p>
@@ -690,7 +694,8 @@ function buildPendingActions(samples: SampleRequest[], feedback: Feedback[]): Pe
         subtitle: `${s.reference} · marked delivered`,
         href: `/portal/samples/${s.id}`,
         icon: PackageCheck,
-        iconClass: 'bg-success-subtle text-success',
+        // text-success-text: same Task 2 --success retune regression as above.
+        iconClass: 'bg-success-subtle text-success-text',
       });
     } else if (NEEDS_FEEDBACK.includes(s.status)) {
       actions.push({

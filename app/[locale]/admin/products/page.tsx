@@ -114,7 +114,7 @@ export default function ProductsPage() {
                     <StaggerItem key={p.id}>
                       <div className="h-full rounded-lg border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
                         <div className="flex items-start justify-between gap-2">
-                          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-gold/15 text-brand-goldDark"><Boxes className="h-5 w-5" /></span>
+                          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-gold/15 text-brand-navy dark:text-brand-blueBright"><Boxes className="h-5 w-5" /></span>
                           <StatusBadge kind="productStatus" value={p.status} />
                         </div>
                         <h3 className="mt-3 font-semibold leading-tight">{p.name}</h3>

@@ -15,9 +15,11 @@ export interface JourneyStep {
   detail?: React.ReactNode;
 }
 
+// text-success-text/text-info-text verified with scripts/check-contrast.mjs
+// (see task-2-report.md).
 const stateRing: Record<JourneyStep['state'], string> = {
-  done: 'border-success bg-success-subtle text-success',
-  active: 'border-info bg-info-subtle text-info',
+  done: 'border-success bg-success-subtle text-success-text',
+  active: 'border-info bg-info-subtle text-info-text',
   pending: 'border-border bg-muted text-muted-foreground',
 };
 

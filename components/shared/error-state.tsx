@@ -29,7 +29,7 @@ export function ErrorState({
         className,
       )}
     >
-      <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-danger-subtle text-danger">
+      <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-danger-subtle text-danger-text">
         <AlertTriangle className="h-6 w-6" aria-hidden />
       </span>
       <p className="text-sm font-semibold text-foreground">{title}</p>

@@ -32,21 +32,24 @@ import { toast } from '@/components/ui/use-toast';
 
 const ALL = '__all__';
 
+// Colors verified with scripts/check-contrast.mjs (see task-2-report.md) —
+// same fixes as badge.tsx's variants of the same names. info fixed in
+// fix round 1 (--info-text added).
 const TYPE_META: Partial<Record<ActivityType, { icon: LucideIcon; cls: string }>> = {
-  email: { icon: Mail, cls: 'bg-info-subtle text-info' },
-  call: { icon: Phone, cls: 'bg-success-subtle text-success' },
-  meeting: { icon: Users, cls: 'bg-brand-gold/15 text-brand-goldDark' },
+  email: { icon: Mail, cls: 'bg-info-subtle text-info-text' },
+  call: { icon: Phone, cls: 'bg-success-subtle text-success-text' },
+  meeting: { icon: Users, cls: 'bg-brand-gold/15 text-brand-navy dark:text-brand-blueBright' },
   note: { icon: StickyNote, cls: 'bg-muted text-muted-foreground' },
   nda_event: { icon: FileSignature, cls: 'bg-brand-navy/5 text-brand-navy' },
-  sample_event: { icon: FlaskConical, cls: 'bg-info-subtle text-info' },
-  shipment_event: { icon: Truck, cls: 'bg-warning-subtle text-warning-foreground' },
-  feedback: { icon: MessageSquareText, cls: 'bg-success-subtle text-success' },
-  technical_reply: { icon: MessageSquareText, cls: 'bg-info-subtle text-info' },
+  sample_event: { icon: FlaskConical, cls: 'bg-info-subtle text-info-text' },
+  shipment_event: { icon: Truck, cls: 'bg-warning-subtle text-warning-text' },
+  feedback: { icon: MessageSquareText, cls: 'bg-success-subtle text-success-text' },
+  technical_reply: { icon: MessageSquareText, cls: 'bg-info-subtle text-info-text' },
   document: { icon: FileText, cls: 'bg-muted text-muted-foreground' },
-  quote: { icon: Receipt, cls: 'bg-brand-gold/15 text-brand-goldDark' },
-  order: { icon: Receipt, cls: 'bg-success-subtle text-success' },
-  invoice: { icon: Receipt, cls: 'bg-warning-subtle text-warning-foreground' },
-  registration: { icon: UserPlus, cls: 'bg-info-subtle text-info' },
+  quote: { icon: Receipt, cls: 'bg-brand-gold/15 text-brand-navy dark:text-brand-blueBright' },
+  order: { icon: Receipt, cls: 'bg-success-subtle text-success-text' },
+  invoice: { icon: Receipt, cls: 'bg-warning-subtle text-warning-text' },
+  registration: { icon: UserPlus, cls: 'bg-info-subtle text-info-text' },
 };
 function meta(t: ActivityType) { return TYPE_META[t] ?? { icon: ActivityIcon, cls: 'bg-muted text-muted-foreground' }; }
 

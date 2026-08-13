@@ -95,7 +95,7 @@ export function QuickActionDialog({
               <div key={f.name} className="grid gap-1.5">
                 <Label htmlFor={`qa-${f.name}`}>
                   {f.label}
-                  {f.required && <span className="ml-0.5 text-danger">*</span>}
+                  {f.required && <span className="ml-0.5 text-danger-text">*</span>}
                 </Label>
                 {f.type === 'textarea' ? (
                   <Textarea

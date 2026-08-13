@@ -585,7 +585,7 @@ export default function CompaniesPage() {
           {canEditCompany && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-danger focus:text-danger" onSelect={() => void handleDelete(c)}>
+              <DropdownMenuItem className="text-danger-text focus:text-danger-text" onSelect={() => void handleDelete(c)}>
                 <Trash2 />
                 {t('delete')}
               </DropdownMenuItem>
@@ -657,10 +657,10 @@ export default function CompaniesPage() {
         {(
           [
             { icon: Building2, value: stats?.total, label: t('statTotalCompanies'), cls: 'text-brand-goldDark' },
-            { icon: ActivityIcon, value: stats?.active, label: t('statActive'), cls: 'text-info' },
-            { icon: CheckCircle2, value: stats?.customers, label: t('statCustomers'), cls: 'text-success' },
-            { icon: FileSignature, value: stats?.ndaSigned, label: t('statNdasSigned'), cls: 'text-success' },
-            { icon: Flame, value: stats?.highPriority, label: t('statHighPriority'), cls: 'text-warning-foreground' },
+            { icon: ActivityIcon, value: stats?.active, label: t('statActive'), cls: 'text-info-text' },
+            { icon: CheckCircle2, value: stats?.customers, label: t('statCustomers'), cls: 'text-success-text' },
+            { icon: FileSignature, value: stats?.ndaSigned, label: t('statNdasSigned'), cls: 'text-success-text' },
+            { icon: Flame, value: stats?.highPriority, label: t('statHighPriority'), cls: 'text-warning-text' },
           ] as const
         ).map((chip) => (
           <span key={chip.label} className="flex items-center gap-1.5 text-sm">

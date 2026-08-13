@@ -69,7 +69,7 @@ export function GoogleIntegrationCard() {
         {gmail?.connected ? (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-success/40 bg-success/5 p-3">
-              <ShieldCheck className="h-4 w-4 shrink-0 text-success" />
+              <ShieldCheck className="h-4 w-4 shrink-0 text-success-text" />
               <p className="text-sm font-medium text-foreground">
                 {t('gmailConnected', { email: gmail.email ?? '' })}
               </p>

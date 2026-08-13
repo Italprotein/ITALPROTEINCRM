@@ -447,7 +447,7 @@ function OpportunityCard({
               <DropdownMenuSeparator />
               {next && (
                 <DropdownMenuItem onClick={() => onMove(opp, next)}>
-                  <ChevronRight className="mr-2 h-4 w-4 text-success" />
+                  <ChevronRight className="mr-2 h-4 w-4 text-success-text" />
                   {getLabel('pipelineStage', next)}
                 </DropdownMenuItem>
               )}
@@ -474,7 +474,7 @@ function OpportunityCard({
       </p>
 
       <div className="mt-2 flex items-baseline justify-between gap-2">
-        <span className="text-sm font-bold tabular text-brand-goldDark">
+        <span className="text-sm font-bold tabular text-brand-navy dark:text-brand-blueBright">
           {formatCurrency(opp.expectedValue ?? 0, opp.currency, 'en', { compact: true })}
         </span>
         <span className="text-xs tabular text-muted-foreground">

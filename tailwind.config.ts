@@ -67,11 +67,15 @@ const config: Config = {
           DEFAULT: 'hsl(var(--success))',
           foreground: 'hsl(var(--success-foreground))',
           subtle: 'hsl(var(--success-subtle))',
+          // For success copy only — see the note in app/globals.css.
+          text: 'hsl(var(--success-text))',
         },
         warning: {
           DEFAULT: 'hsl(var(--warning))',
           foreground: 'hsl(var(--warning-foreground))',
           subtle: 'hsl(var(--warning-subtle))',
+          // For warning copy only — see the note in app/globals.css.
+          text: 'hsl(var(--warning-text))',
         },
         danger: {
           DEFAULT: 'hsl(var(--danger))',
@@ -84,6 +88,8 @@ const config: Config = {
           DEFAULT: 'hsl(var(--info))',
           foreground: 'hsl(var(--info-foreground))',
           subtle: 'hsl(var(--info-subtle))',
+          // For info copy only — see the note in app/globals.css.
+          text: 'hsl(var(--info-text))',
         },
         // ── sidebar (internal CRM navy chrome) ──
         sidebar: {

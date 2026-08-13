@@ -153,7 +153,7 @@ export default function CalendarPage() {
                     )}
                     <div className="mt-1 hidden space-y-0.5 sm:block">
                       {ms.slice(0, 2).map((m) => (
-                        <div key={m.id} title={m.title} className="truncate rounded bg-info-subtle px-1 py-0.5 text-2xs text-info">{format(parseISO(m.start), 'HH:mm')} {m.title}</div>
+                        <div key={m.id} title={m.title} className="truncate rounded bg-info-subtle px-1 py-0.5 text-2xs text-info-text">{format(parseISO(m.start), 'HH:mm')} {m.title}</div>
                       ))}
                       {gs.slice(0, 2 - Math.min(ms.length, 2)).map((event) => (
                         <div key={`google-${event.id}`} title={event.summary} className="truncate rounded bg-brand-teal/10 px-1 py-0.5 text-2xs text-brand-teal">
@@ -161,7 +161,7 @@ export default function CalendarPage() {
                         </div>
                       ))}
                       {ts.slice(0, 2 - Math.min(ms.length + gs.length, 2)).map((t) => (
-                        <div key={t.id} title={t.title} className="truncate rounded bg-warning-subtle px-1 py-0.5 text-2xs text-warning-foreground">⏰ {t.title}</div>
+                        <div key={t.id} title={t.title} className="truncate rounded bg-warning-subtle px-1 py-0.5 text-2xs text-warning-text">⏰ {t.title}</div>
                       ))}
                       {ms.length + gs.length + ts.length > 2 && <div className="px-1 text-2xs text-muted-foreground">{t('moreCount', { count: ms.length + gs.length + ts.length - 2 })}</div>}
                     </div>
@@ -220,7 +220,7 @@ export default function CalendarPage() {
                   const Icon = mIcon(m.type);
                   return (
                     <div key={m.id} className="rounded-lg border p-3">
-                      <div className="flex items-center gap-2"><Icon className="h-4 w-4 text-info" /><span className="text-sm font-medium">{m.title}</span></div>
+                      <div className="flex items-center gap-2"><Icon className="h-4 w-4 text-info-text" /><span className="text-sm font-medium">{m.title}</span></div>
                       <p className="mt-1 text-xs text-muted-foreground">{format(parseISO(m.start), 'HH:mm')}{m.end ? `–${format(parseISO(m.end), 'HH:mm')}` : ''} · {companyName(m.companyId)}</p>
                       {m.agenda && <p className="mt-1 text-xs text-muted-foreground">{m.agenda}</p>}
                     </div>

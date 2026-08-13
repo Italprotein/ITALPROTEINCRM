@@ -557,7 +557,7 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
               </div>
             ) : alerts.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 py-8 text-center">
-                <ShieldCheck className="h-8 w-8 text-success" />
+                <ShieldCheck className="h-8 w-8 text-success-text" />
                 <p className="text-sm text-muted-foreground">{t('allClear')}</p>
               </div>
             ) : (
@@ -578,9 +578,9 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
                         <Icon
                           className={cn(
                             'mt-0.5 h-4 w-4 shrink-0',
-                            al.tone === 'danger' && 'text-danger',
-                            al.tone === 'warning' && 'text-warning-foreground',
-                            al.tone === 'info' && 'text-info',
+                            al.tone === 'danger' && 'text-danger-text',
+                            al.tone === 'warning' && 'text-warning-text',
+                            al.tone === 'info' && 'text-info-text',
                           )}
                         />
                         <div className="min-w-0 flex-1">

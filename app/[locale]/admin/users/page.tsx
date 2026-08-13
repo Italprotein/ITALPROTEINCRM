@@ -124,7 +124,7 @@ export default function UsersPage() {
           <DropdownMenuSeparator />
           {u.role !== 'super_admin' || isSuperAdmin ? (
             u.status !== 'suspended'
-              ? <DropdownMenuItem onSelect={() => void setStatus(u, 'suspended')} className="text-danger focus:text-danger"><Ban /> {t('suspend')}</DropdownMenuItem>
+              ? <DropdownMenuItem onSelect={() => void setStatus(u, 'suspended')} className="text-danger-text focus:text-danger-text"><Ban /> {t('suspend')}</DropdownMenuItem>
               : <DropdownMenuItem onSelect={() => void setStatus(u, 'active')}><RefreshCw /> {t('activate')}</DropdownMenuItem>
           ) : null}
         </DropdownMenuContent>

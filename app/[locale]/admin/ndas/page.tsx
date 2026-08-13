@@ -396,7 +396,7 @@ export default function NdasPage() {
         const { soon, days } = expiringWindow(n.expiryDate);
         return (
           <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
-            <span className={cn('whitespace-nowrap text-sm', soon ? 'font-medium text-warning' : 'text-muted-foreground')}>
+            <span className={cn('whitespace-nowrap text-sm', soon ? 'font-medium text-warning-text' : 'text-muted-foreground')}>
               {formatDate(n.expiryDate, locale)}
             </span>
             {soon ? (
@@ -815,7 +815,7 @@ function DetailSheet({
                 <DetailRow
                   label={t('detailExpiryDate')}
                   value={
-                    <span className={cn(soon && 'text-warning')}>{formatDate(nda.expiryDate, locale)}</span>
+                    <span className={cn(soon && 'text-warning-text')}>{formatDate(nda.expiryDate, locale)}</span>
                   }
                 />
                 <DetailRow label={t('detailInternalSignatory')} value={nda.internalSignatory} />
@@ -834,7 +834,7 @@ function DetailSheet({
               {/* Requested modifications */}
               {nda.requestedModifications ? (
                 <div className="mt-4 rounded-lg border border-warning/40 bg-warning-subtle/50 p-3">
-                  <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-warning">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-warning-text">
                     <RotateCcw className="h-3.5 w-3.5" />
                     {t('requestedModifications')}
                   </p>
@@ -888,7 +888,7 @@ function DetailSheet({
                 <>
                   <Separator className="my-4" />
                   <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                    <ShieldCheck className="h-4 w-4 text-success" />
+                    <ShieldCheck className="h-4 w-4 text-success-text" />
                     {t('signedFiles')}
                   </h3>
                   <ul className="space-y-2">

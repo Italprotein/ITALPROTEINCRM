@@ -330,7 +330,7 @@ export default function FinancePage() {
       sortValue: (d) => (d.outstandingAmount ?? 0) * (TO_EUR[d.currency] ?? 1),
       cell: (d) =>
         d.outstandingAmount && d.outstandingAmount > 0 ? (
-          <span className="whitespace-nowrap tabular text-warning-foreground">
+          <span className="whitespace-nowrap tabular text-warning-text">
             {formatCurrency(d.outstandingAmount, d.currency, locale)}
           </span>
         ) : (
@@ -632,7 +632,7 @@ function DocumentSheet({
                       <TableCell className="text-right tabular">
                         {formatCurrency(li.pricePerUnit, doc.currency, locale)}
                         {li.discountPct ? (
-                          <span className="ml-1 text-2xs text-success">−{li.discountPct}%</span>
+                          <span className="ml-1 text-2xs text-success-text">−{li.discountPct}%</span>
                         ) : null}
                       </TableCell>
                       <TableCell className="text-right tabular">
@@ -653,7 +653,7 @@ function DocumentSheet({
               {doc.discountTotal && doc.discountTotal > 0 ? (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">{t('sheetDiscount')}</span>
-                  <span className="tabular text-success">−{formatCurrency(doc.discountTotal, doc.currency, locale)}</span>
+                  <span className="tabular text-success-text">−{formatCurrency(doc.discountTotal, doc.currency, locale)}</span>
                 </div>
               ) : null}
               {doc.shippingCost && doc.shippingCost > 0 ? (
@@ -674,7 +674,7 @@ function DocumentSheet({
               {doc.outstandingAmount && doc.outstandingAmount > 0 ? (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">{t('sheetOutstanding')}</span>
-                  <span className="tabular text-warning-foreground">
+                  <span className="tabular text-warning-text">
                     {formatCurrency(doc.outstandingAmount, doc.currency, locale)}
                   </span>
                 </div>
