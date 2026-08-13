@@ -10,8 +10,8 @@ import { routing } from '@/lib/i18n/routing';
 
 /**
  * The locale-scoped 404 — rendered whenever a page under `[locale]` calls
- * `notFound()`, so it always renders inside the locale layout and its
- * translations are available.
+ * `notFound()`, so it always renders inside the locale layout, after
+ * `setRequestLocale` has already run for this request.
  *
  * It is a public screen, so it wears the same shell as the landing page and
  * the auth screens instead of its own centred one-off layout: a visitor who
@@ -28,15 +28,24 @@ import { routing } from '@/lib/i18n/routing';
  * `NextIntlClientProvider` of its own — the root layout no longer mounts one.
  * `PublicShell` renders `Rail`, a Client Component that calls
  * `useTranslations`, and Client Components can only read messages from that
- * provider's React context, not from the server request config directly. So
- * this component mounts its own provider, scoped to `PUBLIC_NAMESPACES`
- * like every other public route.
+ * provider's React context, not from the server request config directly
+ * (unlike this component's own `t`/`tCommon` below, which can). So this
+ * component mounts its own provider, scoped to `PUBLIC_NAMESPACES` like
+ * every other public route.
  *
  * `not-found.tsx` receives no `params`, so the locale comes from
- * `getLocale()` instead of a prop. The try/catch covers the case where
- * there's no request-scoped locale to read at all (an unmatched-route/
- * build-time render of this boundary) by falling back to the default locale
- * and loading its messages the same way `lib/i18n/request.ts` does.
+ * `getLocale()` instead of a prop. The try/catch here is NOT a
+ * general-purpose "something went wrong" handler: `getLocale()`/
+ * `getMessages()` talk to Next.js by throwing, not just by rejecting —
+ * `notFound()`/`redirect()` elsewhere in the tree, and Next bailing this
+ * boundary out of static rendering (`DYNAMIC_SERVER_USAGE`, so an Italian
+ * visitor doesn't get served the English default from a stale static
+ * shell), both surface as an `Error` carrying a `digest` string that the
+ * framework needs to see propagate, not get swallowed. So the catch
+ * re-throws anything with a `digest` first, and only treats genuinely
+ * digest-less failures — no request-scoped locale to read at all, or a
+ * broken request config — as the fallback case: default locale, messages
+ * loaded the same way `lib/i18n/request.ts` does.
  *
  * `t`/`tCommon` use `getTranslations` (async, like
  * `(public)/register/page.tsx`), not `useTranslations`: this component has
@@ -53,7 +62,11 @@ export default async function NotFound() {
   try {
     locale = await getLocale();
     messages = await getMessages();
-  } catch {
+  } catch (error) {
+    // Next's own control-flow errors (dynamic-render bailout, notFound(),
+    // redirect(), ...) carry a `digest` string and MUST propagate — this
+    // fallback is only for genuinely digest-less failures.
+    if ((error as { digest?: string })?.digest) throw error;
     locale = routing.defaultLocale;
     messages = (await import(`@/messages/${locale}.json`)).default;
   }
