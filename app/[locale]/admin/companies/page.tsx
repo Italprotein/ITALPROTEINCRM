@@ -359,6 +359,11 @@ export default function CompaniesPage() {
         />
       ),
       hideable: true,
+      // Off by default: the eight "always on" columns added up to 1452px and
+      // sliced the right-hand cells mid-word at 1440. Type is the widest of the
+      // optional ones and is already reachable from the Type filter above the
+      // table; turn it back on from Columns and the choice is remembered.
+      defaultHidden: true,
     },
     {
       key: 'country',
@@ -384,6 +389,9 @@ export default function CompaniesPage() {
           <span className="text-sm text-muted-foreground">—</span>
         ),
       hideable: true,
+      // Also off by default — the named contact belongs to the company record,
+      // and the row already opens it in one click. Available under Columns.
+      defaultHidden: true,
     },
     {
       key: 'owner',
@@ -399,17 +407,24 @@ export default function CompaniesPage() {
           render={(id) => {
             const name = nameOf(id, 'Unassigned');
             return (
-              <span className="flex items-center gap-2 whitespace-nowrap">
+              <span className="flex min-w-0 items-center gap-2">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-navy/10 text-2xs font-semibold text-brand-navy">
                   {initials(name)}
                 </span>
-                <span className="text-sm">{name}</span>
+                {/* truncate on the text itself, not on the flex row: a flex
+                    child gets sliced with no ellipsis when its parent clips,
+                    which is how "Ludwig van Becker" rendered as "…van Becke". */}
+                <span className="truncate text-sm">{name}</span>
               </span>
             );
           }}
         />
       ),
       hideable: true,
+      // Enough room for a full first + last name, so the common case never
+      // reaches the ellipsis above.
+      className: 'min-w-[13.5rem]',
+      headClassName: 'min-w-[13.5rem]',
     },
     {
       key: 'stage',

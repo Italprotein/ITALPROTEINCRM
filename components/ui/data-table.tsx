@@ -553,7 +553,11 @@ export function DataTable<T>(props: DataTableProps<T>): React.JSX.Element {
           mobileCard ? 'hidden md:block' : 'block',
         )}
       >
-        <Table containerClassName="max-h-full h-full">
+        {/* scroll-shadow-x: on a narrow desktop some columns still sit past the
+            right edge, and a bare cut looks like broken layout rather than a
+            scroll region. The shadow appears only while there is content out
+            of view. */}
+        <Table containerClassName="max-h-full h-full scroll-shadow-x">
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               {selectable ? (
