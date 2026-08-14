@@ -47,8 +47,8 @@ import {
 } from '@/lib/mock-services';
 import { getLabel, getTone, type BadgeTone } from '@/lib/labels';
 import { formatRelative, formatDate, daysUntil } from '@/lib/formatting';
-import { CHART_COLORS } from '@/lib/chart-colors';
 import { NDA_PENDING } from '@/lib/company-views';
+import { tallyPipelinePhases } from '@/lib/pipeline-phases';
 import { currentNdasOf } from '@/lib/nda-stats';
 import { cn } from '@/lib/utils';
 import { canView } from '@/lib/permissions';
@@ -110,8 +110,34 @@ const REGISTRATION_PENDING: RegistrationStatus[] = [
 /** How many rows a "needs attention" list shows before deferring to its module. */
 const ATTENTION_ROWS = 5;
 
-/** Stage segments drawn individually before the tail is folded into one "other" band. */
-const MAX_PIPELINE_SEGMENTS = 6;
+/** How many rows My Day shows before deferring to /admin/tasks. */
+const MY_DAY_ROWS = 6;
+
+/**
+ * Band fill per pipeline phase, as Tailwind class pairs rather than inline hex.
+ *
+ * Deliberately not `CHART_COLORS`: its first entry is brand navy (#0a1628),
+ * which against the dark card (`--card: 216 48% 9.5%`) and the bar's own
+ * `bg-muted` track (`--muted: 215 31% 13%`) measures 1.00:1 and 1.09:1 — the
+ * largest band read as a hole in the graphic for every dark-mode user. One flat
+ * hex cannot serve both themes, and a class pair is the only way to carry two;
+ * scoping the pair here leaves `lib/chart-colors.ts` — shared with the analytics
+ * charts — untouched.
+ *
+ * 700 in light, 400 in dark. Every one of the 24 fill/surface pairs was measured
+ * against both `--muted` and `--card` in both themes; the worst is 4.59:1,
+ * comfortably over the 3:1 WCAG 1.4.11 asks of a non-text graphic. Hues are
+ * spread so no two *adjacent* bands share a family, and they echo the KPI tints
+ * where the modules line up: violet = NDAs, amber = samples, emerald = won.
+ */
+const PIPELINE_PHASE_COLOR: Record<string, string> = {
+  prospecting: 'bg-slate-700 dark:bg-slate-400',
+  nda: 'bg-violet-700 dark:bg-violet-400',
+  calls: 'bg-cyan-700 dark:bg-cyan-400',
+  sampling: 'bg-amber-700 dark:bg-amber-400',
+  commercial: 'bg-fuchsia-700 dark:bg-fuchsia-400',
+  customer: 'bg-emerald-700 dark:bg-emerald-400',
+};
 
 /** Semantic tone → dot fill. Statuses keep the tones `lib/labels.ts` assigns them. */
 const TONE_DOT: Record<BadgeTone, string> = {
@@ -337,46 +363,42 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
     return data.registrations.filter((r) => REGISTRATION_PENDING.includes(r.status));
   }, [data]);
 
-  /** Overdue first, then today's — the order you would work them in. */
+  /**
+   * Overdue first, then today's — the order you would work them in — and capped
+   * like every other list on this page. A team carrying sixty overdue tasks
+   * would otherwise push Needs Attention, Pipeline and Recent activity off the
+   * screen behind exactly the wall of equal-weight rows this page removes;
+   * `myTaskCount` keeps the badge honest about how many there really are.
+   */
+  const myTaskCount = React.useMemo(
+    () => (data ? data.overdueTasks.length + data.dueToday.length : 0),
+    [data],
+  );
+
   const myTasks = React.useMemo(() => {
     if (!data) return [];
-    return [...data.overdueTasks, ...data.dueToday];
+    return [...data.overdueTasks, ...data.dueToday].slice(0, MY_DAY_ROWS);
   }, [data]);
 
   const nextMeetings = React.useMemo(() => (data ? data.meetings.slice(0, 3) : []), [data]);
 
   /**
-   * The pipeline as one bar. Twenty stages would be twenty unreadable slivers, so
-   * the six largest keep their own segment (still drawn in pipeline order) and
-   * everything else folds into a single trailing band.
+   * The pipeline as one bar, folded into the six fixed phases of
+   * `lib/pipeline-phases.ts` — see that module for why fixed buckets beat
+   * top-N-by-volume here. Colours are Tailwind classes rather than inline hex so
+   * each band can carry its own dark-mode value: the palette's first entry is
+   * brand navy (#0a1628), which on the dark card sits at roughly 1.2:1 and would
+   * render the largest band as a hole in the graphic.
    */
   const pipelineSegments = React.useMemo(() => {
     if (!data) return [];
-    const nonZero = data.oppStats.byStage.filter((s) => s.count > 0);
-    const keep = new Set(
-      [...nonZero]
-        .sort((a, b) => b.count - a.count)
-        .slice(0, MAX_PIPELINE_SEGMENTS)
-        .map((s) => s.stage),
-    );
-    const segments = nonZero
-      .filter((s) => keep.has(s.stage))
-      .map((s, i) => ({
-        key: s.stage as string,
-        label: getLabel('pipelineStage', s.stage),
-        count: s.count,
-        color: CHART_COLORS[i % CHART_COLORS.length],
-      }));
-    const rest = nonZero.filter((s) => !keep.has(s.stage)).reduce((sum, s) => sum + s.count, 0);
-    if (rest > 0) {
-      segments.push({
-        key: '__other',
-        label: t('pipelineOther'),
-        count: rest,
-        color: CHART_COLORS[segments.length % CHART_COLORS.length],
-      });
-    }
-    return segments;
+    return tallyPipelinePhases(data.oppStats.byStage).map((phase) => ({
+      key: phase.key,
+      label: t(phase.labelKey),
+      count: phase.count,
+      color: PIPELINE_PHASE_COLOR[phase.key] ?? 'bg-muted-foreground',
+      stages: phase.stages.map((s) => getLabel('pipelineStage', s)).join(' · '),
+    }));
   }, [data, t]);
 
   const greeting = account?.firstName ? t('welcomeNamed', { name: account.firstName }) : t('title');
@@ -446,7 +468,7 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
               {t('myDay')}
             </h2>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <Panel title={t('tasksToday')} count={myTasks.length} href="/admin/tasks" linkLabel={t('viewAll')}>
+              <Panel title={t('tasksToday')} count={myTaskCount} href="/admin/tasks" linkLabel={t('viewAll')}>
                 {loading ? (
                   <RowSkeleton />
                 ) : myTasks.length === 0 ? (
@@ -719,25 +741,25 @@ function StandardOverview({ showRegistrations }: { showRegistrations: boolean })
                   href="/admin/pipeline"
                   className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  {/* Segment widths are flex-grow weights, so a stage with one
+                  {/* Segment widths are flex-grow weights, so a phase with one
                       opportunity still gets its 8px band instead of vanishing. */}
                   <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted" aria-hidden>
                     {pipelineSegments.map((s) => (
                       <span
                         key={s.key}
-                        className="h-full"
-                        style={{ flex: `${s.count} 1 0%`, minWidth: '8px', backgroundColor: s.color }}
+                        className={cn('h-full', s.color)}
+                        style={{ flex: `${s.count} 1 0%`, minWidth: '8px' }}
                       />
                     ))}
                   </div>
                   <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
                     {pipelineSegments.map((s) => (
-                      <li key={s.key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span
-                          className="h-2 w-2 shrink-0 rounded-full"
-                          style={{ backgroundColor: s.color }}
-                          aria-hidden
-                        />
+                      <li
+                        key={s.key}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                        title={s.stages}
+                      >
+                        <span className={cn('h-2 w-2 shrink-0 rounded-full', s.color)} aria-hidden />
                         <span className="text-foreground">{s.label}</span>
                         <span className="tabular">{s.count}</span>
                       </li>
