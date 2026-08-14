@@ -77,6 +77,14 @@ async function tryProvider(url: string): Promise<string | null> {
     // excludes SVG, which is a scriptable document, not a picture.
     if (!isAllowedLogoContentType(header)) return null;
     const contentType = header!.split(";")[0].trim().toLowerCase();
+    // Refuse before buffering when the provider tells us the size. `arrayBuffer()`
+    // has no ceiling of its own, so a redirect to a large (or slowly streamed)
+    // body would otherwise land in the Node heap in full before the check below
+    // ever ran — and the production container sets no memory limit.
+    const declaredLength = Number(response.headers.get("content-length"));
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_BYTES) return null;
+    // Still checked after buffering: `content-length` is absent on any chunked
+    // response, so the header check is an early exit, not the guarantee.
     const bytes = Buffer.from(await response.arrayBuffer());
     if (bytes.byteLength <= MIN_BYTES || bytes.byteLength > MAX_BYTES) return null;
     return `data:${contentType};base64,${bytes.toString("base64")}`;
@@ -127,26 +135,48 @@ export async function fetchCompanyLogo(companyId: string): Promise<LogoFetchOutc
 }
 
 /**
+ * Wall-clock ceiling for one bulk import run.
+ *
+ * The worst case is real: a slice of four domains that all time out costs the
+ * full FETCH_TIMEOUT_MS twice (two providers), so 500 dead candidates is over
+ * half an hour inside a single server action, behind a reverse proxy with no
+ * response timeout and with no way for the user to cancel. 60s keeps the run
+ * inside every layer's patience; whatever is left is reported back and picked up
+ * by the next run, which is cheap because finished rows are no longer
+ * candidates.
+ */
+const IMPORT_BUDGET_MS = 60_000;
+
+/**
  * Backfills logos for every company that has a website and no logo yet.
  *
  * Sequential would be minutes of wall-clock on a few hundred companies and
  * unbounded parallelism would hammer both providers into rate-limiting us, so
- * this walks the candidate list in slices of four.
+ * this walks the candidate list in slices of four — until the budget above runs
+ * out, at which point it returns what it managed plus `remaining`, the number of
+ * candidates it never reached.
  */
 export async function importMissingCompanyLogos(): Promise<{
   updated: number;
   skipped: number;
   failed: number;
+  remaining: number;
 }> {
   const candidates = await prisma.company.findMany({
     where: LOGO_IMPORT_CANDIDATE_WHERE,
     select: { id: true },
   });
 
-  const tally = { updated: 0, skipped: 0, failed: 0 };
+  const deadline = Date.now() + IMPORT_BUDGET_MS;
+  const tally = { updated: 0, skipped: 0, failed: 0, remaining: 0 };
+  let processed = 0;
   for (let i = 0; i < candidates.length; i += LOGO_IMPORT_CONCURRENCY) {
+    // Checked between slices, never mid-slice: a slice already in flight is
+    // allowed to finish so its writes are not thrown away.
+    if (Date.now() >= deadline) break;
     const slice = candidates.slice(i, i + LOGO_IMPORT_CONCURRENCY);
     const results = await Promise.allSettled(slice.map((c) => fetchCompanyLogo(c.id)));
+    processed += slice.length;
     for (const result of results) {
       // fetchCompanyLogo swallows its own errors, so a rejection here would be
       // something exotic — count it as failed rather than lose it.
@@ -154,5 +184,6 @@ export async function importMissingCompanyLogos(): Promise<{
       else tally.failed += 1;
     }
   }
+  tally.remaining = candidates.length - processed;
   return tally;
 }

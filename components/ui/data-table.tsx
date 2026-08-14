@@ -178,22 +178,74 @@ export function DataTable<T>(props: DataTableProps<T>): React.JSX.Element {
   });
   const [hydrated, setHydrated] = React.useState(false);
 
+  /**
+   * The default-hidden set this build declares, as a stable primitive.
+   *
+   * `columns` is rebuilt on every render of the calling page, so it cannot be an
+   * effect dependency without re-running hydration on every keystroke. The
+   * joined key list changes only when the *declaration* changes, which is
+   * exactly when the migration below needs to run again.
+   */
+  const declaredDefaultHidden = columns
+    .filter((c) => c.defaultHidden)
+    .map((c) => c.key)
+    .sort()
+    .join('|');
+
   // keep controlled density in sync if the prop changes
   React.useEffect(() => {
     if (densityProp) setDensity(densityProp);
   }, [densityProp]);
 
   // ── persist hidden columns to localStorage ─────────────────────────────
+  /*
+   * Hydration doubles as a one-time migration for newly declared defaults.
+   *
+   * `defaultHidden` only seeds the initial state, and this effect used to
+   * overwrite that seed from storage unconditionally. Since a table's storageKey
+   * long predates most of its defaults, every returning user had a stored set —
+   * `"[]"` counts — so a new `defaultHidden: true` was a no-op for everyone
+   * except a fresh browser profile. That is how the Companies overflow fix
+   * shipped without changing anything for a single real user.
+   *
+   * So we also record WHICH defaults this browser has already been shown, in a
+   * sibling `:defaults` key. Any key the build declares that is missing from
+   * that record is applied once, on top of the stored set; from then on the
+   * user's own choice wins and can be flipped back from the Columns menu. The
+   * alternative — bumping to a fresh storageKey — would throw away every other
+   * column decision the user has made, permanently, to deliver the same one-time
+   * change.
+   */
   React.useEffect(() => {
     if (!storageKey) return;
+    const declared = declaredDefaultHidden ? declaredDefaultHidden.split('|') : [];
     try {
       const raw = window.localStorage.getItem(`datatable:${storageKey}:hidden`);
-      if (raw) setHidden(new Set(JSON.parse(raw) as string[]));
+      if (raw) {
+        const stored = new Set(JSON.parse(raw) as string[]);
+        const seenRaw = window.localStorage.getItem(`datatable:${storageKey}:defaults`);
+        const seen = new Set(seenRaw ? (JSON.parse(seenRaw) as string[]) : []);
+        for (const key of declared) if (!seen.has(key)) stored.add(key);
+        // Written here, not left to the persist effect below: the marker and the
+        // set it describes have to move together. A second run of this effect
+        // before that effect commits — StrictMode's double-mount does exactly
+        // this — would otherwise read "defaults already applied" against the
+        // pre-migration set and quietly undo the migration.
+        window.localStorage.setItem(
+          `datatable:${storageKey}:hidden`,
+          JSON.stringify(Array.from(stored)),
+        );
+        setHidden(stored);
+      }
+      window.localStorage.setItem(
+        `datatable:${storageKey}:defaults`,
+        JSON.stringify(declared),
+      );
     } catch {
       /* ignore malformed storage */
     }
     setHydrated(true);
-  }, [storageKey]);
+  }, [storageKey, declaredDefaultHidden]);
 
   React.useEffect(() => {
     if (!storageKey || !hydrated) return;

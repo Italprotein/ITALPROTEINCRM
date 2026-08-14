@@ -327,7 +327,7 @@
     "registrationsToReview": "Registrazioni da valutare",
     "noRegistrationsToReview": "Nessuna registrazione in attesa.",
     "pipeline": "Pipeline",
-    "pipelineDescription": "Opportunità aperte per fase",
+    "pipelineDescription": "Opportunità per fase, incluse le vinte",
     "phaseProspecting": "Prospezione",
     "phaseNda": "NDA",
     "phaseCalls": "Call",
@@ -2316,7 +2316,9 @@
     "import": "Importa loghi",
     "importing": "Importazione…",
     "result": "Loghi: {updated} aggiornati, {skipped} saltati, {failed} falliti",
+    "resultPartial": "Loghi: {updated} aggiornati, {skipped} saltati, {failed} falliti — ne restano {remaining}. Riavvia l'importazione per continuare.",
     "resultTitle": "Importazione loghi completata",
+    "partialTitle": "Importazione loghi in pausa",
     "failedTitle": "Importazione loghi non riuscita",
     "failedDescription": "Riprova più tardi."
   }

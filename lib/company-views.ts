@@ -138,11 +138,3 @@ export const COMPANY_VIEWS: CompanyView[] = [
 
 /** The view to fall back to when nothing (or something unknown) is stored. */
 export const DEFAULT_COMPANY_VIEW = 'all';
-
-/** Resolves a stored/URL view key to a real view, falling back to `all`. */
-export function resolveCompanyView(key: string | null | undefined): CompanyView {
-  return (
-    COMPANY_VIEWS.find((v) => v.key === key) ??
-    COMPANY_VIEWS.find((v) => v.key === DEFAULT_COMPANY_VIEW)!
-  );
-}

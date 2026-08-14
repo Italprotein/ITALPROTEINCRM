@@ -327,7 +327,7 @@
     "registrationsToReview": "Registrations to review",
     "noRegistrationsToReview": "No registrations waiting.",
     "pipeline": "Pipeline",
-    "pipelineDescription": "Open opportunities by stage",
+    "pipelineDescription": "Opportunities by phase, won included",
     "phaseProspecting": "Prospecting",
     "phaseNda": "NDA",
     "phaseCalls": "Calls",
@@ -2316,7 +2316,9 @@
     "import": "Import logos",
     "importing": "Importing…",
     "result": "Logos: {updated} updated, {skipped} skipped, {failed} failed",
+    "resultPartial": "Logos: {updated} updated, {skipped} skipped, {failed} failed — {remaining} still to do. Run the import again to continue.",
     "resultTitle": "Logo import finished",
+    "partialTitle": "Logo import paused",
     "failedTitle": "Logo import failed",
     "failedDescription": "Please try again later."
   }

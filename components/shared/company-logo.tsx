@@ -18,12 +18,14 @@ import { cn, initials as initialsOf } from '@/lib/utils';
  * The logo bytes never travel in the company payload (see
  * lib/services/company.mapper.ts) — `logoUpdatedAt` is the "there is a logo"
  * flag, and the browser fetches the image itself from the API route, where it
- * is cached for an hour. If that fetch 404s (row deleted, malformed data URI)
+ * is cached for an hour and versioned by that same timestamp so a re-import is
+ * a new URL rather than an hour of stale bytes. If that fetch 404s (row
+ * deleted, malformed data URI)
  * the component falls back to initials permanently for this mount rather than
  * retrying on every re-render.
  */
 
-export type CompanyLogoSize = 'sm' | 'md' | 'lg' | 'xl';
+export type CompanyLogoSize = 'sm' | 'md' | 'xl';
 
 /** Company fields this component needs. Any company-ish object satisfying it works. */
 export type CompanyLogoSubject = Pick<
@@ -34,12 +36,12 @@ export type CompanyLogoSubject = Pick<
 /**
  * Sizes are matched to the surfaces that use them so nothing reflows:
  * `sm` = the search palette's 28px icon slot, `md` = the 36px list/mobile-card
- * tile, `lg` = a roomier list, `xl` = the 64px detail-page header tile.
+ * tile, `xl` = the 64px detail-page header tile. Three sizes because there are
+ * three slots — a fourth would be a size with no surface behind it.
  */
 const SIZES: Record<CompanyLogoSize, string> = {
   sm: 'h-7 w-7 rounded-md text-[0.625rem]',
   md: 'h-9 w-9 rounded-lg text-xs',
-  lg: 'h-12 w-12 rounded-lg text-sm',
   xl: 'h-16 w-16 rounded-xl text-xl',
 };
 
@@ -57,6 +59,13 @@ export function CompanyLogo({
   // since been re-imported gets a fresh attempt, with no reset effect needed.
   const [failedKey, setFailedKey] = React.useState<string | null>(null);
   const logoKey = `${company.id}:${company.logoUpdatedAt ?? ''}`;
+  // The route answers `private, max-age=3600`, so without a version in the URL a
+  // re-imported logo stays stale in the browser cache for an hour. `logoUpdatedAt`
+  // changes on exactly the writes that change the bytes, which makes it the
+  // cache-busting token — and the same value the error memo above is keyed on.
+  const logoSrc = `/api/companies/${company.id}/logo?v=${encodeURIComponent(
+    String(company.logoUpdatedAt ?? ''),
+  )}`;
 
   // Same fallback chain the list column has always used.
   const label = company.initials || initialsOf(company.legalName);
@@ -71,7 +80,7 @@ export function CompanyLogo({
             per-image cost to shrink something already smaller than the request. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`/api/companies/${company.id}/logo`}
+          src={logoSrc}
           alt=""
           aria-hidden
           loading="lazy"

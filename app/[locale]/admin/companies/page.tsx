@@ -227,6 +227,10 @@ export default function CompaniesPage() {
    * Pulls a favicon-derived logo for every company that has a website and no
    * logo yet. Reloads the list afterwards so the new logos appear without a
    * page refresh; the run itself is server-side and idempotent.
+   *
+   * The server stops at a 60s budget, so a large backlog comes back with
+   * `remaining` > 0. That is unfinished, not failed — say so, and say that
+   * running it again picks up where this one stopped.
    */
   async function runLogoImport() {
     if (importingLogos) return;
@@ -236,8 +240,9 @@ export default function CompaniesPage() {
       setRows(await companyService.list());
       toast({
         variant: 'success',
-        title: tLogos('resultTitle'),
-        description: tLogos('result', result),
+        title: result.remaining > 0 ? tLogos('partialTitle') : tLogos('resultTitle'),
+        description:
+          result.remaining > 0 ? tLogos('resultPartial', result) : tLogos('result', result),
       });
     } catch {
       toast({
