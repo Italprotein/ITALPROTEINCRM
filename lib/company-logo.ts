@@ -65,15 +65,65 @@ export function parseLogoDataUri(dataUri: string | null | undefined): ParsedLogo
 }
 
 /**
+ * Mailbox providers whose domain says nothing about the company.
+ *
+ * This list is the only thing standing between "derive identity from a contact's
+ * email" and "stamp Google's favicon on every company whose buyer uses Gmail".
+ * Because the importer fills only empty logos and never revisits them, a wrong
+ * logo written here looks settled forever, so the list errs toward refusing.
+ */
+const FREE_EMAIL_DOMAINS: ReadonlySet<string> = new Set([
+  'gmail.com', 'googlemail.com', 'outlook.com', 'outlook.it', 'hotmail.com', 'hotmail.it',
+  'hotmail.fr', 'hotmail.co.uk', 'yahoo.com', 'yahoo.it', 'yahoo.co.uk', 'yahoo.fr',
+  'icloud.com', 'me.com', 'mac.com', 'aol.com', 'protonmail.com', 'proton.me', 'pm.me',
+  'gmx.de', 'gmx.net', 'gmx.com', 'web.de', 'libero.it', 'tiscali.it', 'alice.it',
+  'virgilio.it', 'live.com', 'live.it', 'msn.com', 'fastwebnet.it', 'inwind.it',
+  'yandex.ru', 'mail.ru', 'zoho.com', 'qq.com', '163.com', '126.com',
+]);
+
+/**
+ * A contact's email address -> the company's domain, or null.
+ *
+ * Why this exists: on production (2026-08-14) 9 of 438 companies carry a
+ * website, but 381 have a contact on a corporate domain. Website-only identity
+ * reaches 2% of the book; this reaches 87%.
+ *
+ * Returns null for free-mail and for anything malformed — a null here means
+ * "no opinion", and the caller falls through to the initials tile.
+ */
+export function domainFromEmail(email: string | null | undefined): string | null {
+  if (!email) return null;
+  const at = email.trim().toLowerCase();
+  const parts = at.split('@');
+  if (parts.length !== 2) return null;
+  const [local, rawDomain] = parts;
+  if (!local) return null;
+  const domain = rawDomain.replace(/^www\./, '');
+  // Must look like a real host: at least one dot, and no empty label.
+  if (!domain.includes('.') || domain.split('.').some((label) => label === '')) return null;
+  if (FREE_EMAIL_DOMAINS.has(domain)) return null;
+  return domain;
+}
+
+/**
  * Which companies the bulk importer touches.
  *
  * `logoUrl: null` is load-bearing: a company that already holds logo bytes is
  * never a candidate, whatever the state of logoUpdatedAt. So a row carrying a
  * hand-set logoUrl with a null timestamp is simply skipped — the importer will
  * not overwrite it, and the migration deliberately does not rewrite it either.
+ *
+ * The OR is the reach fix. Selecting on `website` alone matched 9 of 438
+ * production companies; admitting anyone with a contact brings in the 381 whose
+ * identity we only hold as an email domain. Whether that contact's domain is
+ * actually usable is decided per-company by domainFromEmail, not here — SQL
+ * cannot tell gmail.com from barilla.com.
+ *
+ * Not `as const`: Prisma's generated CompanyWhereInput takes a mutable
+ * `OR: CompanyWhereInput[]`, and a readonly tuple is not assignable to it.
  */
 export const LOGO_IMPORT_CANDIDATE_WHERE = {
-  website: { not: null },
+  OR: [{ website: { not: null } }, { contacts: { some: {} } }],
   logoVerified: false,
   logoUrl: null,
-} as const;
+};

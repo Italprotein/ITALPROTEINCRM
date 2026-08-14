@@ -1,7 +1,7 @@
 /**
  * Company logo pipeline — the implementation half.
  *
- * A company's website is the one identifier we reliably hold, and its favicon is
+ * A company's domain is the identifier we can act on, and its favicon is
  * the one image we can fetch without an API key or a scrape. So: derive the
  * domain, ask two public favicon services for a 128px icon, and store the first
  * plausible answer as a data URI on Company.logoUrl.
@@ -18,7 +18,11 @@
  * propagate into a create or block a page.
  */
 import { prisma } from "@/lib/backend/prisma";
-import { LOGO_IMPORT_CANDIDATE_WHERE, isAllowedLogoContentType } from "@/lib/company-logo";
+import {
+  LOGO_IMPORT_CANDIDATE_WHERE,
+  domainFromEmail,
+  isAllowedLogoContentType,
+} from "@/lib/company-logo";
 
 export type LogoFetchOutcome = "updated" | "skipped" | "failed";
 
@@ -55,6 +59,31 @@ export function domainFromWebsite(website: string): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * The company's domain, preferring what it says about itself.
+ *
+ * Website first: a company that published a URL has told us its domain
+ * directly. Contact email second: on production only 9 of 438 companies carry a
+ * website, so without this fallback the importer has almost nothing to work
+ * with. Free-mail addresses resolve to null inside domainFromEmail, so a
+ * company whose only contact is on gmail.com correctly yields no domain and
+ * keeps its initials tile.
+ */
+export function domainForCompany(company: {
+  website: string | null;
+  contacts?: { email: string | null }[];
+}): string | null {
+  if (company.website) {
+    const fromSite = domainFromWebsite(company.website);
+    if (fromSite) return fromSite;
+  }
+  for (const contact of company.contacts ?? []) {
+    const fromEmail = domainFromEmail(contact.email);
+    if (fromEmail) return fromEmail;
+  }
+  return null;
 }
 
 function providerUrls(domain: string): string[] {
@@ -109,14 +138,23 @@ export async function fetchCompanyLogo(companyId: string): Promise<LogoFetchOutc
   try {
     const company = await prisma.company.findUnique({
       where: { id: companyId },
-      select: { id: true, website: true, logoVerified: true },
+      select: {
+        id: true,
+        website: true,
+        logoVerified: true,
+        // Primary first, so a company with several contacts resolves through the
+        // person most likely to be on the company's own domain.
+        contacts: {
+          select: { email: true },
+          orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+        },
+      },
     });
     if (!company) return "skipped";
     // A logo someone approved by hand outranks anything a favicon service has.
     if (company.logoVerified) return "skipped";
-    if (!company.website) return "skipped";
 
-    const domain = domainFromWebsite(company.website);
+    const domain = domainForCompany(company);
     if (!domain) return "skipped";
 
     for (const url of providerUrls(domain)) {
