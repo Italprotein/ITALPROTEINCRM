@@ -34,8 +34,13 @@ const RECENT_WITHIN_DAYS = 7;
  * NDA is in flight: someone still owes someone a signature or a redline.
  * `draft` is deliberately out — an unsent draft is our own backlog, not a
  * conversation in progress — as are the terminal `expired`/`terminated`.
+ *
+ * Exported so the home dashboard's "NDAs awaiting action" count asks the same
+ * question as this view instead of restating the list. (The dashboard applies it
+ * to current *register* rows, not to the `Company.ndaStatus` cache — see
+ * lib/nda-stats.ts for why every NDA count is derived from the register.)
  */
-const NDA_PENDING: NDAStatus[] = [
+export const NDA_PENDING: NDAStatus[] = [
   'to_prepare',
   'sent',
   'under_review',
