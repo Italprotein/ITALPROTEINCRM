@@ -489,7 +489,7 @@ function ReviewPanel({
               <StatusBadge kind="registrationStatus" value={r.status} />
             </div>
             <SheetTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-brand-gold" />
+              <Building2 className="h-5 w-5 text-brand-navy dark:text-brand-blueBright" />
               {r.legalName}
             </SheetTitle>
             <SheetDescription>
@@ -520,7 +520,7 @@ function ReviewPanel({
                 {r.registrationNumber ? <Field label={t('fieldRegNumber')}>{r.registrationNumber}</Field> : null}
                 {r.website ? (
                   <Field label={t('fieldWebsite')}>
-                    <span className="inline-flex max-w-full items-center gap-1 break-all text-info">
+                    <span className="inline-flex max-w-full items-center gap-1 break-all text-info-text">
                       <Globe className="h-3.5 w-3.5 shrink-0" />
                       {r.website}
                     </span>
@@ -549,7 +549,7 @@ function ReviewPanel({
                 </Field>
                 {r.contactJobTitle ? <Field label={t('fieldJobTitle')}>{r.contactJobTitle}</Field> : null}
                 <Field label={t('fieldEmail')}>
-                  <span className="inline-flex max-w-full items-center gap-1 break-all text-info">
+                  <span className="inline-flex max-w-full items-center gap-1 break-all text-info-text">
                     <Mail className="h-3.5 w-3.5 shrink-0" />
                     {r.contactEmail}
                   </span>
@@ -593,7 +593,7 @@ function ReviewPanel({
               ) : null}
               {r.adminNote ? (
                 <Field label={t('fieldAdminNote')}>
-                  <p className="rounded-md bg-warning-subtle p-2 text-warning-foreground">{r.adminNote}</p>
+                  <p className="rounded-md bg-warning-subtle p-2 text-warning-text">{r.adminNote}</p>
                 </Field>
               ) : null}
             </section>

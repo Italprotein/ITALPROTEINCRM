@@ -242,7 +242,7 @@ export default function AgenciesPage() {
       <div className="rounded-xl border bg-card p-4 sm:p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-gold/15 text-brand-gold">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-gold/15 text-brand-navy dark:text-brand-blueBright">
               <Sparkles className="h-4 w-4" />
             </span>
             <div>

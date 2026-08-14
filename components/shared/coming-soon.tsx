@@ -15,7 +15,7 @@ export function ComingSoon({ title, body, phaseLabel }: ComingSoonProps) {
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-navy text-brand-gold">
           <Hammer className="h-6 w-6" />
         </div>
-        <span className="mt-5 inline-flex items-center rounded-full bg-brand-gold/15 px-2.5 py-0.5 text-2xs font-semibold uppercase tracking-wider text-brand-goldDark">
+        <span className="mt-5 inline-flex items-center rounded-full bg-brand-gold/15 px-2.5 py-0.5 text-2xs font-semibold uppercase tracking-wider text-brand-navy dark:text-brand-blueBright">
           {phaseLabel}
         </span>
         <h1 className="mt-4 font-display text-2xl font-bold tracking-tight">{title}</h1>

@@ -1050,6 +1050,13 @@ model Company {
   vatNumber                     String?
   registrationNumber            String?
   logoUrl                       String?
+  // Logo provenance. `logoSource` records where logoUrl came from ("favicon"
+  // today); `logoVerified` marks a logo a human has approved, which the
+  // automated importer must never overwrite; `logoUpdatedAt` doubles as the
+  // "has a logo" flag on the list DTO and as the ETag for /api/companies/[id]/logo.
+  logoSource                    String?
+  logoVerified                  Boolean               @default(false)
+  logoUpdatedAt                 DateTime?
   initials                      String
   accentColor                   String?
   headquarters                  Json

@@ -65,9 +65,9 @@ export function PasswordChangeGate({ children }: { children: React.ReactNode }) 
         <Logo tone="dark" />
 
         <div className="flex max-w-2xl items-start gap-3 rounded-lg border border-warning/40 bg-warning-subtle p-4">
-          <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning-foreground" />
+          <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning-text" />
           <div className="text-sm">
-            <p className="font-semibold text-warning-foreground">{t('title')}</p>
+            <p className="font-semibold text-warning-text">{t('title')}</p>
             <p className="mt-1 text-muted-foreground">{t('body')}</p>
           </div>
         </div>

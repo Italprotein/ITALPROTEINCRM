@@ -18,6 +18,7 @@ import {
 import { Logo } from '@/components/brand/logo';
 import { LanguageSwitcher } from '@/components/i18n/language-switcher';
 import { Reveal } from '@/components/landing/reveal';
+import { SpotlightCard } from '@/components/landing/spotlight-card';
 import { MARKERS, PARTNERS } from '@/components/landing/partners';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { InfiniteMovingCards } from '@/components/ui/infinite-moving-cards';
@@ -111,6 +112,13 @@ export default function LandingPage() {
 
       <main>
         <section className="relative isolate border-b border-border/70 px-4 py-10 sm:py-14 lg:py-16">
+          {/* Two composed backdrop layers, both static: the dot field gives the
+              surface a texture to catch the light, the radial glow above it
+              gives that texture a source. The dot field is masked to the same
+              top-right quadrant the glow already occupies and dissolves before
+              it reaches the headline, so it never competes with the text it
+              sits behind. Nothing here moves or reacts. */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[42rem] bg-dot-grid [mask-image:radial-gradient(60%_55%_at_75%_18%,black,transparent_75%)]" aria-hidden />
           <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[42rem] bg-[radial-gradient(circle_at_78%_16%,rgba(2,132,199,0.10),transparent_38%)] dark:bg-[radial-gradient(circle_at_78%_16%,rgba(56,189,248,0.11),transparent_38%)]" aria-hidden />
           <div className="container grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(26rem,1fr)] lg:gap-16">
             <div className="motion-safe:animate-fade-up">
@@ -140,7 +148,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <figure className="relative min-h-[29rem] overflow-hidden rounded-[1.75rem] border border-brand-blueBright/20 bg-brand-navy shadow-[0_28px_80px_-36px_rgba(2,132,199,0.45)] motion-safe:animate-scale-in sm:min-h-[35rem] lg:min-h-[39rem]">
+            <SpotlightCard className="relative min-h-[29rem] overflow-hidden rounded-[1.75rem] border border-brand-blueBright/20 bg-brand-navy shadow-[0_28px_80px_-36px_rgba(2,132,199,0.45)] motion-safe:animate-scale-in sm:min-h-[35rem] lg:min-h-[39rem]">
               <Image
                 src="/marketing/powder-marble.jpg"
                 alt=""
@@ -172,7 +180,7 @@ export default function LandingPage() {
                 </span>
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-brand-blueBright shadow-[0_0_0_5px_rgba(56,189,248,0.12)]" aria-hidden />
               </figcaption>
-            </figure>
+            </SpotlightCard>
           </div>
         </section>
 
@@ -223,11 +231,17 @@ export default function LandingPage() {
                 const Icon = OFFER_ICONS[index] ?? FlaskConical;
                 return (
                   <Reveal key={offer.title} delay={(index % 3) * 80} className="h-full">
-                    <article className="group h-full border-b border-border px-0 py-8 sm:px-6 lg:px-8">
-                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-brand-blue/25 bg-brand-blue/10 text-brand-molecular transition-colors group-hover:border-brand-molecular group-hover:bg-brand-molecular group-hover:text-white dark:border-brand-blueBright/25 dark:bg-brand-blueBright/10 dark:text-brand-blueBright dark:group-hover:border-brand-blueBright dark:group-hover:bg-brand-blueBright dark:group-hover:text-brand-navy">
+                    {/* Hover is a colour change and a 5% lift on the icon tile —
+                        no translate, no tilt, no 3D. The card is a bordered
+                        cell in a grid, and moving it would shear the rules it
+                        shares with its neighbours. The blue tint is a 3% wash
+                        (decoration, hence brand-blue); the title moves to
+                        brand-molecular, the accent that carries text. */}
+                    <article className="group h-full border-b border-border px-0 py-8 transition-colors duration-150 hover:border-brand-blue/40 hover:bg-brand-blue/[0.03] dark:hover:border-brand-blueBright/40 dark:hover:bg-brand-blueBright/[0.04] sm:px-6 lg:px-8">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-brand-blue/25 bg-brand-blue/10 text-brand-molecular transition-[background-color,border-color,color,transform] duration-150 group-hover:scale-105 group-hover:border-brand-molecular group-hover:bg-brand-molecular group-hover:text-white motion-reduce:transform-none dark:border-brand-blueBright/25 dark:bg-brand-blueBright/10 dark:text-brand-blueBright dark:group-hover:border-brand-blueBright dark:group-hover:bg-brand-blueBright dark:group-hover:text-brand-navy">
                         <Icon className="h-5 w-5" aria-hidden />
                       </span>
-                      <h3 className="mt-6 text-base font-semibold leading-snug text-foreground">{offer.title}</h3>
+                      <h3 className="mt-6 text-base font-semibold leading-snug text-foreground transition-colors duration-150 group-hover:text-brand-molecular dark:group-hover:text-brand-blueBright">{offer.title}</h3>
                       <p className="mt-3 max-w-sm text-sm leading-6 text-muted-foreground">{offer.desc}</p>
                     </article>
                   </Reveal>
@@ -322,6 +336,13 @@ export default function LandingPage() {
 
         <section className="relative overflow-hidden border-b border-brand-blueBright/20 bg-brand-navy px-4 py-20 text-white sm:py-24 lg:py-28">
           <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_100%_50%,rgba(2,132,199,0.42),transparent_65%)]" aria-hidden />
+          {/* The only continuous motion on the page: a pale diagonal strip
+              drifting across the navy every 9s. It sits on the band's own
+              layer, under the `relative` content, so it lights the surface
+              without washing the copy. `motion-reduce:animate-none` parks it —
+              at rest the strip is outside the visible window, so reduced-motion
+              visitors see plain navy rather than a frozen streak. */}
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,transparent_42%,rgba(186,230,253,0.10)_50%,transparent_58%)] bg-[length:250%_100%] animate-sheen motion-reduce:animate-none" aria-hidden />
           <Reveal className="container relative">
             <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
               <div>

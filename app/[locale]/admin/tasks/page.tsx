@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import {
   ListTodo,
   AlertTriangle,
@@ -136,6 +137,18 @@ export default function TasksPage() {
     taskService.getStatistics().then(setStats);
     companyService.list().then((cs) => setCompanies(new Map(cs.map((c) => [c.id, c]))));
   }, []);
+
+  // QuickCreate deep link (topbar "+" → Task): open the existing create
+  // dialog and strip the param, same gate as the page's own "New task".
+  const searchParams = useSearchParams();
+  React.useEffect(() => {
+    if (searchParams.get('new') !== '1' || !canEditTasks) return;
+    setCreateOpen(true);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('new');
+    const qs = params.toString();
+    router.replace(qs ? `/admin/tasks?${qs}` : '/admin/tasks');
+  }, [searchParams, canEditTasks, router]);
 
   const companyName = React.useCallback(
     (id?: string) => {
@@ -445,7 +458,7 @@ export default function TasksPage() {
           <span
             className={cn(
               'whitespace-nowrap text-sm',
-              overdue ? 'font-semibold text-danger' : 'text-muted-foreground',
+              overdue ? 'font-semibold text-danger-text' : 'text-muted-foreground',
             )}
           >
             {formatDate(t.dueDate, locale)}
@@ -508,7 +521,7 @@ export default function TasksPage() {
               ))}
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                className="text-danger focus:bg-danger/10 focus:text-danger [&_svg]:!text-danger"
+                className="text-danger-text focus:bg-danger/10 focus:text-danger-text [&_svg]:!text-danger-text"
                 onSelect={() => requestDelete(task)}
               >
                 <Trash2 />
@@ -550,7 +563,7 @@ export default function TasksPage() {
               <StatusBadge kind="taskType" value={task.type} />
               <PriorityBadge value={task.priority} />
               {task.dueDate ? (
-                <span className={cn('text-2xs', overdue ? 'font-semibold text-danger' : 'text-muted-foreground')}>
+                <span className={cn('text-2xs', overdue ? 'font-semibold text-danger-text' : 'text-muted-foreground')}>
                   {formatDate(task.dueDate, locale)}
                 </span>
               ) : null}
@@ -741,7 +754,7 @@ export default function TasksPage() {
                 </div>
                 {selectedTask.relatedType === 'email_message' ? (
                   <div className="flex items-start gap-2 rounded-lg border border-brand-gold/30 bg-brand-gold/5 p-3">
-                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-brand-gold" />
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-brand-navy dark:text-brand-blueBright" />
                     <div>
                       <p className="text-sm font-semibold text-foreground">{t('aiEmailSourceTitle')}</p>
                       <p className="text-xs text-muted-foreground">{t('aiEmailSourceDescription')}</p>
@@ -935,7 +948,7 @@ function TaskBoard({
                             ))}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              className="text-danger focus:bg-danger/10 focus:text-danger [&_svg]:!text-danger"
+                              className="text-danger-text focus:bg-danger/10 focus:text-danger-text [&_svg]:!text-danger-text"
                               onSelect={() => onDelete(task)}
                             >
                               <Trash2 />
@@ -952,7 +965,7 @@ function TaskBoard({
                         <span
                           className={cn(
                             'text-2xs',
-                            overdue ? 'font-semibold text-danger' : 'text-muted-foreground',
+                            overdue ? 'font-semibold text-danger-text' : 'text-muted-foreground',
                           )}
                         >
                           {formatDate(task.dueDate, locale)}

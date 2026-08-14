@@ -35,8 +35,8 @@ export function MfaEnrollmentNotice() {
   return (
     <div className="border-b border-warning/40 bg-warning-subtle px-4 py-2.5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-        <ShieldAlert className="h-4 w-4 shrink-0 text-warning-foreground" />
-        <span className="text-warning-foreground">
+        <ShieldAlert className="h-4 w-4 shrink-0 text-warning-text" />
+        <span className="text-warning-text">
           <strong>Two-factor authentication is required for your role</strong> and is not set up yet.
         </span>
         <Link

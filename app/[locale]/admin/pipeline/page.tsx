@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Target,
@@ -129,6 +130,19 @@ export default function PipelinePage() {
   React.useEffect(() => {
     load();
   }, [load]);
+
+  // QuickCreate deep link (topbar "+" → Opportunity): open the existing
+  // create dialog and strip the param, same gate as the page's own
+  // "Add opportunity".
+  const searchParams = useSearchParams();
+  React.useEffect(() => {
+    if (searchParams.get('new') !== '1' || !canCreate) return;
+    setCreateOpen(true);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('new');
+    const qs = params.toString();
+    router.replace(qs ? `/admin/pipeline?${qs}` : '/admin/pipeline');
+  }, [searchParams, canCreate, router]);
 
   const loading = opps === null;
   const list = opps ?? [];
@@ -447,7 +461,7 @@ function OpportunityCard({
               <DropdownMenuSeparator />
               {next && (
                 <DropdownMenuItem onClick={() => onMove(opp, next)}>
-                  <ChevronRight className="mr-2 h-4 w-4 text-success" />
+                  <ChevronRight className="mr-2 h-4 w-4 text-success-text" />
                   {getLabel('pipelineStage', next)}
                 </DropdownMenuItem>
               )}
@@ -474,7 +488,7 @@ function OpportunityCard({
       </p>
 
       <div className="mt-2 flex items-baseline justify-between gap-2">
-        <span className="text-sm font-bold tabular text-brand-goldDark">
+        <span className="text-sm font-bold tabular text-brand-navy dark:text-brand-blueBright">
           {formatCurrency(opp.expectedValue ?? 0, opp.currency, 'en', { compact: true })}
         </span>
         <span className="text-xs tabular text-muted-foreground">

@@ -10,8 +10,27 @@ import type { Address, Company, FirstContact } from "@/lib/types";
 const undef = <T,>(v: T | null): T | undefined => (v == null ? undefined : v);
 const asJson = (v: unknown): Prisma.InputJsonValue => v as Prisma.InputJsonValue;
 
-/** Prisma row -> Company DTO (the shape the UI consumes). */
-export function companyToDTO(c: PrismaCompany): Company {
+/**
+ * Logo bytes never cross this boundary — see `companyToDTO`. Typed as a row
+ * *without* logoUrl so a caller that forgets `omit: OMIT_LOGO` still compiles,
+ * while one that remembers it does too.
+ */
+type CompanyRow = Omit<PrismaCompany, "logoUrl">;
+
+/** `omit` clause for company reads: keeps the base64 logo out of the query. */
+export const OMIT_LOGO = { logoUrl: true } as const;
+
+/**
+ * Prisma row -> Company DTO (the shape the UI consumes).
+ *
+ * `logoUrl` is deliberately absent from the result. A logo is a ~10-50KB base64
+ * data URI; carrying one per row would dwarf everything else in a companies
+ * list payload. The DTO exposes `logoUpdatedAt` instead — enough for the UI to
+ * decide between <img src="/api/companies/[id]/logo"> and initials — and the
+ * API route streams the bytes with its own cache headers. Detail reads follow
+ * the same rule: one route serves the logo, for both shapes.
+ */
+export function companyToDTO(c: CompanyRow): Company {
   return {
     id: c.id,
     legalName: c.legalName,
@@ -24,7 +43,7 @@ export function companyToDTO(c: PrismaCompany): Company {
     linkedin: undef(c.linkedin),
     vatNumber: undef(c.vatNumber),
     registrationNumber: undef(c.registrationNumber),
-    logoUrl: undef(c.logoUrl),
+    logoUpdatedAt: c.logoUpdatedAt?.toISOString() ?? null,
     initials: c.initials,
     accentColor: undef(c.accentColor),
     headquarters: c.headquarters as unknown as Address,
@@ -72,7 +91,15 @@ export function companyToDTO(c: PrismaCompany): Company {
   };
 }
 
-/** Company DTO -> Prisma write payload (shared by create and update). */
+/**
+ * Company DTO -> Prisma write payload (shared by create and update).
+ *
+ * The three logo columns are absent on purpose. updateCompany() rebuilds its
+ * payload from `companyToDTO(existing)` merged with the caller's patch, and the
+ * DTO no longer carries the bytes — writing `logoUrl: input.logoUrl ?? null`
+ * here would wipe a company's logo on every unrelated edit. The logo columns
+ * are owned solely by lib/services/logo.actions.ts.
+ */
 export function companyWriteData(input: Company, actorId: string | null) {
   return {
     legalName: input.legalName,
@@ -85,7 +112,6 @@ export function companyWriteData(input: Company, actorId: string | null) {
     linkedin: input.linkedin ?? null,
     vatNumber: input.vatNumber ?? null,
     registrationNumber: input.registrationNumber ?? null,
-    logoUrl: input.logoUrl ?? null,
     initials: input.initials,
     accentColor: input.accentColor ?? null,
     headquarters: asJson(input.headquarters),

@@ -82,13 +82,16 @@ const DECISION_ROLES: DecisionRole[] = [
   'unknown',
 ];
 
+// Colors verified with scripts/check-contrast.mjs (see task-2-report.md) —
+// same fixes as badge.tsx's variants of the same names. info fixed in
+// fix round 1 (--info-text added).
 const AVATAR_TONES = [
   'bg-brand-navy/10 text-brand-navy',
-  'bg-brand-gold/15 text-brand-goldDark',
-  'bg-info-subtle text-info',
-  'bg-success-subtle text-success',
-  'bg-warning-subtle text-warning-foreground',
-  'bg-danger-subtle text-danger',
+  'bg-brand-gold/15 text-brand-navy dark:text-brand-blueBright',
+  'bg-info-subtle text-info-text',
+  'bg-success-subtle text-success-text',
+  'bg-warning-subtle text-warning-text',
+  'bg-danger-subtle text-danger-text',
 ];
 
 function avatarTone(seed: string): string {
@@ -144,32 +147,33 @@ function matchesFlag(c: Contact, flag: RoleFlag): boolean {
 function FlagChips({ c, className }: { c: Contact; className?: string }) {
   const t = useTranslations('AdminContacts');
   const chips: { key: string; label: string; tone: string; icon: React.ReactNode }[] = [];
+  // Tone colors verified with scripts/check-contrast.mjs (see task-2-report.md).
   if (c.isPrimary)
     chips.push({
       key: 'primary',
       label: t('rolePrimary'),
-      tone: 'bg-brand-gold/15 text-brand-goldDark',
+      tone: 'bg-brand-gold/15 text-brand-navy dark:text-brand-blueBright',
       icon: <Star className="h-3 w-3 fill-current" />,
     });
   if (c.isTechnical)
     chips.push({
       key: 'tech',
       label: t('roleTechnical'),
-      tone: 'bg-info-subtle text-info',
+      tone: 'bg-info-subtle text-info-text',
       icon: <FlaskConical className="h-3 w-3" />,
     });
   if (c.isCommercial)
     chips.push({
       key: 'comm',
       label: t('roleCommercial'),
-      tone: 'bg-success-subtle text-success',
+      tone: 'bg-success-subtle text-success-text',
       icon: <Briefcase className="h-3 w-3" />,
     });
   if (c.isLogistics)
     chips.push({
       key: 'logi',
       label: t('roleLogistics'),
-      tone: 'bg-warning-subtle text-warning-foreground',
+      tone: 'bg-warning-subtle text-warning-text',
       icon: <Truck className="h-3 w-3" />,
     });
   if (c.isFinance)
@@ -183,7 +187,7 @@ function FlagChips({ c, className }: { c: Contact; className?: string }) {
     chips.push({
       key: 'legal',
       label: t('roleLegal'),
-      tone: 'bg-danger-subtle text-danger',
+      tone: 'bg-danger-subtle text-danger-text',
       icon: <Scale className="h-3 w-3" />,
     });
 
@@ -431,7 +435,7 @@ export default function ContactsPage() {
         <Link
           href={`/admin/companies/${c.companyId}`}
           onClick={(e) => e.stopPropagation()}
-          className="inline-flex max-w-[180px] items-center gap-1.5 truncate font-medium text-brand-navy underline-offset-2 hover:underline dark:text-info"
+          className="inline-flex max-w-[180px] items-center gap-1.5 truncate font-medium text-brand-navy underline-offset-2 hover:underline dark:text-info-text"
         >
           <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           <span className="truncate">{companyName(c.companyId)}</span>
@@ -460,7 +464,7 @@ export default function ContactsPage() {
         <a
           href={`mailto:${c.email}`}
           onClick={(e) => e.stopPropagation()}
-          className="inline-flex max-w-[200px] items-center gap-1.5 truncate text-sm text-brand-navy underline-offset-2 hover:underline dark:text-info"
+          className="inline-flex max-w-[200px] items-center gap-1.5 truncate text-sm text-brand-navy underline-offset-2 hover:underline dark:text-info-text"
         >
           <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           <span className="truncate">{c.email}</span>
@@ -686,7 +690,7 @@ export default function ContactsPage() {
                 <DetailRow icon={Building2} label={t('detailCompany')}>
                   <Link
                     href={`/admin/companies/${active.companyId}`}
-                    className="font-medium text-brand-navy underline-offset-2 hover:underline dark:text-info"
+                    className="font-medium text-brand-navy underline-offset-2 hover:underline dark:text-info-text"
                   >
                     {companyName(active.companyId)}
                   </Link>
@@ -695,7 +699,7 @@ export default function ContactsPage() {
                 <DetailRow icon={Mail} label={t('detailEmail')}>
                   <a
                     href={`mailto:${active.email}`}
-                    className="break-all text-brand-navy underline-offset-2 hover:underline dark:text-info"
+                    className="break-all text-brand-navy underline-offset-2 hover:underline dark:text-info-text"
                   >
                     {active.email}
                   </a>
@@ -705,7 +709,7 @@ export default function ContactsPage() {
                   <DetailRow icon={Mail} label={t('detailSecondaryEmail')}>
                     <a
                       href={`mailto:${active.secondaryEmail}`}
-                      className="break-all text-brand-navy underline-offset-2 hover:underline dark:text-info"
+                      className="break-all text-brand-navy underline-offset-2 hover:underline dark:text-info-text"
                     >
                       {active.secondaryEmail}
                     </a>
@@ -746,7 +750,7 @@ export default function ContactsPage() {
                       href={active.linkedin}
                       target="_blank"
                       rel="noreferrer"
-                      className="break-all text-brand-navy underline-offset-2 hover:underline dark:text-info"
+                      className="break-all text-brand-navy underline-offset-2 hover:underline dark:text-info-text"
                     >
                       {t('viewProfile')}
                     </a>

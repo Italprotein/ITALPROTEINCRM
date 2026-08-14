@@ -12,6 +12,8 @@ export interface NavItem<S = InternalSection | PortalSection> {
   /** i18n key under the Nav / PortalNav namespace. */
   labelKey: string;
   icon: LucideIcon;
+  /** Optional module-identity color for the icon, inactive state only — active always keeps text-sidebar-accent. See sidebar.tsx. */
+  tint?: string;
 }
 
 export interface NavGroup {
@@ -22,58 +24,46 @@ export interface NavGroup {
 /** Internal CRM navigation, grouped. Filtered by `canView(role, section)`. */
 export const INTERNAL_NAV: NavGroup[] = [
   {
-    items: [{ section: 'overview', href: '/admin', labelKey: 'overview', icon: LayoutDashboard }],
-  },
-  {
-    labelKey: 'group_commercial',
+    labelKey: 'group_main',
     items: [
-      { section: 'companies', href: '/admin/companies', labelKey: 'companies', icon: Building2 },
-      { section: 'agencies', href: '/admin/agencies', labelKey: 'agencies', icon: Handshake },
+      { section: 'overview', href: '/admin', labelKey: 'overview', icon: LayoutDashboard },
+      { section: 'companies', href: '/admin/companies', labelKey: 'companies', icon: Building2, tint: 'text-brand-blueBright' },
       { section: 'contacts', href: '/admin/contacts', labelKey: 'contacts', icon: Users },
-      { section: 'pipeline', href: '/admin/pipeline', labelKey: 'pipeline', icon: Workflow },
+      { section: 'pipeline', href: '/admin/pipeline', labelKey: 'pipeline', icon: Workflow, tint: 'text-emerald-400' },
+      { section: 'tasks', href: '/admin/tasks', labelKey: 'tasks', icon: ListChecks },
+      { section: 'calendar', href: '/admin/calendar', labelKey: 'calendar', icon: Calendar },
     ],
   },
   {
     labelKey: 'group_operations',
     items: [
-      { section: 'samples', href: '/admin/samples', labelKey: 'samples', icon: FlaskConical },
-      { section: 'shipments', href: '/admin/shipments', labelKey: 'shipments', icon: Truck },
-    ],
-  },
-  {
-    labelKey: 'group_technical',
-    items: [
-      { section: 'feedback', href: '/admin/feedback', labelKey: 'feedback', icon: MessageSquareText },
+      { section: 'samples', href: '/admin/samples', labelKey: 'samples', icon: FlaskConical, tint: 'text-amber-400' },
+      { section: 'shipments', href: '/admin/shipments', labelKey: 'shipments', icon: Truck, tint: 'text-cyan-400' },
+      { section: 'ndas', href: '/admin/ndas', labelKey: 'ndas', icon: FileSignature, tint: 'text-violet-400' },
+      { section: 'feedback', href: '/admin/feedback', labelKey: 'feedback', icon: MessageSquareText, tint: 'text-purple-400' },
       { section: 'projects', href: '/admin/projects', labelKey: 'projects', icon: FolderKanban },
       { section: 'products', href: '/admin/products', labelKey: 'products', icon: Boxes },
-    ],
-  },
-  {
-    labelKey: 'group_legal_finance',
-    items: [
-      { section: 'ndas', href: '/admin/ndas', labelKey: 'ndas', icon: FileSignature },
       { section: 'finance', href: '/admin/finance', labelKey: 'finance', icon: Receipt },
     ],
   },
   {
-    labelKey: 'group_productivity',
+    labelKey: 'group_intelligence',
     items: [
-      { section: 'activities', href: '/admin/activities', labelKey: 'activities', icon: Activity },
-      { section: 'tasks', href: '/admin/tasks', labelKey: 'tasks', icon: ListChecks },
-      { section: 'calendar', href: '/admin/calendar', labelKey: 'calendar', icon: Calendar },
+      { section: 'analytics', href: '/admin/analytics', labelKey: 'analytics', icon: BarChart3 },
       { section: 'communications', href: '/admin/communications', labelKey: 'communications', icon: Mail },
+      { section: 'activities', href: '/admin/activities', labelKey: 'activities', icon: Activity },
     ],
   },
   {
-    labelKey: 'group_insights',
+    labelKey: 'group_partnerships',
     items: [
-      { section: 'analytics', href: '/admin/analytics', labelKey: 'analytics', icon: BarChart3 },
+      { section: 'agencies', href: '/admin/agencies', labelKey: 'agencies', icon: Handshake },
+      { section: 'registrations', href: '/admin/registrations', labelKey: 'registrations', icon: UserPlus },
     ],
   },
   {
     labelKey: 'group_admin',
     items: [
-      { section: 'registrations', href: '/admin/registrations', labelKey: 'registrations', icon: UserPlus },
       { section: 'users', href: '/admin/users', labelKey: 'users', icon: UserCog },
       { section: 'import_export', href: '/admin/import-export', labelKey: 'import_export', icon: FileSpreadsheet },
       { section: 'integrations', href: '/admin/integrations', labelKey: 'integrations', icon: Plug },

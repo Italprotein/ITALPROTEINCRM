@@ -105,7 +105,16 @@ function StarRating({ value, size = 'sm', t }: { value?: number; size?: 'sm' | '
           key={i}
           className={cn(
             dim,
-            i <= value ? 'fill-brand-gold text-brand-gold' : 'fill-transparent text-muted-foreground/40',
+            // The star's dominant visible color is `fill` (lucide renders
+            // stroke="currentColor" fill="none" by default, so fill- is a
+            // distinct property from text-/currentColor, not a duplicate of
+            // it). fill-brand-gold measured 2.14:1 on card (light) — below
+            // even the 3:1 UI bar (verified with scripts/check-contrast.mjs).
+            // navy/blueBright are the same swap used throughout for this
+            // failure; text- kept in sync so the thin stroke matches too.
+            i <= value
+              ? 'fill-brand-navy text-brand-navy dark:fill-brand-blueBright dark:text-brand-blueBright'
+              : 'fill-transparent text-muted-foreground/40',
           )}
         />
       ))}
@@ -793,7 +802,7 @@ function ReviewSheet({
                               className={cn(
                                 'rounded-full px-1.5 py-0.5 text-[10px] font-medium',
                                 c.visibility === 'client'
-                                  ? 'bg-info-subtle text-info'
+                                  ? 'bg-info-subtle text-info-text'
                                   : 'bg-muted text-muted-foreground',
                               )}
                             >

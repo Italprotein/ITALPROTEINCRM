@@ -125,7 +125,12 @@ export function ChartCard({
             <p className="text-sm text-muted-foreground">{emptyMessage}</p>
           </div>
         ) : (
-          <div style={{ width: '100%', height }}>{children}</div>
+          // minHeight, not height: `height` is the chart's drawing area, but a
+          // list-shaped chart (the funnel's six labelled rows) is taller than
+          // that and the card's overflow-hidden cropped its last row through
+          // the middle of the bar. Every Recharts child sets its own pixel
+          // height, so nothing else grows — the card just stops clipping.
+          <div style={{ width: '100%', minHeight: height }}>{children}</div>
         )}
       </CardContent>
     </Card>

@@ -132,7 +132,7 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
           <DropdownMenuItem onClick={() => resetLocalData()}><RotateCcw className="mr-2 h-4 w-4" /> {t('resetLocalData')}</DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => { signOut(); router.push(account.workspace === 'internal' ? '/team-login' : '/login'); }} className="text-danger focus:text-danger">
+        <DropdownMenuItem onClick={() => { signOut(); router.push(account.workspace === 'internal' ? '/team-login' : '/login'); }} className="text-danger-text focus:text-danger-text">
           <LogOut className="mr-2 h-4 w-4" /> {t('signOut')}
         </DropdownMenuItem>
       </DropdownMenuContent>

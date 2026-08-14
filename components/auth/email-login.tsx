@@ -217,7 +217,12 @@ export function EmailLogin({ workspace, ns, redirectTo, altHref, variant }: Emai
               </div>
             )}
             {state === 'success' && (
-              <p id={`${emailId}-status`} className="text-xs font-medium text-success" role="status">{t('successMessage')}</p>
+              /* text-success-text, not text-success: Task 2 retuned --success (34%->30%)
+                 to fix Button variant="success" white-chip contrast, which drops bare
+                 text-success on dark background/card below 4.5:1 (was 5.10/4.81, now
+                 4.10/3.87) — see task-2-report.md. text-success-text is unaffected by
+                 that retune and was verified on background/card in both themes. */
+              <p id={`${emailId}-status`} className="text-xs font-medium text-success-text" role="status">{t('successMessage')}</p>
             )}
           </div>
 

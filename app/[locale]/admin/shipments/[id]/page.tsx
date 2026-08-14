@@ -287,9 +287,9 @@ export default function ShipmentDetailPage() {
       {/* Delay alert banner */}
       {delayed ? (
         <div className="flex items-start gap-3 rounded-lg border border-danger/40 bg-danger-subtle/50 p-4">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger-text" />
           <div>
-            <p className="text-sm font-semibold text-danger">{t('delayBannerTitle')}</p>
+            <p className="text-sm font-semibold text-danger-text">{t('delayBannerTitle')}</p>
             <p className="text-sm text-muted-foreground">
               {shipment.deliveryIssue || t('delayBannerDescription')}
             </p>
@@ -320,9 +320,9 @@ export default function ShipmentDetailPage() {
                   <span
                     className={cn(
                       'flex h-10 w-10 items-center justify-center rounded-full border-2 transition-colors',
-                      done && 'border-success bg-success-subtle text-success',
+                      done && 'border-success bg-success-subtle text-success-text',
                       active && !delayed && 'border-brand-teal bg-brand-teal/10 text-brand-teal',
-                      active && delayed && 'border-danger bg-danger-subtle text-danger',
+                      active && delayed && 'border-danger bg-danger-subtle text-danger-text',
                       !done && !active && 'border-border bg-muted text-muted-foreground',
                     )}
                   >
@@ -348,7 +348,7 @@ export default function ShipmentDetailPage() {
             <Stat
               label={t('statDelivered')}
               value={formatDate(shipment.actualDelivery, locale)}
-              valueClass={shipment.actualDelivery ? 'text-success' : undefined}
+              valueClass={shipment.actualDelivery ? 'text-success-text' : undefined}
             />
             <Stat label={t('statSender')} value={shipment.senderLocation} />
           </div>

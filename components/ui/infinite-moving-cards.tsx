@@ -78,7 +78,12 @@ export function InfiniteMovingCards({
                       width={160}
                       height={64}
                       sizes="(max-width: 640px) 8rem, 10rem"
-                      className="max-h-10 w-auto max-w-full object-contain transition-transform duration-300 group-hover/logo:scale-[1.04] motion-reduce:transform-none sm:max-h-12"
+                      // Desaturated at rest so the wall of partner marks reads
+                      // as one calm band instead of a dozen competing brand
+                      // palettes; the hovered tile is the only one in colour.
+                      // Reduced motion gets full colour permanently rather than
+                      // a filter that animates on approach.
+                      className="max-h-10 w-auto max-w-full object-contain grayscale transition-[transform,filter] duration-300 group-hover/logo:scale-[1.04] group-hover/logo:grayscale-0 motion-reduce:grayscale-0 motion-reduce:transform-none sm:max-h-12"
                     />
                   ) : (
                     <span className="text-center text-sm font-semibold text-brand-navy">{item.name}</span>

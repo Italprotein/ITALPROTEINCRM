@@ -9,13 +9,20 @@ import { AnimatedCounter } from '@/components/shared/animated-counter';
 
 type StatTone = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'gold';
 
+// Tone colors verified with scripts/check-contrast.mjs (see task-2-report.md).
+// success/warning/danger use the *-text copy tokens (the plain success/danger
+// tokens are tuned for white-on-solid chips, not small text — see
+// app/globals.css); gold matches badge.tsx's gold variant fix (goldDark
+// wasn't dark enough at any alpha in either theme; navy/blueBright are the
+// existing brand hex values already used for this exact role elsewhere).
+// info fixed in fix round 1 (--info-text added).
 const toneMap: Record<StatTone, string> = {
   default: 'bg-brand-navy/5 text-brand-navy',
-  success: 'bg-success-subtle text-success',
-  warning: 'bg-warning-subtle text-warning-foreground',
-  danger: 'bg-danger-subtle text-danger',
-  info: 'bg-info-subtle text-info',
-  gold: 'bg-brand-gold/15 text-brand-goldDark',
+  success: 'bg-success-subtle text-success-text',
+  warning: 'bg-warning-subtle text-warning-text',
+  danger: 'bg-danger-subtle text-danger-text',
+  info: 'bg-info-subtle text-info-text',
+  gold: 'bg-brand-gold/15 text-brand-navy dark:text-brand-blueBright',
 };
 
 interface StatTrend {
@@ -91,8 +98,8 @@ export function StatCard({
             className={cn(
               'inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold tabular',
               trendUp
-                ? 'bg-success-subtle text-success'
-                : 'bg-danger-subtle text-danger',
+                ? 'bg-success-subtle text-success-text'
+                : 'bg-danger-subtle text-danger-text',
             )}
           >
             {trendUp ? (

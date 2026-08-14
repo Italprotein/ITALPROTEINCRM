@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import DottedMap from 'dotted-map';
 import { cn } from '@/lib/utils';
 
 export interface MapMarker {
@@ -18,23 +17,6 @@ interface MapProps {
   className?: string;
   label?: string;
   markersLabel?: string;
-}
-
-const MAP_WIDTH = 800;
-const MAP_HEIGHT = 400;
-
-function makeMap(color: string) {
-  const map = new DottedMap({
-    height: 100,
-    grid: 'diagonal',
-    projection: { name: 'equirectangular' },
-  });
-  return map.getSVG({
-    radius: 0.22,
-    color,
-    shape: 'circle',
-    backgroundColor: 'transparent',
-  });
 }
 
 function projectPoint(lat: number, lng: number) {
@@ -58,8 +40,6 @@ export default function WorldMap({
   markersLabel = `${markers.length} outreach locations`,
 }: MapProps) {
   const [activeMarker, setActiveMarker] = React.useState<number | null>(null);
-  const lightMap = React.useMemo(() => makeMap('#0A16282B'), []);
-  const darkMap = React.useMemo(() => makeMap('#D7E8F626'), []);
 
   return (
     <div className={cn('w-full font-sans', className)}>
@@ -74,25 +54,17 @@ export default function WorldMap({
           aria-hidden
         />
 
-        {/* Inline SVG data is generated locally; next/image cannot optimise it. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`data:image/svg+xml;utf8,${encodeURIComponent(lightMap)}`}
-          className="pointer-events-none h-full w-full select-none opacity-80 [mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)] dark:hidden"
-          alt=""
-          height={MAP_HEIGHT}
-          width={MAP_WIDTH}
-          draggable={false}
-        />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`data:image/svg+xml;utf8,${encodeURIComponent(darkMap)}`}
-          className="pointer-events-none hidden h-full w-full select-none opacity-80 [mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)] dark:block"
-          alt=""
-          height={MAP_HEIGHT}
-          width={MAP_WIDTH}
-          draggable={false}
-        />
+        {/* The dot field is a static asset (scripts/generate-world-dots.mjs),
+            not two inline SVG data URIs rebuilt on every request — see that
+            script for why. It is CSS-masked onto a plain background-color
+            div, so the theme switch is a `dark:` class instead of a second
+            multi-hundred-KB payload. */}
+        <div
+          className="pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)] [-webkit-mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)]"
+          aria-hidden
+        >
+          <div className="h-full w-full opacity-80 [mask-image:url('/marketing/world-dots.svg')] [mask-size:100%_100%] [mask-repeat:no-repeat] [-webkit-mask-image:url('/marketing/world-dots.svg')] [-webkit-mask-size:100%_100%] [-webkit-mask-repeat:no-repeat] bg-[hsl(var(--brand-navy)/0.17)] dark:bg-[rgb(215_232_246/0.15)]" />
+        </div>
 
         <div className="absolute inset-0" aria-label={markersLabel} role="group">
           {markers.map((marker, index) => {

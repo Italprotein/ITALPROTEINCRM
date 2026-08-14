@@ -154,7 +154,15 @@ export interface Company {
   linkedin?: string;
   vatNumber?: string;
   registrationNumber?: string;
+  /**
+   * Raw logo bytes as a data URI. Deliberately NOT populated by the api-mode
+   * mapper — a base64 blob per row would dominate the list payload — so treat
+   * it as write-side/mock-only. The UI reads `logoUpdatedAt` to know a logo
+   * exists and fetches the bytes from /api/companies/[id]/logo.
+   */
   logoUrl?: string;
+  /** When the stored logo last changed. Absent = no logo, render initials. */
+  logoUpdatedAt?: ISODate | null;
   /** Brand initials fallback when no logo. */
   initials: string;
   accentColor?: string;

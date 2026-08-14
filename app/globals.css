@@ -48,12 +48,33 @@
     --ring: 200 98% 39%;
 
     /* status palette */
-    --success: 160 72% 34%;
+    /* --success carries white --success-foreground as a solid fill (Button
+       variant="success", 5 call sites) — 34% lightness measured 3.78:1 for
+       that white text, below 4.5:1 in BOTH themes (--success is not
+       redefined in .dark, so this affected light and dark identically).
+       Darkened to 30% (hue/saturation unchanged) so the white-chip role
+       clears 4.5:1 (4.69:1 measured) — the same role --danger/--destructive
+       are already tuned for below. Text/copy usages of success no longer
+       read this token directly; they use --success-text instead. */
+    --success: 160 72% 30%;
     --success-foreground: 0 0% 100%;
     --success-subtle: 160 55% 94%;
+    /* Error-copy-style token for success, same reasoning as --danger-text:
+       --success itself is tuned for the white-chip role above and is too
+       light to read as small text on background/card/subtle (3.6-3.8:1).
+       Light: 6.6-6.9:1 on background/card, 6.3:1 on success-subtle. */
+    --success-text: 160 84% 22%;
     --warning: 38 92% 48%;
     --warning-foreground: 30 80% 14%;
     --warning-subtle: 42 96% 92%;
+    /* --warning itself is a vivid orange that only reaches ~2.1-2.3:1 on
+       light background/card/subtle — far short of 4.5:1 — and
+       --warning-foreground (dark brown, tuned to sit on --warning-subtle in
+       LIGHT mode) is never redefined in .dark, so it stays near-black on a
+       near-black --warning-subtle in dark mode (~1.2-1.4:1). Dedicated copy
+       token, tuned per-theme like --danger-text. Light: 5.3-5.8:1 on
+       background/card/subtle. Dark: 7.4-11.9:1. */
+    --warning-text: 30 90% 32%;
     --danger: 0 72% 50%;
     --danger-foreground: 0 0% 100%;
     --danger-subtle: 0 84% 96%;
@@ -68,6 +89,14 @@
     --info: 221 83% 53%;
     --info-foreground: 0 0% 100%;
     --info-subtle: 221 92% 96%;
+    /* Fix round 1 (info-as-copy): --info itself is never redefined in .dark,
+       so it stays at this same lightness on dark surfaces where it drops to
+       3.5-3.7:1 on background/card and 2.74:1 on info-subtle. In LIGHT mode
+       --info already passes as copy (5.0-5.2:1), so --info-text is IDENTICAL
+       to --info here — this token only changes what dark mode sees.
+       Light: 5.0:1 on background, 5.2:1 on card, 4.6:1 on info-subtle
+       (same numbers as --info, by construction). */
+    --info-text: 221 83% 53%;
 
     /* brand accent (re-themed gold → light blue) */
     --gold: 199 92% 60%;
@@ -113,11 +142,19 @@
     --input: 211 32% 23%;
     --ring: 199 92% 60%;
     --success-subtle: 160 40% 16%;
+    /* Dark: 10.0-10.6:1 on background/card, 6.9:1 on success-subtle. */
+    --success-text: 152 60% 60%;
     --warning-subtle: 38 50% 18%;
+    /* Dark: 11.2-11.9:1 on background/card, 7.4:1 on warning-subtle. */
+    --warning-text: 43 96% 60%;
     --danger-subtle: 0 50% 20%;
     /* 6.4:1 on --card, 5.0:1 on --danger-subtle. */
     --danger-text: 0 90% 70%;
     --info-subtle: 221 50% 20%;
+    /* Fix round 1: hue/sat kept at 217/91 per instruction; 68% cleared both
+       target surfaces with margin on first try (6.61:1 on --card, 5.18:1 on
+       --info-subtle, 7.01:1 on --background) so no step-up was needed. */
+    --info-text: 217 91% 68%;
     --gold: 199 92% 66%;
     --gold-foreground: 216 60% 10%;
   }
@@ -252,12 +289,53 @@
     background-color: hsl(var(--muted-foreground) / 0.7);
   }
 
+  /* Edge shadow that says "there is more table this way". Two cover gradients
+     scroll with the content and two shadows stay pinned to the box, so a
+     shadow only shows on a side that is actually scrolled away — and neither
+     shows when the table fits. Pure background painting: no scroll listeners,
+     no animation, nothing for reduced-motion to guard. Decoration only, so it
+     is drawn from --foreground at low alpha rather than a brand accent. */
+  .scroll-shadow-x {
+    background-image:
+      linear-gradient(to right, hsl(var(--background)) 40%, hsl(var(--background) / 0)),
+      linear-gradient(to left, hsl(var(--background)) 40%, hsl(var(--background) / 0)),
+      linear-gradient(to right, hsl(var(--foreground) / 0.12), hsl(var(--foreground) / 0)),
+      linear-gradient(to left, hsl(var(--foreground) / 0.12), hsl(var(--foreground) / 0));
+    background-position:
+      left center,
+      right center,
+      left center,
+      right center;
+    background-repeat: no-repeat;
+    background-size:
+      28px 100%,
+      28px 100%,
+      14px 100%,
+      14px 100%;
+    background-attachment: local, local, scroll, scroll;
+  }
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* Dot-grid texture for the landing hero. Sibling of `.bg-grid` above: that
+     one draws ruled lines for the auth surfaces, this one draws a sparse field
+     of dots for the hero backdrop. Both are pure background-image, so the layer
+     that carries them never moves and never paints on top of text — the caller
+     is expected to mask it (see the hero in `(public)/page.tsx`, which fades it
+     out toward the headline) and mark it `aria-hidden` / `pointer-events-none`.
+     Decoration only, hence brand-blue rather than brand-molecular. */
+  .bg-dot-grid {
+    background-image: radial-gradient(circle, hsl(var(--brand-blue) / 0.14) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .dark .bg-dot-grid {
+    background-image: radial-gradient(circle, hsl(var(--brand-blue-bright) / 0.12) 1px, transparent 1px);
   }
 
   /* Background grid texture for hero / auth surfaces */

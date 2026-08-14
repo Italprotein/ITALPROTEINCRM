@@ -137,8 +137,8 @@ export function MfaSetup() {
         <Card className="max-w-2xl border-warning/50 bg-warning-subtle">
           <CardContent className="space-y-3 p-5">
             <div className="flex items-center gap-2">
-              <KeyRound className="h-5 w-5 text-warning-foreground" />
-              <h2 className="font-semibold text-warning-foreground">Save your recovery codes now</h2>
+              <KeyRound className="h-5 w-5 text-warning-text" />
+              <h2 className="font-semibold text-warning-text">Save your recovery codes now</h2>
             </div>
             <p className="text-sm text-muted-foreground">
               Each code works once, and they are the only way back in if you lose your phone.
@@ -169,7 +169,7 @@ export function MfaSetup() {
               <span
                 className={
                   status.enrolled
-                    ? 'flex h-10 w-10 items-center justify-center rounded-lg bg-success-subtle text-success-foreground'
+                    ? 'flex h-10 w-10 items-center justify-center rounded-lg bg-success-subtle text-success-text'
                     : 'flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-muted-foreground'
                 }
               >
@@ -192,7 +192,7 @@ export function MfaSetup() {
           </div>
 
           {status.required && !status.enrolled && (
-            <p className="rounded-lg border border-warning/40 bg-warning-subtle p-3 text-sm text-warning-foreground">
+            <p className="rounded-lg border border-warning/40 bg-warning-subtle p-3 text-sm text-warning-text">
               Your role administers other accounts, so two-factor authentication is required.
               Please finish setup now.
             </p>
@@ -264,7 +264,7 @@ export function MfaSetup() {
               </dl>
 
               {status.backupCodesRemaining <= 2 && (
-                <p className="rounded-lg border border-warning/40 bg-warning-subtle p-3 text-sm text-warning-foreground">
+                <p className="rounded-lg border border-warning/40 bg-warning-subtle p-3 text-sm text-warning-text">
                   You are nearly out of recovery codes. Generate a new set below.
                 </p>
               )}
@@ -292,7 +292,7 @@ export function MfaSetup() {
                       size="sm"
                       onClick={turnOff}
                       disabled={busy}
-                      className="text-danger focus:text-danger"
+                      className="text-danger-text focus:text-danger-text"
                     >
                       Turn off
                     </Button>

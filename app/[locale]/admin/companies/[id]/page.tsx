@@ -73,6 +73,7 @@ import type {
 } from '@/lib/types';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
+import { CompanyLogo } from '@/components/shared/company-logo';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FadeIn } from '@/components/shared/motion';
 import { ChartCard, DonutChart, FunnelChartCard, CHART_COLORS } from '@/components/charts/chart-kit';
@@ -88,6 +89,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/use-toast';
 import { getLabel } from '@/lib/labels';
+import { pushRecent } from '@/lib/recent-records';
 import { cn, sleep } from '@/lib/utils';
 import {
   formatCurrency,
@@ -139,7 +141,9 @@ function Stars({ value, t }: { value?: number; t: T }) {
       {Array.from({ length: 5 }).map((_, i) => (
         <Star
           key={i}
-          className={cn('h-4 w-4', i < n ? 'fill-brand-gold text-brand-gold' : 'text-muted-foreground/40')}
+          // fill- (not text-) is the star's dominant color; fill-brand-gold measured 2.14:1 on
+          // card (light), below the 3:1 UI bar — navy/blueBright swap, see task-2-report.md.
+          className={cn('h-4 w-4', i < n ? 'fill-brand-navy text-brand-navy dark:fill-brand-blueBright dark:text-brand-blueBright' : 'text-muted-foreground/40')}
         />
       ))}
     </span>
@@ -241,6 +245,18 @@ export default function CompanyProfilePage() {
     void load();
   }, [load]);
 
+  // Record this visit for the global search palette's "Recent" section, once
+  // the company has actually loaded (guards the not-found / still-loading case).
+  React.useEffect(() => {
+    if (!company) return;
+    pushRecent({
+      type: 'company',
+      id,
+      label: company.tradingName || company.legalName,
+      href: '/admin/companies/' + id,
+    });
+  }, [id, company]);
+
   /* ── quick-action dialog state ── */
   type Action = 'activity' | 'task' | 'note' | 'sample' | 'contact' | null;
   const [action, setAction] = React.useState<Action>(null);
@@ -319,12 +335,7 @@ export default function CompanyProfilePage() {
             <div className="h-1.5 w-full" style={{ backgroundColor: company.accentColor ?? CHART_COLORS[0] }} />
             <CardContent className="flex flex-col gap-5 p-5 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex gap-4">
-                <span
-                  className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl text-xl font-bold text-white shadow-sm"
-                  style={{ backgroundColor: company.accentColor ?? CHART_COLORS[0] }}
-                >
-                  {company.initials}
-                </span>
+                <CompanyLogo company={company} size="xl" className="shadow-sm" />
                 <div className="min-w-0 space-y-2">
                   <div>
                     <h1 className="font-display text-2xl font-bold tracking-tight">{company.legalName}</h1>
@@ -354,7 +365,7 @@ export default function CompanyProfilePage() {
                         href={company.website}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 text-info hover:underline"
+                        className="inline-flex items-center gap-1.5 text-info-text hover:underline"
                       >
                         <Globe className="h-3.5 w-3.5" />
                         {t('website')}
@@ -614,7 +625,7 @@ export default function CompanyProfilePage() {
                         <div className="min-w-0">
                           <p className="flex items-center gap-1.5 font-medium">
                             {c.firstName} {c.lastName}
-                            {c.isPrimary && <Star className="h-3.5 w-3.5 fill-brand-gold text-brand-gold" />}
+                            {c.isPrimary && <Star className="h-3.5 w-3.5 fill-brand-navy text-brand-navy dark:fill-brand-blueBright dark:text-brand-blueBright" />}
                           </p>
                           {c.jobTitle && <p className="truncate text-sm text-muted-foreground">{c.jobTitle}</p>}
                         </div>
@@ -629,7 +640,7 @@ export default function CompanyProfilePage() {
                       </div>
                       <Separator />
                       <div className="space-y-1.5 text-sm">
-                        <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-info hover:underline">
+                        <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-info-text hover:underline">
                           <Mail className="h-3.5 w-3.5 shrink-0" />
                           <span className="truncate">{c.email}</span>
                         </a>
@@ -799,7 +810,7 @@ export default function CompanyProfilePage() {
           <TabsContent value="documents">
             <TabHeading title={t('tabDocuments')} count={data.documents.length} />
             {!ndaSigned && (
-              <div className="mb-4 flex items-center gap-2 rounded-md border border-warning/40 bg-warning-subtle/50 p-3 text-sm text-warning-foreground">
+              <div className="mb-4 flex items-center gap-2 rounded-md border border-warning/40 bg-warning-subtle/50 p-3 text-sm text-warning-text">
                 <Lock className="h-4 w-4 shrink-0" />
                 {t('postNdaLocked')}
               </div>
@@ -945,7 +956,7 @@ export default function CompanyProfilePage() {
                             <StatusBadge kind="taskStatus" value={task.status} />
                             <PriorityBadge value={task.priority} />
                             {task.dueDate && (
-                              <span className={cn('tabular', overdue ? 'font-medium text-danger' : 'text-muted-foreground')}>
+                              <span className={cn('tabular', overdue ? 'font-medium text-danger-text' : 'text-muted-foreground')}>
                                 {t('dueDate', { date: formatDate(task.dueDate) })}
                               </span>
                             )}

@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import { IBM_Plex_Sans_Condensed, Inter } from 'next/font/google';
 import { notFound } from 'next/navigation';
-import { NextIntlClientProvider } from 'next-intl';
-import { getMessages, setRequestLocale } from 'next-intl/server';
+import { setRequestLocale } from 'next-intl/server';
 import { MotionConfig } from 'framer-motion';
 import { routing, type Locale } from '@/lib/i18n/routing';
 import { SessionProvider } from '@/components/providers/session-provider';
@@ -51,7 +50,6 @@ export default async function LocaleLayout({
   if (!routing.locales.includes(locale as Locale)) notFound();
 
   setRequestLocale(locale);
-  const messages = await getMessages();
 
   return (
     <html lang={locale} className={`${inter.variable} ${plexDisplay.variable}`} suppressHydrationWarning>
@@ -63,16 +61,14 @@ export default async function LocaleLayout({
         <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="min-h-screen bg-background font-sans text-foreground">
-        <NextIntlClientProvider messages={messages}>
-          <SessionProvider>
-            {/* reducedMotion="user": every framer-motion animation in the app
-                collapses to a fade for people with OS-level reduced motion. */}
-            <MotionConfig reducedMotion="user">
-              <TooltipProvider delayDuration={150}>{children}</TooltipProvider>
-            </MotionConfig>
-            <Toaster />
-          </SessionProvider>
-        </NextIntlClientProvider>
+        <SessionProvider>
+          {/* reducedMotion="user": every framer-motion animation in the app
+              collapses to a fade for people with OS-level reduced motion. */}
+          <MotionConfig reducedMotion="user">
+            <TooltipProvider delayDuration={150}>{children}</TooltipProvider>
+          </MotionConfig>
+          <Toaster />
+        </SessionProvider>
       </body>
     </html>
   );

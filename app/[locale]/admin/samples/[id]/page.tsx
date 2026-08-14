@@ -496,7 +496,7 @@ export default function SampleDetailPage() {
                             href={shipment.trackingUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-info hover:underline"
+                            className="text-info-text hover:underline"
                           >
                             {shipment.trackingNumber}
                           </a>
@@ -557,8 +557,11 @@ export default function SampleDetailPage() {
                           <Star
                             key={i}
                             className={
+                              // fill- (not text-) is the star's dominant color; fill-brand-gold measured
+                              // 2.14:1 on card (light), below the 3:1 UI bar — same navy/blueBright swap
+                              // used throughout for this failure (see task-2-report.md).
                               i < (feedback.overallRating ?? 0)
-                                ? 'h-3.5 w-3.5 fill-brand-gold text-brand-gold'
+                                ? 'h-3.5 w-3.5 fill-brand-navy text-brand-navy dark:fill-brand-blueBright dark:text-brand-blueBright'
                                 : 'h-3.5 w-3.5 text-muted-foreground/40'
                             }
                           />

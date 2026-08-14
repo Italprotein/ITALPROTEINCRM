@@ -67,11 +67,15 @@ const config: Config = {
           DEFAULT: 'hsl(var(--success))',
           foreground: 'hsl(var(--success-foreground))',
           subtle: 'hsl(var(--success-subtle))',
+          // For success copy only — see the note in app/globals.css.
+          text: 'hsl(var(--success-text))',
         },
         warning: {
           DEFAULT: 'hsl(var(--warning))',
           foreground: 'hsl(var(--warning-foreground))',
           subtle: 'hsl(var(--warning-subtle))',
+          // For warning copy only — see the note in app/globals.css.
+          text: 'hsl(var(--warning-text))',
         },
         danger: {
           DEFAULT: 'hsl(var(--danger))',
@@ -84,6 +88,8 @@ const config: Config = {
           DEFAULT: 'hsl(var(--info))',
           foreground: 'hsl(var(--info-foreground))',
           subtle: 'hsl(var(--info-subtle))',
+          // For info copy only — see the note in app/globals.css.
+          text: 'hsl(var(--info-text))',
         },
         // ── sidebar (internal CRM navy chrome) ──
         sidebar: {
@@ -206,6 +212,13 @@ const config: Config = {
           '0%': { backgroundPosition: '-200% center' },
           '100%': { backgroundPosition: '200% center' },
         },
+        // A diagonal highlight strip drifting across a wide (250%) gradient.
+        // Both endpoints park the strip outside the visible window, so the
+        // loop's restart is invisible and no `alternate` direction is needed.
+        sheen: {
+          from: { backgroundPosition: '0% 0%' },
+          to: { backgroundPosition: '100% 0%' },
+        },
         // Track is rendered twice, so -50% lands exactly on the seam.
         marquee: {
           from: { transform: 'translateX(0)' },
@@ -226,6 +239,10 @@ const config: Config = {
         'spin-slow': 'spin-slow 28s linear infinite',
         'bounce-in': 'bounce-in 0.5s cubic-bezier(0.22,1,0.36,1) forwards',
         shimmer: 'shimmer 1.5s infinite',
+        // `linear`, not an ease: the strip is parked off-window at both
+        // endpoints and only crosses the viewport mid-cycle — exactly where an
+        // ease-in-out is fastest. Easing turned a 9s drift into a whoosh.
+        sheen: 'sheen 9s linear infinite',
         marquee: 'marquee 90s linear infinite',
       },
     },

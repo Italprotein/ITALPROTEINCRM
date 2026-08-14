@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Search, Building2, Handshake, Users, FileSignature, FlaskConical,
@@ -15,6 +16,8 @@ import type {
   Company, Contact, NDA, SampleRequest, Shipment, DocumentRecord, Task,
 } from '@/lib/types';
 import { getLabel } from '@/lib/labels';
+import { readRecents, type RecentRecord } from '@/lib/recent-records';
+import { CompanyLogo, type CompanyLogoSubject } from '@/components/shared/company-logo';
 import { cn } from '@/lib/utils';
 
 type ResultGroup =
@@ -27,6 +30,8 @@ interface SearchResult {
   label: string;
   detail: string;
   href: string;
+  /** Company rows show the company's logo in place of the generic group icon. */
+  company?: CompanyLogoSubject;
 }
 
 const GROUP_ICON: Record<ResultGroup, typeof Building2> = {
@@ -38,6 +43,29 @@ const GROUP_ICON: Record<ResultGroup, typeof Building2> = {
   Shipments: Truck,
   Documents: FileText,
   Tasks: ListChecks,
+};
+
+/** Nav namespace key for each group heading. Documents has no sidebar item, so it borrows Search.documents instead. */
+const GROUP_NAV_KEY: Partial<Record<ResultGroup, string>> = {
+  Companies: 'companies',
+  Agencies: 'agencies',
+  Contacts: 'contacts',
+  NDAs: 'ndas',
+  Samples: 'samples',
+  Shipments: 'shipments',
+  Tasks: 'tasks',
+};
+
+/** RecentRecord.type (singular, e.g. "company") → ResultGroup, for reusing GROUP_ICON on recents. */
+const RECENT_TYPE_GROUP: Record<string, ResultGroup> = {
+  company: 'Companies',
+  agency: 'Agencies',
+  contact: 'Contacts',
+  nda: 'NDAs',
+  sample: 'Samples',
+  shipment: 'Shipments',
+  document: 'Documents',
+  task: 'Tasks',
 };
 
 interface Dataset {
@@ -52,12 +80,25 @@ interface Dataset {
 }
 
 export function GlobalSearch() {
+  const t = useTranslations('Search');
+  const tNav = useTranslations('Nav');
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const [data, setData] = React.useState<Dataset | null>(null);
+  const [recents, setRecents] = React.useState<RecentRecord[]>([]);
   const [active, setActive] = React.useState(0);
   const inputRef = React.useRef<HTMLInputElement>(null);
+
+  function groupLabel(group: ResultGroup): string {
+    const navKey = GROUP_NAV_KEY[group];
+    return navKey ? tNav(navKey) : t('documents');
+  }
+
+  function recentIcon(type: string) {
+    const group = RECENT_TYPE_GROUP[type];
+    return group ? GROUP_ICON[group] : Building2;
+  }
 
   // Cmd/Ctrl+K to open, '/' shortcut too.
   React.useEffect(() => {
@@ -83,8 +124,15 @@ export function GlobalSearch() {
   }, [open, data]);
 
   React.useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 40);
-    else { setQuery(''); setActive(0); }
+    if (open) {
+      // Refreshed on every open so a record visited elsewhere in the same
+      // session (e.g. a company detail page) shows up immediately.
+      setRecents(readRecents());
+      setTimeout(() => inputRef.current?.focus(), 40);
+    } else {
+      setQuery('');
+      setActive(0);
+    }
   }, [open]);
 
   const results = React.useMemo<SearchResult[]>(() => {
@@ -101,7 +149,7 @@ export function GlobalSearch() {
 
     for (const c of data.companies) {
       if (match(c.legalName, c.tradingName, c.country, c.city, ...(c.tags ?? [])))
-        out.push({ group: 'Companies', id: c.id, label: c.tradingName || c.legalName, detail: `${c.country} · ${getLabel('companyType', c.type)}`, href: `/admin/companies/${c.id}` });
+        out.push({ group: 'Companies', id: c.id, label: c.tradingName || c.legalName, detail: `${c.country} · ${getLabel('companyType', c.type)}`, href: `/admin/companies/${c.id}`, company: c });
     }
     for (const a of data.agencies) {
       if (match(a.legalName, a.tradingName, a.territory, a.country))
@@ -136,7 +184,7 @@ export function GlobalSearch() {
 
   React.useEffect(() => { setActive(0); }, [query]);
 
-  function go(r: SearchResult) {
+  function go(r: { href: string }) {
     setOpen(false);
     router.push(r.href);
   }
@@ -168,10 +216,10 @@ export function GlobalSearch() {
         // min-w-0: without it the flex item refuses to shrink below its label,
         // which pushed the whole topbar 269px past a phone viewport.
         className="group flex h-9 min-w-0 max-w-md flex-1 items-center gap-2 rounded-lg border bg-muted/40 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted"
-        aria-label="Open search"
+        aria-label={t('openSearch')}
       >
         <Search className="h-4 w-4 shrink-0" />
-        <span className="truncate">Search companies, samples, NDAs, tracking…</span>
+        <span className="truncate">{t('trigger')}</span>
         <span className="ml-auto hidden items-center gap-1 sm:flex">
           <kbd className="kbd">⌘</kbd><kbd className="kbd">K</kbd>
         </span>
@@ -185,7 +233,7 @@ export function GlobalSearch() {
           >
             <div className="absolute inset-0 bg-brand-navy/50 backdrop-blur-sm" onClick={() => setOpen(false)} />
             <motion.div
-              role="dialog" aria-modal="true" aria-label="Global search"
+              role="dialog" aria-modal="true" aria-label={t('placeholder')}
               className="relative w-full max-w-xl overflow-hidden rounded-xl border bg-popover shadow-2xl"
               initial={{ opacity: 0, scale: 0.97, y: -8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -199,10 +247,10 @@ export function GlobalSearch() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={onKeyDown}
-                  placeholder="Search everything…"
+                  placeholder={t('placeholder')}
                   className="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                 />
-                <button onClick={() => setOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-accent" aria-label="Close">
+                <button onClick={() => setOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-accent" aria-label={t('close')}>
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -213,17 +261,38 @@ export function GlobalSearch() {
                     {Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-9 w-full" />)}
                   </div>
                 ) : !query.trim() ? (
-                  <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-                    Search across companies, agencies, contacts, NDAs, samples, shipments, documents and tasks.
-                  </p>
+                  recents.length > 0 ? (
+                    <div className="mb-1">
+                      <p className="px-2 py-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{t('recent')}</p>
+                      {recents.map((r) => {
+                        const Icon = recentIcon(r.type);
+                        return (
+                          <button
+                            key={r.href}
+                            onClick={() => go(r)}
+                            className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-accent/60"
+                          >
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                              <Icon className="h-4 w-4" />
+                            </span>
+                            <span className="min-w-0 flex-1 truncate font-medium text-foreground">{r.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="px-3 py-8 text-center text-sm text-muted-foreground">
+                      {t('hint')}
+                    </p>
+                  )
                 ) : results.length === 0 ? (
-                  <p className="px-3 py-8 text-center text-sm text-muted-foreground">No results for “{query}”.</p>
+                  <p className="px-3 py-8 text-center text-sm text-muted-foreground">{t('empty', { query })}</p>
                 ) : (
                   grouped.map(([group, items]) => {
                     const Icon = GROUP_ICON[group];
                     return (
                       <div key={group} className="mb-1">
-                        <p className="px-2 py-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{group}</p>
+                        <p className="px-2 py-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{groupLabel(group)}</p>
                         {items.map((r) => {
                           flatIndex++;
                           const isActive = flatIndex === active;
@@ -238,9 +307,13 @@ export function GlobalSearch() {
                                 isActive ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/60',
                               )}
                             >
-                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                                <Icon className="h-4 w-4" />
-                              </span>
+                              {r.company ? (
+                                <CompanyLogo company={r.company} size="sm" />
+                              ) : (
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                                  <Icon className="h-4 w-4" />
+                                </span>
+                              )}
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate font-medium text-foreground">{r.label}</span>
                                 <span className="block truncate text-xs text-muted-foreground">{r.detail}</span>
@@ -256,9 +329,9 @@ export function GlobalSearch() {
               </div>
 
               <div className="flex items-center gap-3 border-t px-3 py-2 text-2xs text-muted-foreground">
-                <span className="flex items-center gap-1"><ArrowUp className="h-3 w-3" /><ArrowDown className="h-3 w-3" /> navigate</span>
-                <span className="flex items-center gap-1"><CornerDownLeft className="h-3 w-3" /> open</span>
-                <span className="ml-auto flex items-center gap-1"><kbd className="kbd">esc</kbd> close</span>
+                <span className="flex items-center gap-1"><ArrowUp className="h-3 w-3" /><ArrowDown className="h-3 w-3" /> {t('navigate')}</span>
+                <span className="flex items-center gap-1"><CornerDownLeft className="h-3 w-3" /> {t('open')}</span>
+                <span className="ml-auto flex items-center gap-1"><kbd className="kbd">esc</kbd> {t('close')}</span>
               </div>
             </motion.div>
           </motion.div>

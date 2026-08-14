@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import {
   Building2,
   Activity as ActivityIcon,
@@ -19,12 +20,17 @@ import {
   Tag as TagIcon,
   Globe,
   X,
+  ImageDown,
+  Loader2,
 } from 'lucide-react';
 
 import { companyService } from '@/lib/mock-services';
+import { importMissingLogos } from '@/lib/services/logo.actions';
+import { isApiMode } from '@/lib/data-mode';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { useSession } from '@/components/providers/session-provider';
 import { can } from '@/lib/permissions';
+import { COMPANY_VIEWS, DEFAULT_COMPANY_VIEW, type CompanyViewContext } from '@/lib/company-views';
 import type { Company, CompanyType, RelationshipStage, Priority, Locale } from '@/lib/types';
 import { COMPANY_TYPES } from '@/lib/types';
 import { getLabel, COMPANY_TYPE_OPTIONS } from '@/lib/labels';
@@ -34,7 +40,7 @@ import { useRouter } from '@/lib/i18n/navigation';
 
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
-import { CHART_COLORS } from '@/lib/chart-colors';
+import { CompanyLogo } from '@/components/shared/company-logo';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { InlineSelect } from '@/components/crm/inline-select';
 
@@ -82,14 +88,19 @@ const PRIORITIES: Priority[] = ['low', 'medium', 'high', 'urgent'];
 
 const ALL = '__all__';
 
+/** Remembers the chosen saved view across visits, per browser. */
+const VIEW_KEY = 'ui:companies-view';
+
 /* ────────────────────────────── Page ────────────────────────────── */
 
 export default function CompaniesPage() {
   const locale = useLocale() as Locale;
   const router = useRouter();
   const t = useTranslations('AdminCompanies');
+  const tViews = useTranslations('CompanyViews');
+  const tLogos = useTranslations('CompanyLogos');
   const { nameOf, staff } = useStaffDirectory();
-  const { session } = useSession();
+  const { session, account } = useSession();
   const role = session?.role;
   const canCreateCompany = !!role && can(role, 'company.create');
 
@@ -98,8 +109,13 @@ export default function CompaniesPage() {
 
   const [rows, setRows] = React.useState<Company[] | null>(null);
   const [stats, setStats] = React.useState<Awaited<ReturnType<typeof companyService.getStatistics>> | null>(null);
+  // "Now" for the date-based saved views, pinned to the moment the data loaded
+  // so the counts in the dropdown and the rows in the table are computed
+  // against the same instant instead of drifting apart mid-session.
+  const [loadedAt, setLoadedAt] = React.useState<Date>(() => new Date());
 
-  // toolbar filters
+  // saved view (see lib/company-views.ts) + toolbar filters
+  const [viewKey, setViewKey] = React.useState<string>(DEFAULT_COMPANY_VIEW);
   const [fType, setFType] = React.useState<string>(ALL);
   const [fCountry, setFCountry] = React.useState<string>(ALL);
   const [fStage, setFStage] = React.useState<string>(ALL);
@@ -107,15 +123,53 @@ export default function CompaniesPage() {
 
   // create dialog
   const [createOpen, setCreateOpen] = React.useState(false);
+  const [importingLogos, setImportingLogos] = React.useState(false);
 
   // row dialogs
   const [noteFor, setNoteFor] = React.useState<Company | null>(null);
   const [taskFor, setTaskFor] = React.useState<Company | null>(null);
 
   React.useEffect(() => {
-    companyService.list().then(setRows);
+    companyService.list().then((data) => {
+      setRows(data);
+      setLoadedAt(new Date());
+    });
     companyService.getStatistics().then(setStats);
   }, []);
+
+  // Restore the last saved view. Read in an effect rather than in useState's
+  // initialiser so the server and first client render agree (same pattern as
+  // the sidebar's collapse state in app-shell.tsx). An unknown or removed key
+  // silently falls back to "all" rather than showing an empty table.
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem(VIEW_KEY);
+      if (stored && COMPANY_VIEWS.some((v) => v.key === stored)) setViewKey(stored);
+    } catch {
+      /* private mode / disabled storage — the default view is fine */
+    }
+  }, []);
+
+  function selectView(next: string) {
+    setViewKey(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      /* non-fatal: the view still applies for this visit */
+    }
+  }
+
+  // QuickCreate deep link (topbar "+" → Company): open the existing create
+  // dialog and strip the param, same gate as the page's own "Add company".
+  const searchParams = useSearchParams();
+  React.useEffect(() => {
+    if (searchParams.get('new') !== '1' || !canCreateCompany) return;
+    setCreateOpen(true);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('new');
+    const qs = params.toString();
+    router.replace(qs ? `/admin/companies?${qs}` : '/admin/companies');
+  }, [searchParams, canCreateCompany, router]);
 
   /* ── derived filter option lists ── */
   const countryOptions = React.useMemo(() => {
@@ -129,15 +183,35 @@ export default function CompaniesPage() {
     return COMPANY_TYPES.filter((t) => present.has(t));
   }, [rows]);
 
+  /* ── saved views ── */
+  const viewCtx = React.useMemo<CompanyViewContext>(
+    () => ({ accountId: account?.id ?? null, now: loadedAt }),
+    [account?.id, loadedAt],
+  );
+
+  // One pass over the data per view, recomputed only when the data or context
+  // changes — the dropdown shows a live count next to every view.
+  const viewCounts = React.useMemo(() => {
+    const data = rows ?? [];
+    const counts: Record<string, number> = {};
+    for (const v of COMPANY_VIEWS) counts[v.key] = data.filter((c) => v.predicate(c, viewCtx)).length;
+    return counts;
+  }, [rows, viewCtx]);
+
+  const activeView = COMPANY_VIEWS.find((v) => v.key === viewKey) ?? COMPANY_VIEWS[0];
+
   /* ── client-side filtered data ── */
+  // View AND the four Selects AND the DataTable's own free-text search — every
+  // narrowing composes, none replaces another.
   const filtered = React.useMemo(() => {
     let data = rows ?? [];
+    if (activeView.key !== DEFAULT_COMPANY_VIEW) data = data.filter((c) => activeView.predicate(c, viewCtx));
     if (fType !== ALL) data = data.filter((c) => c.type === fType);
     if (fCountry !== ALL) data = data.filter((c) => c.country === fCountry);
     if (fStage !== ALL) data = data.filter((c) => c.relationshipStage === fStage);
     if (fPriority !== ALL) data = data.filter((c) => c.priority === fPriority);
     return data;
-  }, [rows, fType, fCountry, fStage, fPriority]);
+  }, [rows, activeView, viewCtx, fType, fCountry, fStage, fPriority]);
 
   const activeFilterCount =
     (fType !== ALL ? 1 : 0) + (fCountry !== ALL ? 1 : 0) + (fStage !== ALL ? 1 : 0) + (fPriority !== ALL ? 1 : 0);
@@ -148,6 +222,38 @@ export default function CompaniesPage() {
     setFStage(ALL);
     setFPriority(ALL);
   };
+
+  /**
+   * Pulls a favicon-derived logo for every company that has a website and no
+   * logo yet. Reloads the list afterwards so the new logos appear without a
+   * page refresh; the run itself is server-side and idempotent.
+   *
+   * The server stops at a 60s budget, so a large backlog comes back with
+   * `remaining` > 0. That is unfinished, not failed — say so, and say that
+   * running it again picks up where this one stopped.
+   */
+  async function runLogoImport() {
+    if (importingLogos) return;
+    setImportingLogos(true);
+    try {
+      const result = await importMissingLogos();
+      setRows(await companyService.list());
+      toast({
+        variant: 'success',
+        title: result.remaining > 0 ? tLogos('partialTitle') : tLogos('resultTitle'),
+        description:
+          result.remaining > 0 ? tLogos('resultPartial', result) : tLogos('result', result),
+      });
+    } catch {
+      toast({
+        variant: 'danger',
+        title: tLogos('failedTitle'),
+        description: tLogos('failedDescription'),
+      });
+    } finally {
+      setImportingLogos(false);
+    }
+  }
 
   /* ── mutations (mock) ── */
   function handleCreate(c: Company) {
@@ -232,12 +338,7 @@ export default function CompaniesPage() {
       sortValue: (c) => c.tradingName || c.legalName,
       cell: (c) => (
         <div className="flex items-center gap-3">
-          <span
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
-            style={{ backgroundColor: c.accentColor || CHART_COLORS[0] }}
-          >
-            {c.initials || initials(c.legalName)}
-          </span>
+          <CompanyLogo company={c} size="md" />
           <div className="min-w-0">
             <p className="truncate font-medium text-foreground">{c.tradingName || c.legalName}</p>
             <p className="truncate text-xs text-muted-foreground">
@@ -263,6 +364,11 @@ export default function CompaniesPage() {
         />
       ),
       hideable: true,
+      // Off by default: the eight "always on" columns added up to 1452px and
+      // sliced the right-hand cells mid-word at 1440. Type is the widest of the
+      // optional ones and is already reachable from the Type filter above the
+      // table; turn it back on from Columns and the choice is remembered.
+      defaultHidden: true,
     },
     {
       key: 'country',
@@ -288,6 +394,9 @@ export default function CompaniesPage() {
           <span className="text-sm text-muted-foreground">—</span>
         ),
       hideable: true,
+      // Also off by default — the named contact belongs to the company record,
+      // and the row already opens it in one click. Available under Columns.
+      defaultHidden: true,
     },
     {
       key: 'owner',
@@ -303,17 +412,24 @@ export default function CompaniesPage() {
           render={(id) => {
             const name = nameOf(id, 'Unassigned');
             return (
-              <span className="flex items-center gap-2 whitespace-nowrap">
+              <span className="flex min-w-0 items-center gap-2">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-navy/10 text-2xs font-semibold text-brand-navy">
                   {initials(name)}
                 </span>
-                <span className="text-sm">{name}</span>
+                {/* truncate on the text itself, not on the flex row: a flex
+                    child gets sliced with no ellipsis when its parent clips,
+                    which is how "Ludwig van Becker" rendered as "…van Becke". */}
+                <span className="truncate text-sm">{name}</span>
               </span>
             );
           }}
         />
       ),
       hideable: true,
+      // Enough room for a full first + last name, so the common case never
+      // reaches the ellipsis above.
+      className: 'min-w-[13.5rem]',
+      headClassName: 'min-w-[13.5rem]',
     },
     {
       key: 'stage',
@@ -408,6 +524,27 @@ export default function CompaniesPage() {
   /* ── toolbar (filters) ── */
   const toolbar = (
     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      {/* Saved view comes first: it is the coarsest cut, and the four Selects
+          beside it narrow whatever it returns. */}
+      <Select value={viewKey} onValueChange={selectView}>
+        <SelectTrigger className="h-9 w-full sm:w-[220px]" aria-label={tViews('label')}>
+          <SelectValue placeholder={tViews('label')} />
+        </SelectTrigger>
+        <SelectContent>
+          {COMPANY_VIEWS.map((v) => (
+            <SelectItem key={v.key} value={v.key}>
+              {/* Label + live count. SelectItem wraps its children in Radix's
+                  ItemText, so this markup is also what the closed trigger
+                  shows — deliberately: the count belongs on screen either way. */}
+              <span className="flex items-center gap-2">
+                <span>{tViews(v.labelKey)}</span>
+                <span className="tabular text-xs text-muted-foreground">{viewCounts[v.key] ?? 0}</span>
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
       <Select value={fType} onValueChange={setFType}>
         <SelectTrigger className="h-9 w-full sm:w-[150px]">
           <SelectValue placeholder={t('colType')} />
@@ -585,7 +722,7 @@ export default function CompaniesPage() {
           {canEditCompany && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-danger focus:text-danger" onSelect={() => void handleDelete(c)}>
+              <DropdownMenuItem className="text-danger-text focus:text-danger-text" onSelect={() => void handleDelete(c)}>
                 <Trash2 />
                 {t('delete')}
               </DropdownMenuItem>
@@ -601,12 +738,7 @@ export default function CompaniesPage() {
     return (
       <Card className="p-3">
         <div className="flex items-start gap-3">
-          <span
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
-            style={{ backgroundColor: c.accentColor || CHART_COLORS[0] }}
-          >
-            {c.initials || initials(c.legalName)}
-          </span>
+          <CompanyLogo company={c} size="md" />
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium text-foreground">{c.tradingName || c.legalName}</p>
             <p className="truncate text-xs text-muted-foreground">
@@ -641,14 +773,46 @@ export default function CompaniesPage() {
         title={t('pageTitle')}
         subtitle={t('pageSubtitle')}
         actions={
-          canCreateCompany ? (
-            <Button variant="gold" onClick={() => setCreateOpen(true)}>
-              <Plus />
-              {t('addCompany')}
-            </Button>
+          canCreateCompany || canEditCompany ? (
+            <>
+              {/* Bulk logo import is a real network job against the favicon
+                  providers, so it exists only where there is a database to
+                  write to — hidden entirely in mock mode. Gated on the same
+                  `company.edit` the server action requires, so the button is
+                  never offered to someone the server would refuse. */}
+              {isApiMode && canEditCompany ? (
+                <Button variant="outline" onClick={runLogoImport} disabled={importingLogos}>
+                  {importingLogos ? <Loader2 className="motion-safe:animate-spin" /> : <ImageDown />}
+                  {importingLogos ? tLogos('importing') : tLogos('import')}
+                </Button>
+              ) : null}
+              {canCreateCompany ? (
+                <Button variant="gold" onClick={() => setCreateOpen(true)}>
+                  <Plus />
+                  {t('addCompany')}
+                </Button>
+              ) : null}
+            </>
           ) : undefined
         }
       />
+
+      {/* Zoho's "obvious state" rule: a view that hides rows must say so in
+          words, right under the title, or the next person assumes the missing
+          companies were deleted. Only shown when a view is actually filtering. */}
+      {activeView.key !== DEFAULT_COMPANY_VIEW ? (
+        <div className="flex shrink-0 flex-wrap items-center gap-2 text-sm motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-[400ms]">
+          {/* brand-molecular in light, brand-blueBright in dark: brand-blue is
+              3.95:1 and may not carry text. */}
+          <span className="font-medium text-brand-molecular dark:text-brand-blueBright">
+            {tViews('active', { view: tViews(activeView.labelKey), count: filtered.length })}
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => selectView(DEFAULT_COMPANY_VIEW)}>
+            <X />
+            {tViews('all')}
+          </Button>
+        </div>
+      ) : null}
 
       {/* Book-of-business summary as one slim strip: the table below stays the
           work surface at full height, and nothing lands under the floating
@@ -657,10 +821,10 @@ export default function CompaniesPage() {
         {(
           [
             { icon: Building2, value: stats?.total, label: t('statTotalCompanies'), cls: 'text-brand-goldDark' },
-            { icon: ActivityIcon, value: stats?.active, label: t('statActive'), cls: 'text-info' },
-            { icon: CheckCircle2, value: stats?.customers, label: t('statCustomers'), cls: 'text-success' },
-            { icon: FileSignature, value: stats?.ndaSigned, label: t('statNdasSigned'), cls: 'text-success' },
-            { icon: Flame, value: stats?.highPriority, label: t('statHighPriority'), cls: 'text-warning-foreground' },
+            { icon: ActivityIcon, value: stats?.active, label: t('statActive'), cls: 'text-info-text' },
+            { icon: CheckCircle2, value: stats?.customers, label: t('statCustomers'), cls: 'text-success-text' },
+            { icon: FileSignature, value: stats?.ndaSigned, label: t('statNdasSigned'), cls: 'text-success-text' },
+            { icon: Flame, value: stats?.highPriority, label: t('statHighPriority'), cls: 'text-warning-text' },
           ] as const
         ).map((chip) => (
           <span key={chip.label} className="flex items-center gap-1.5 text-sm">
