@@ -18,6 +18,7 @@
  * propagate into a create or block a page.
  */
 import { prisma } from "@/lib/backend/prisma";
+import { LOGO_IMPORT_CANDIDATE_WHERE, isAllowedLogoContentType } from "@/lib/company-logo";
 
 export type LogoFetchOutcome = "updated" | "skipped" | "failed";
 
@@ -70,8 +71,12 @@ async function tryProvider(url: string): Promise<string | null> {
   try {
     const response = await fetch(url, { signal: controller.signal, redirect: "follow" });
     if (response.status !== 200) return null;
-    const contentType = (response.headers.get("content-type") ?? "").split(";")[0].trim();
-    if (!contentType.startsWith("image/")) return null;
+    const header = response.headers.get("content-type");
+    // Exactly the set the API route can serve — one shared allowlist, so we can
+    // never store something that renders as a 404 on every list row. Notably
+    // excludes SVG, which is a scriptable document, not a picture.
+    if (!isAllowedLogoContentType(header)) return null;
+    const contentType = header!.split(";")[0].trim().toLowerCase();
     const bytes = Buffer.from(await response.arrayBuffer());
     if (bytes.byteLength <= MIN_BYTES || bytes.byteLength > MAX_BYTES) return null;
     return `data:${contentType};base64,${bytes.toString("base64")}`;
@@ -134,7 +139,7 @@ export async function importMissingCompanyLogos(): Promise<{
   failed: number;
 }> {
   const candidates = await prisma.company.findMany({
-    where: { website: { not: null }, logoVerified: false, logoUrl: null },
+    where: LOGO_IMPORT_CANDIDATE_WHERE,
     select: { id: true },
   });
 

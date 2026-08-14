@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/backend/prisma";
 import { requireInternal } from "@/lib/backend/session";
+import { parseLogoDataUri } from "@/lib/company-logo";
 
 /**
  * Serves a company's stored logo as image bytes.
@@ -24,23 +25,27 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     where: { id },
     select: { logoUrl: true, logoUpdatedAt: true },
   });
-  if (!company?.logoUrl?.startsWith("data:image/")) {
-    return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
-  }
 
-  // Favicon providers return more formats than a user avatar upload ever does —
-  // .ico and .svg both turn up in practice, so both are allowed through.
-  const match = company.logoUrl.match(
-    /^data:(image\/(?:jpeg|png|webp|x-icon|vnd\.microsoft\.icon|svg\+xml));base64,(.+)$/s,
-  );
-  if (!match) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  // One shared allowlist with the writer (lib/company-logo.ts): if the stored
+  // bytes are malformed or of a type we do not serve, this is a 404, exactly as
+  // if there were no logo — the UI falls back to initials either way.
+  const logo = parseLogoDataUri(company?.logoUrl);
+  if (!logo) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
-  return new NextResponse(Buffer.from(match[2], "base64"), {
+  return new NextResponse(Buffer.from(logo.base64, "base64"), {
     headers: {
-      "content-type": match[1],
+      "content-type": logo.contentType,
       // Private: it is behind a session, so no shared cache may keep it.
       "cache-control": "private, max-age=3600",
-      etag: `"${company.logoUpdatedAt?.getTime() ?? 0}"`,
+      etag: `"${company?.logoUpdatedAt?.getTime() ?? 0}"`,
+      // This is user-influenced content served from the app's own origin, and
+      // the app sets no CSP. `nosniff` stops a browser from ignoring the
+      // declared type and re-interpreting the bytes as HTML or script; the
+      // response CSP neuters anything active if the bytes ever were a document
+      // despite the allowlist. Belt and braces, both free.
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'none'; sandbox",
+      "content-disposition": "inline",
     },
   });
 }

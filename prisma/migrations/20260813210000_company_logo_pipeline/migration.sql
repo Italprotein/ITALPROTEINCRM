@@ -7,16 +7,21 @@
 --   logoUpdatedAt — when the bytes last changed; also the ETag and the "has a
 --                   logo" flag the list DTO carries in place of the base64 blob
 --
--- Purely additive: three nullable/defaulted columns, no existing value changes,
--- no row destroyed.
+-- Purely additive: three nullable/defaulted columns. No existing value is
+-- changed, no row is destroyed, and there is deliberately NO backfill.
+--
+-- An earlier draft backfilled logoUpdatedAt/logoVerified for any row already
+-- holding a logoUrl. Nothing in this repo has ever written logoUrl, so that
+-- UPDATE was a no-op on real data — but it carried a permanent downside: if the
+-- assumption that logoUrl always holds a servable base64 data URI were ever
+-- wrong, it would set logoVerified = true on those rows and exclude them from
+-- the importer forever, recoverable only by hand-written SQL. A no-op with a
+-- permanent downside loses to no statement at all.
+--
+-- The live behaviour for such a row is safe without it: the importer's
+-- candidate filter requires logoUrl IS NULL (see LOGO_IMPORT_CANDIDATE_WHERE in
+-- lib/company-logo.ts), so the row is skipped rather than overwritten, and the
+-- UI simply shows its initials tile.
 ALTER TABLE "companies" ADD COLUMN "logoSource" TEXT;
 ALTER TABLE "companies" ADD COLUMN "logoVerified" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "companies" ADD COLUMN "logoUpdatedAt" TIMESTAMP(3);
-
--- Nothing writes logoUrl today, so this is expected to touch zero rows. It is
--- here so the migration is correct rather than merely lucky: the UI decides
--- "this company has a logo" from logoUpdatedAt, and a pre-existing hand-set
--- logoUrl with a NULL timestamp would render as initials and never be served.
-UPDATE "companies"
-SET "logoUpdatedAt" = "updatedAt", "logoSource" = 'manual', "logoVerified" = true
-WHERE "logoUrl" IS NOT NULL AND "logoUpdatedAt" IS NULL;
