@@ -239,7 +239,10 @@ const config: Config = {
         'spin-slow': 'spin-slow 28s linear infinite',
         'bounce-in': 'bounce-in 0.5s cubic-bezier(0.22,1,0.36,1) forwards',
         shimmer: 'shimmer 1.5s infinite',
-        sheen: 'sheen 9s ease-in-out infinite',
+        // `linear`, not an ease: the strip is parked off-window at both
+        // endpoints and only crosses the viewport mid-cycle — exactly where an
+        // ease-in-out is fastest. Easing turned a 9s drift into a whoosh.
+        sheen: 'sheen 9s linear infinite',
         marquee: 'marquee 90s linear infinite',
       },
     },
