@@ -212,6 +212,13 @@ const config: Config = {
           '0%': { backgroundPosition: '-200% center' },
           '100%': { backgroundPosition: '200% center' },
         },
+        // A diagonal highlight strip drifting across a wide (250%) gradient.
+        // Both endpoints park the strip outside the visible window, so the
+        // loop's restart is invisible and no `alternate` direction is needed.
+        sheen: {
+          from: { backgroundPosition: '0% 0%' },
+          to: { backgroundPosition: '100% 0%' },
+        },
         // Track is rendered twice, so -50% lands exactly on the seam.
         marquee: {
           from: { transform: 'translateX(0)' },
@@ -232,6 +239,7 @@ const config: Config = {
         'spin-slow': 'spin-slow 28s linear infinite',
         'bounce-in': 'bounce-in 0.5s cubic-bezier(0.22,1,0.36,1) forwards',
         shimmer: 'shimmer 1.5s infinite',
+        sheen: 'sheen 9s ease-in-out infinite',
         marquee: 'marquee 90s linear infinite',
       },
     },

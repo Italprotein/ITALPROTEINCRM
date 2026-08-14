@@ -297,6 +297,21 @@
     scrollbar-width: none;
   }
 
+  /* Dot-grid texture for the landing hero. Sibling of `.bg-grid` above: that
+     one draws ruled lines for the auth surfaces, this one draws a sparse field
+     of dots for the hero backdrop. Both are pure background-image, so the layer
+     that carries them never moves and never paints on top of text — the caller
+     is expected to mask it (see the hero in `(public)/page.tsx`, which fades it
+     out toward the headline) and mark it `aria-hidden` / `pointer-events-none`.
+     Decoration only, hence brand-blue rather than brand-molecular. */
+  .bg-dot-grid {
+    background-image: radial-gradient(circle, hsl(var(--brand-blue) / 0.14) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .dark .bg-dot-grid {
+    background-image: radial-gradient(circle, hsl(var(--brand-blue-bright) / 0.12) 1px, transparent 1px);
+  }
+
   /* Background grid texture for hero / auth surfaces */
   .bg-grid {
     background-image:
