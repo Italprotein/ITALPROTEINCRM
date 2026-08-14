@@ -2326,5 +2326,29 @@
     "close": "close",
     "openSearch": "Open search",
     "documents": "Documents"
+  },
+  "CompanyViews": {
+    "label": "View",
+    "active": "View: {view} · {count}",
+    "all": "All companies",
+    "mine": "My companies",
+    "recent7": "Recently contacted",
+    "quiet10": "No activity 10+ days",
+    "ndaPending": "NDA pending",
+    "ndaSigned": "NDA signed",
+    "samplesSent": "Samples sent",
+    "customers": "Active customers",
+    "distributors": "Distributors",
+    "europe": "Europe",
+    "middleEast": "Middle East",
+    "anz": "ANZ"
+  },
+  "CompanyLogos": {
+    "import": "Import logos",
+    "importing": "Importing…",
+    "result": "Logos: {updated} updated, {skipped} skipped, {failed} failed",
+    "resultTitle": "Logo import finished",
+    "failedTitle": "Logo import failed",
+    "failedDescription": "Please try again later."
   }
 }

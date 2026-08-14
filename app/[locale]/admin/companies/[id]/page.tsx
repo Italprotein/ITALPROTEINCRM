@@ -73,6 +73,7 @@ import type {
 } from '@/lib/types';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
+import { CompanyLogo } from '@/components/shared/company-logo';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FadeIn } from '@/components/shared/motion';
 import { ChartCard, DonutChart, FunnelChartCard, CHART_COLORS } from '@/components/charts/chart-kit';
@@ -334,12 +335,7 @@ export default function CompanyProfilePage() {
             <div className="h-1.5 w-full" style={{ backgroundColor: company.accentColor ?? CHART_COLORS[0] }} />
             <CardContent className="flex flex-col gap-5 p-5 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex gap-4">
-                <span
-                  className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl text-xl font-bold text-white shadow-sm"
-                  style={{ backgroundColor: company.accentColor ?? CHART_COLORS[0] }}
-                >
-                  {company.initials}
-                </span>
+                <CompanyLogo company={company} size="xl" className="shadow-sm" />
                 <div className="min-w-0 space-y-2">
                   <div>
                     <h1 className="font-display text-2xl font-bold tracking-tight">{company.legalName}</h1>

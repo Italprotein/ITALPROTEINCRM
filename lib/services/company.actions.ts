@@ -8,7 +8,8 @@ import type { Company } from "@/lib/types";
 import { setCurrentNdaStatus } from "@/lib/backend/nda-status-sync";
 import { currentNdaByCompany, ndaScopeWhere } from "@/lib/backend/nda-current-status";
 import type { CompanyQuery } from "@/lib/mock-services/companyService";
-import { companyToDTO, companyWriteData } from "./company.mapper";
+import { fetchCompanyLogo } from "@/lib/backend/company-logo";
+import { companyToDTO, companyWriteData, OMIT_LOGO } from "./company.mapper";
 
 // Server-side company scope: external users see only their own company; internal
 // users see all. The server is the authority — client-supplied ids are ignored.
@@ -46,13 +47,20 @@ export async function listCompanies(query: CompanyQuery = {}): Promise<Company[]
   // scopeWhere() below is what limits them to it.
   await requireUser();
   const where: Prisma.CompanyWhereInput = { AND: [await scopeWhere(), queryWhere(query)] };
-  const rows = await prisma.company.findMany({ where, orderBy: { legalName: "asc" } });
+  // omit the logo column: a base64 data URI per row would be by far the largest
+  // thing in this payload, and nothing on the client reads it — the list renders
+  // logos from /api/companies/[id]/logo. Same for the detail read below.
+  const rows = await prisma.company.findMany({ where, orderBy: { legalName: "asc" }, omit: OMIT_LOGO });
   return rows.map(companyToDTO);
 }
 
 export async function getCompany(id: string): Promise<Company | undefined> {
   await requireUser();
-  const rows = await prisma.company.findMany({ where: { AND: [await scopeWhere(), { id }] }, take: 1 });
+  const rows = await prisma.company.findMany({
+    where: { AND: [await scopeWhere(), { id }] },
+    take: 1,
+    omit: OMIT_LOGO,
+  });
   return rows[0] ? companyToDTO(rows[0]) : undefined;
 }
 
@@ -67,6 +75,16 @@ export async function createCompany(input: Company): Promise<Company> {
     }
     return created;
   });
+  // Best-effort logo enrichment. Deliberately not awaited and deliberately
+  // swallowing everything: a favicon service being slow or down must never make
+  // "add company" slow or make it fail. Worst case the company shows its
+  // initials tile until someone runs Import logos.
+  //
+  // Calls the backend helper rather than the server action beside it: the
+  // caller is already past requireAction("company.create"), and re-entering an
+  // action's guard from a detached continuation would depend on the request
+  // scope still being alive.
+  if (row.website) void fetchCompanyLogo(row.id).catch(() => {});
   return companyToDTO(row);
 }
 

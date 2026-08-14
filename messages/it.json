@@ -2326,5 +2326,29 @@
     "close": "chiudi",
     "openSearch": "Apri la ricerca",
     "documents": "Documenti"
+  },
+  "CompanyViews": {
+    "label": "Vista",
+    "active": "Vista: {view} · {count}",
+    "all": "Tutte le aziende",
+    "mine": "Le mie aziende",
+    "recent7": "Contattate di recente",
+    "quiet10": "Nessuna attività da 10+ giorni",
+    "ndaPending": "NDA in corso",
+    "ndaSigned": "NDA firmati",
+    "samplesSent": "Campioni inviati",
+    "customers": "Clienti attivi",
+    "distributors": "Distributori",
+    "europe": "Europa",
+    "middleEast": "Medio Oriente",
+    "anz": "Australia e NZ"
+  },
+  "CompanyLogos": {
+    "import": "Importa loghi",
+    "importing": "Importazione…",
+    "result": "Loghi: {updated} aggiornati, {skipped} saltati, {failed} falliti",
+    "resultTitle": "Importazione loghi completata",
+    "failedTitle": "Importazione loghi non riuscita",
+    "failedDescription": "Riprova più tardi."
   }
 }

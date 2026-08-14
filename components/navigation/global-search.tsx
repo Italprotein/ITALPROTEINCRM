@@ -17,6 +17,7 @@ import type {
 } from '@/lib/types';
 import { getLabel } from '@/lib/labels';
 import { readRecents, type RecentRecord } from '@/lib/recent-records';
+import { CompanyLogo, type CompanyLogoSubject } from '@/components/shared/company-logo';
 import { cn } from '@/lib/utils';
 
 type ResultGroup =
@@ -29,6 +30,8 @@ interface SearchResult {
   label: string;
   detail: string;
   href: string;
+  /** Company rows show the company's logo in place of the generic group icon. */
+  company?: CompanyLogoSubject;
 }
 
 const GROUP_ICON: Record<ResultGroup, typeof Building2> = {
@@ -146,7 +149,7 @@ export function GlobalSearch() {
 
     for (const c of data.companies) {
       if (match(c.legalName, c.tradingName, c.country, c.city, ...(c.tags ?? [])))
-        out.push({ group: 'Companies', id: c.id, label: c.tradingName || c.legalName, detail: `${c.country} · ${getLabel('companyType', c.type)}`, href: `/admin/companies/${c.id}` });
+        out.push({ group: 'Companies', id: c.id, label: c.tradingName || c.legalName, detail: `${c.country} · ${getLabel('companyType', c.type)}`, href: `/admin/companies/${c.id}`, company: c });
     }
     for (const a of data.agencies) {
       if (match(a.legalName, a.tradingName, a.territory, a.country))
@@ -304,9 +307,13 @@ export function GlobalSearch() {
                                 isActive ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/60',
                               )}
                             >
-                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                                <Icon className="h-4 w-4" />
-                              </span>
+                              {r.company ? (
+                                <CompanyLogo company={r.company} size="sm" />
+                              ) : (
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                                  <Icon className="h-4 w-4" />
+                                </span>
+                              )}
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate font-medium text-foreground">{r.label}</span>
                                 <span className="block truncate text-xs text-muted-foreground">{r.detail}</span>
