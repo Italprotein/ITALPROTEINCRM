@@ -68,6 +68,44 @@ export function findByCompany(
   return entries.find((e) => e.companyId === companyId);
 }
 
+/** What the Add dialog offers before anyone has chosen a reason. */
+export const DEFAULT_DO_NOT_CONTACT_REASON: DoNotContactReason = 'opt_out';
+
+/** The reason/notes the Add dialog's fields should hold for a picked company. */
+export interface DoNotContactDraft {
+  reason: DoNotContactReason;
+  notes: string;
+}
+
+/**
+ * Seed the Add dialog's fields for whichever company is currently picked.
+ *
+ * Picking a company that is already listed shows its existing reason and notes,
+ * so you are editing what is there rather than blindly overwriting it. Picking
+ * anything else — including clearing the picker — gives a clean form.
+ *
+ * That second half is the whole reason this is a function. It used to be an
+ * effect that filled the fields when the company was listed and did nothing
+ * otherwise, so the values stayed behind when you changed your mind: pick a
+ * company listed for a GDPR erasure, switch to an unlisted one, save, and that
+ * company was recorded as a GDPR erasure carrying someone else's audit note.
+ * Expressed as a total function of (entries, companyId) there is no "otherwise"
+ * branch to forget — the dialog re-reads it on every companyId change.
+ *
+ * `notes` is '' rather than undefined because a textarea's value must be a
+ * string; an undefined here would make the field uncontrolled mid-edit.
+ */
+export function draftForCompany(
+  entries: DoNotContactEntry[],
+  companyId: string,
+): DoNotContactDraft {
+  const existing = companyId ? findByCompany(entries, companyId) : undefined;
+  return {
+    reason: existing?.reason ?? DEFAULT_DO_NOT_CONTACT_REASON,
+    notes: existing?.notes ?? '',
+  };
+}
+
 export interface DoNotContactUpsertContext {
   /** Id to use when a new entry is created. Ignored on update. */
   id: string;

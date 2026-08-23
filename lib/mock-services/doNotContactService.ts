@@ -26,7 +26,20 @@ export const doNotContactService = {
     return findByCompany(await repo.list(), companyId);
   },
 
-  /** Cheap "may we contact them?" check for any send path. */
+  /**
+   * Cheap "may we contact them?" check for any send path.
+   *
+   * `isCompanyDoNotContact` is the name to reach for — it is the one the brief
+   * specifies and the one that reads correctly at a call site guarding a send
+   * (`if (await doNotContactService.isCompanyDoNotContact(id)) return;`).
+   * `isCompanyListed` is kept as an alias because "listed" is ambiguous once
+   * this service is one of several registers a send path consults.
+   */
+  async isCompanyDoNotContact(companyId: string): Promise<boolean> {
+    return isListed(await repo.list(), companyId);
+  },
+
+  /** @deprecated Alias of `isCompanyDoNotContact`. */
   async isCompanyListed(companyId: string): Promise<boolean> {
     return isListed(await repo.list(), companyId);
   },

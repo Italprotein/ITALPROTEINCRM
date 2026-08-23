@@ -3,11 +3,15 @@ import { describe, it, expect, afterEach } from 'vitest';
 import {
   applyDoNotContactUpsert,
   doNotContactReasonLabel,
+  draftForCompany,
   isDoNotContactReason,
   toDoNotContactReason,
+  DEFAULT_DO_NOT_CONTACT_REASON,
 } from '@/lib/do-not-contact';
 import { DO_NOT_CONTACT_REASONS, type DoNotContactEntry } from '@/lib/types';
 import { setLabelLocale } from '@/lib/labels';
+import { doNotContactService } from '@/lib/mock-services/doNotContactService';
+import { DO_NOT_CONTACT_ENTRIES } from '@/fixtures';
 
 /*
  * Pure logic behind the Do Not Contact list.
@@ -77,6 +81,61 @@ describe('reason validation', () => {
     expect(doNotContactReasonLabel('not_interested')).toBe('Not interested');
     setLabelLocale('it');
     expect(doNotContactReasonLabel('not_interested')).toBe('Non interessato');
+  });
+});
+
+/*
+ * `getLabel` falls back IT → EN → humanize(code), and humanize turns
+ * 'never_reply' into a plausible-looking "Never reply". That means a reason
+ * added to the enum with NO entry in either label map still produces a
+ * non-empty, underscore-free string — so the two generic assertions above
+ * ("has a label", "no underscore") can never fail on a missing translation.
+ * This CRM's production users are Italian; shipping them an English chip
+ * because someone forgot a map entry is a real, silent regression.
+ *
+ * The check below is exact rather than generic: a missing IT entry makes the
+ * Italian label byte-identical to the English one, so comparing the two
+ * detects precisely that and nothing else.
+ *
+ * There is deliberately NO equivalent assertion for English. I tried
+ * `label !== humanize(code)` and it failed on `not_interested`, whose correct
+ * English label ("Not interested") IS the humanised code — as are Competitor,
+ * Complaint, Bounced and Other. That is not a gap in coverage: when the
+ * English label and humanize(code) coincide, a missing EN map entry renders
+ * the identical string, so it is invisible to the user by definition. Italian
+ * is the only side where a forgotten entry silently changes what a person
+ * reads, which is exactly why this CRM's users would be the ones to find it.
+ */
+/*
+ * Brief §8 promises future send paths a cheap `isCompanyDoNotContact(companyId)`
+ * on the service. The server action had that name but the surface reached
+ * through the services barrel only had `isCompanyListed`, so a send guard
+ * written from the brief would have called a method that does not exist — and
+ * `undefined is not a function` in a guard fails OPEN: the email goes out.
+ * The Prisma-backed service is typed `: DoNotContactService` against this mock,
+ * so pinning the name here pins it on both implementations.
+ */
+describe('the send-path guard is reachable by its documented name', () => {
+  it('answers true for a listed company and false for an unlisted one', async () => {
+    await doNotContactService.reset();
+    expect(typeof doNotContactService.isCompanyDoNotContact).toBe('function');
+
+    const listedId = DO_NOT_CONTACT_ENTRIES[0].companyId;
+    expect(await doNotContactService.isCompanyDoNotContact(listedId)).toBe(true);
+    expect(await doNotContactService.isCompanyDoNotContact('c_not_on_the_list')).toBe(false);
+  });
+});
+
+describe('every reason is translated in both label maps', () => {
+  it('has a real Italian entry — not the English label falling through', () => {
+    setLabelLocale('en');
+    const en = DO_NOT_CONTACT_REASONS.map((r) => doNotContactReasonLabel(r));
+    setLabelLocale('it');
+    const it = DO_NOT_CONTACT_REASONS.map((r) => doNotContactReasonLabel(r));
+
+    DO_NOT_CONTACT_REASONS.forEach((reason, i) => {
+      expect(it[i], reason).not.toBe(en[i]);
+    });
   });
 });
 
@@ -159,6 +218,49 @@ describe('adding a company that is already listed', () => {
 
     const trimmed = applyDoNotContactUpsert([], { companyId: 'c_barilla', reason: 'other', notes: '  spoke to CEO  ' }, ctx);
     expect(trimmed.entry.notes).toBe('spoke to CEO');
+  });
+
+  it('seeds the Add dialog from the entry when the picked company is listed', () => {
+    const entries = [entry({ companyId: 'c_naturasi', reason: 'gdpr_request', notes: 'DPO erasure request.' })];
+    expect(draftForCompany(entries, 'c_naturasi')).toEqual({
+      reason: 'gdpr_request',
+      notes: 'DPO erasure request.',
+    });
+  });
+
+  /*
+   * The Add dialog used to fill its reason/notes fields from the picked
+   * company but never clear them again, so this sequence suppressed the wrong
+   * company for the wrong reason: pick NaturaSì (listed — the form auto-fills
+   * 'gdpr_request' and the DPO's erasure text), change your mind, pick Venchi
+   * (not listed — nothing clears), press Add. Venchi is now recorded as a GDPR
+   * erasure that was never requested, carrying another company's audit note.
+   *
+   * Seeding the form is a pure function of (entries, companyId), so the rule
+   * lives here rather than inside the component: the dialog reads its initial
+   * state from it and is remounted on companyId, which makes "switch away and
+   * the fields go with it" structural instead of an effect someone has to
+   * remember to write an else branch for.
+   */
+  it('clears the fields when the picked company is NOT listed', () => {
+    const entries = [entry({ companyId: 'c_naturasi', reason: 'gdpr_request', notes: 'DPO erasure request.' })];
+
+    // Switching from the listed company to an unlisted one must carry nothing over.
+    expect(draftForCompany(entries, 'c_venchi')).toEqual({
+      reason: DEFAULT_DO_NOT_CONTACT_REASON,
+      notes: '',
+    });
+    expect(draftForCompany(entries, 'c_venchi').notes).not.toContain('DPO');
+  });
+
+  it('clears the fields when the picker is empty', () => {
+    const entries = [entry({ companyId: 'c_naturasi', reason: 'gdpr_request', notes: 'DPO erasure request.' })];
+    expect(draftForCompany(entries, '')).toEqual({ reason: DEFAULT_DO_NOT_CONTACT_REASON, notes: '' });
+  });
+
+  it('treats an entry with no notes as an empty textarea, never undefined', () => {
+    const entries = [entry({ companyId: 'c_gimoka', reason: 'other', notes: undefined })];
+    expect(draftForCompany(entries, 'c_gimoka')).toEqual({ reason: 'other', notes: '' });
   });
 
   it('coerces an unknown incoming reason instead of writing it through', () => {

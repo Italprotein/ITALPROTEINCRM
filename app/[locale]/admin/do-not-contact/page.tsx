@@ -8,7 +8,7 @@ import { useSession } from '@/components/providers/session-provider';
 import { can } from '@/lib/permissions';
 import type { Company, DoNotContactEntry, DoNotContactReason, Locale } from '@/lib/types';
 import { DO_NOT_CONTACT_REASONS } from '@/lib/types';
-import { doNotContactReasonLabel } from '@/lib/do-not-contact';
+import { doNotContactReasonLabel, draftForCompany } from '@/lib/do-not-contact';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { formatDate, flagEmoji } from '@/lib/formatting';
 import { Link } from '@/lib/i18n/navigation';
@@ -264,9 +264,6 @@ function AddDialog({ open, onOpenChange, companies, listed, onSaved }: {
 }) {
   const t = useTranslations('AdminDoNotContact');
   const [companyId, setCompanyId] = React.useState('');
-  const [reason, setReason] = React.useState<DoNotContactReason>('opt_out');
-  const [notes, setNotes] = React.useState('');
-  const [submitting, setSubmitting] = React.useState(false);
 
   // A company is on the list once. Rather than hiding the ones already there —
   // which looks like the picker is broken when you go looking for a company you
@@ -279,44 +276,10 @@ function AddDialog({ open, onOpenChange, companies, listed, onSaved }: {
     [companies],
   );
 
-  React.useEffect(() => {
-    if (!existing) return;
-    setReason(existing.reason);
-    setNotes(existing.notes ?? '');
-  }, [existing]);
-
-  function reset() {
-    setCompanyId('');
-    setReason('opt_out');
-    setNotes('');
-  }
-
-  async function submit() {
-    if (!companyId || submitting) return;
-    setSubmitting(true);
-    const name = companies.find((c) => c.id === companyId);
-    const label = name ? name.tradingName || name.legalName : companyId;
-    try {
-      const { entry, created } = await doNotContactService.add({ companyId, reason, notes });
-      onSaved(entry, created);
-      toast({
-        variant: 'success',
-        title: created ? t('toastAddedTitle') : t('toastAlreadyListedTitle'),
-        description: created
-          ? t('toastAddedDescription', { name: label })
-          : t('toastAlreadyListedDescription', { name: label }),
-      });
-      reset();
-      onOpenChange(false);
-    } catch {
-      toast({ variant: 'danger', title: t('toastFailedTitle'), description: t('toastFailedDescription') });
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  const picked = companies.find((c) => c.id === companyId);
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) setCompanyId(''); onOpenChange(o); }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('addDialogTitle')}</DialogTitle>
@@ -339,37 +302,101 @@ function AddDialog({ open, onOpenChange, companies, listed, onSaved }: {
             {existing && <p className="text-xs text-danger-text">{t('alreadyListedHint')}</p>}
           </div>
 
-          <div className="space-y-1.5">
-            <Label>{t('reasonLabel')}</Label>
-            <Select value={reason} onValueChange={(v) => setReason(v as DoNotContactReason)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {DO_NOT_CONTACT_REASONS.map((r) => (
-                  <SelectItem key={r} value={r}>{doNotContactReasonLabel(r)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="dnc-notes">{t('notesLabel')}</Label>
-            <Textarea
-              id="dnc-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={t('notesPlaceholder')}
-            />
-          </div>
+          {/* Keyed on the picked company, so choosing a different one builds a
+              FRESH form rather than editing the old one's state. That is what
+              stops a listed company's reason and notes riding along onto the
+              next company you pick — the fields cannot survive a change of
+              subject, because the component holding them does not. */}
+          <AddDialogFields
+            key={companyId}
+            companyId={companyId}
+            companyLabel={picked ? picked.tradingName || picked.legalName : companyId}
+            listed={listed}
+            isUpdate={!!existing}
+            onSaved={onSaved}
+            onClose={() => { setCompanyId(''); onOpenChange(false); }}
+          />
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>{t('cancel')}</Button>
-          <Button variant="gold" onClick={submit} disabled={!companyId || submitting}>
-            {submitting ? t('saving') : existing ? t('updateSubmit') : t('addSubmit')}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Reason + notes + the submit buttons, for one picked company.
+ *
+ * Split out of `AddDialog` purely so it can be remounted per company: its
+ * initial state comes from `draftForCompany`, which is a total function of
+ * (entries, companyId) and therefore has no "and otherwise leave the old
+ * values alone" branch for anyone to forget.
+ */
+function AddDialogFields({ companyId, companyLabel, listed, isUpdate, onSaved, onClose }: {
+  companyId: string;
+  companyLabel: string;
+  listed: DoNotContactEntry[];
+  isUpdate: boolean;
+  onSaved: (entry: DoNotContactEntry, created: boolean) => void;
+  /** Closes the dialog AND clears the picked company, so it reopens clean. */
+  onClose: () => void;
+}) {
+  const t = useTranslations('AdminDoNotContact');
+  const draft = draftForCompany(listed, companyId);
+  const [reason, setReason] = React.useState<DoNotContactReason>(draft.reason);
+  const [notes, setNotes] = React.useState(draft.notes);
+  const [submitting, setSubmitting] = React.useState(false);
+
+  async function submit() {
+    if (!companyId || submitting) return;
+    setSubmitting(true);
+    try {
+      const { entry, created } = await doNotContactService.add({ companyId, reason, notes });
+      onSaved(entry, created);
+      toast({
+        variant: 'success',
+        title: created ? t('toastAddedTitle') : t('toastAlreadyListedTitle'),
+        description: created
+          ? t('toastAddedDescription', { name: companyLabel })
+          : t('toastAlreadyListedDescription', { name: companyLabel }),
+      });
+      onClose();
+    } catch {
+      toast({ variant: 'danger', title: t('toastFailedTitle'), description: t('toastFailedDescription') });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label>{t('reasonLabel')}</Label>
+        <Select value={reason} onValueChange={(v) => setReason(v as DoNotContactReason)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {DO_NOT_CONTACT_REASONS.map((r) => (
+              <SelectItem key={r} value={r}>{doNotContactReasonLabel(r)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="dnc-notes">{t('notesLabel')}</Label>
+        <Textarea
+          id="dnc-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder={t('notesPlaceholder')}
+        />
+      </div>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose} disabled={submitting}>{t('cancel')}</Button>
+        <Button variant="gold" onClick={submit} disabled={!companyId || submitting}>
+          {submitting ? t('saving') : isUpdate ? t('updateSubmit') : t('addSubmit')}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }
 
@@ -397,7 +424,16 @@ function EditDialog({ entry, companyLabel, onOpenChange, onSaved }: {
     setSubmitting(true);
     try {
       const updated = await doNotContactService.update(entry.id, { reason, notes });
-      if (updated) onSaved(updated);
+      // `update` resolves to undefined when the entry is already gone — someone
+      // else took this company off the list while the dialog was open. Nothing
+      // was saved, so saying "Entry updated" would be a plain lie, and the more
+      // dangerous direction of one: it implies the company is still suppressed.
+      if (!updated) {
+        toast({ variant: 'danger', title: t('toastFailedTitle'), description: t('toastGoneDescription', { name: companyLabel }) });
+        onOpenChange(false);
+        return;
+      }
+      onSaved(updated);
       toast({
         variant: 'success',
         title: t('toastUpdatedTitle'),

@@ -1756,6 +1756,7 @@
     "toastUpdatedDescription": "Modifiche salvate per {name}.",
     "toastRemovedTitle": "Rimossa dall'elenco",
     "toastRemovedDescription": "{name} può essere contattata di nuovo.",
+    "toastGoneDescription": "{name} non è più in elenco: qualcuno l'ha rimossa mentre la stavi modificando. Nessuna modifica è stata salvata.",
     "toastFailedTitle": "Qualcosa è andato storto",
     "toastFailedDescription": "L'elenco non è stato modificato. Riprova."
   },
