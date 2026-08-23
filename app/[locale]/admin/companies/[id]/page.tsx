@@ -32,6 +32,7 @@ import {
   FileText,
   Receipt,
   Target,
+  Ban,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
@@ -52,9 +53,11 @@ import {
   projectService,
   financeService,
   meetingService,
+  doNotContactService,
   deriveShipmentStatus,
 } from '@/lib/mock-services';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
+import { doNotContactReasonLabel } from '@/lib/do-not-contact';
 import type {
   Company,
   Contact,
@@ -69,6 +72,7 @@ import type {
   ApplicationProject,
   FinanceDocument,
   Meeting,
+  DoNotContactEntry,
   Locale,
 } from '@/lib/types';
 import { StatCard } from '@/components/shared/stat-card';
@@ -117,6 +121,8 @@ interface ProfileData {
   projects: ApplicationProject[];
   finance: FinanceDocument[];
   meetings: Meeting[];
+  /** Set only when this company is on the Do Not Contact list. */
+  doNotContact: DoNotContactEntry | undefined;
 }
 
 type T = ReturnType<typeof useTranslations<'AdminCompanyDetail'>>;
@@ -211,6 +217,7 @@ export default function CompanyProfilePage() {
       projects,
       finance,
       meetings,
+      doNotContact,
     ] = await Promise.all([
       contactService.byCompany(id),
       opportunityService.byCompany(id),
@@ -224,6 +231,9 @@ export default function CompanyProfilePage() {
       projectService.byCompany(id),
       financeService.byCompany(id),
       meetingService.byCompany(id),
+      // Joins the existing fan-out rather than a second waterfall: the badge
+      // has to be on screen the moment the header is, not a beat later.
+      doNotContactService.byCompany(id),
     ]);
     setData({
       contacts,
@@ -238,6 +248,7 @@ export default function CompanyProfilePage() {
       projects,
       finance,
       meetings,
+      doNotContact,
     });
   }, [id]);
 
@@ -343,6 +354,41 @@ export default function CompanyProfilePage() {
                       <p className="text-sm text-muted-foreground">{t('tradingAs', { name: company.tradingName })}</p>
                     )}
                   </div>
+
+                  {/* The whole point of the Do Not Contact list: someone about to
+                      email this company finds out here, before they write, rather
+                      than by remembering to check a page elsewhere. It sits under
+                      the name — above the status chips — because it outranks every
+                      other fact on this card. Colour comes from the danger *text*
+                      token, which is tuned for small copy; `text-destructive`
+                      would fail AA at this size. */}
+                  {data?.doNotContact && (
+                    <div className="rounded-md border border-danger/40 bg-danger-subtle px-3 py-2">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <Badge variant="danger" className="gap-1">
+                          <Ban className="h-3.5 w-3.5" aria-hidden />
+                          {t('doNotContact')}
+                        </Badge>
+                        <span className="text-sm font-medium text-danger-text">
+                          {t('doNotContactReason', {
+                            reason: doNotContactReasonLabel(data.doNotContact.reason),
+                          })}
+                        </span>
+                      </div>
+                      {data.doNotContact.notes && (
+                        <p className="mt-1.5 text-sm text-danger-text/90">{data.doNotContact.notes}</p>
+                      )}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {t('doNotContactSince', { date: formatDate(data.doNotContact.createdAt, locale) })}{' '}
+                        <Link
+                          href="/admin/do-not-contact"
+                          className="underline hover:text-danger-text motion-safe:transition-colors motion-safe:duration-150"
+                        >
+                          {t('doNotContactManage')}
+                        </Link>
+                      </p>
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                     <span className="inline-flex items-center gap-1.5">
                       <span className="text-base">{flagEmoji(company.countryCode)}</span>

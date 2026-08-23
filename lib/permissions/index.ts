@@ -11,7 +11,7 @@ import type { Role, InternalRole, ExternalRole, Workspace } from '@/lib/types';
 /* ── Sections ── */
 export type InternalSection =
   | 'overview' | 'companies' | 'agencies' | 'contacts' | 'pipeline' | 'samples' | 'shipments'
-  | 'feedback' | 'projects' | 'products' | 'ndas' | 'finance' | 'activities'
+  | 'feedback' | 'projects' | 'products' | 'ndas' | 'do_not_contact' | 'finance' | 'activities'
   | 'tasks' | 'calendar' | 'communications' | 'analytics' | 'notifications'
   | 'registrations' | 'users' | 'import_export' | 'settings' | 'audit' | 'integrations';
 
@@ -35,6 +35,11 @@ export type Action =
   // section right, because `documents` is a PORTAL section — it is 'hidden' for
   // every internal role, so canEdit(role, 'documents') can never gate staff work.
   | 'technical_docs.manage'
+  // Add / edit / remove entries on the do-not-contact list. An action, not just
+  // the section's edit level, because REMOVING an entry re-opens a company to
+  // outreach it asked to be spared — that is a narrower right than "can use the
+  // Operations pages", so the roles that hold it are named explicitly.
+  | 'do_not_contact.manage'
   // portal
   | 'portal.request_sample' | 'portal.confirm_delivery' | 'portal.submit_feedback'
   | 'portal.upload_results' | 'portal.edit_company' | 'portal.submit_sensitive_edit'
@@ -42,7 +47,7 @@ export type Action =
 
 export const INTERNAL_SECTIONS: InternalSection[] = [
   'overview', 'companies', 'agencies', 'contacts', 'pipeline', 'samples', 'shipments',
-  'feedback', 'projects', 'products', 'ndas', 'finance', 'activities',
+  'feedback', 'projects', 'products', 'ndas', 'do_not_contact', 'finance', 'activities',
   'tasks', 'calendar', 'communications', 'analytics', 'notifications',
   'registrations', 'users', 'import_export', 'settings', 'audit', 'integrations',
 ];
@@ -74,7 +79,7 @@ const ALL_INTERNAL_ACTIONS: Action[] = [
   'sample.approve', 'sample.status_update', 'shipment.update', 'feedback.reply',
   'nda.prepare', 'nda.send', 'nda.mark_signed', 'finance.edit',
   'registration.approve', 'user.manage', 'data.export', 'settings.edit', 'audit.view',
-  'integrations.manage', 'technical_docs.manage',
+  'integrations.manage', 'technical_docs.manage', 'do_not_contact.manage',
 ];
 
 /* ────────────────────────────── THE MATRIX ────────────────────────────── */
@@ -103,19 +108,23 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
       // day-to-day operational work, not account administration — every CRM
       // admin needs it, and gating it on settings.edit made it super_admin-only.
       'integrations.manage', 'technical_docs.manage',
+      // Maintaining the suppression list is business-data stewardship.
+      'do_not_contact.manage',
     ],
   },
   business_dev: {
     workspace: 'internal',
     sections: sections(INTERNAL_SECTIONS, 'view', { integrations: 'hidden',
       overview: 'full', companies: 'full', agencies: 'full', contacts: 'full', pipeline: 'full',
-      samples: 'edit', ndas: 'edit', projects: 'edit', activities: 'full',
+      samples: 'edit', ndas: 'edit', do_not_contact: 'full', projects: 'edit', activities: 'full',
       tasks: 'full', calendar: 'full', communications: 'full',
       finance: 'view', users: 'hidden', settings: 'hidden', audit: 'hidden',
     }),
     actions: [
       'company.create', 'company.edit', 'contact.edit', 'pipeline.stage_change',
       'nda.prepare', 'nda.send', 'data.export', 'sample.status_update',
+      // They are the ones being told "stop emailing us", so they record it.
+      'do_not_contact.manage',
     ],
   },
   rnd_technical: {

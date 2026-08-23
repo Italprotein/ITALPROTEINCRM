@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard, Building2, Users, Workflow, FlaskConical, Truck, MessageSquareText,
   FolderKanban, Boxes, FileSignature, Receipt, Activity, ListChecks, Calendar, Mail,
-  BarChart3, UserPlus, UserCog, FileSpreadsheet, Settings, ScrollText, FileText, LifeBuoy, Handshake, Plug,
+  BarChart3, UserPlus, UserCog, FileSpreadsheet, Settings, ScrollText, FileText, LifeBuoy, Handshake, Plug, Ban,
 } from 'lucide-react';
 import type { InternalSection, PortalSection } from '@/lib/permissions';
 
@@ -40,6 +40,7 @@ export const INTERNAL_NAV: NavGroup[] = [
       { section: 'samples', href: '/admin/samples', labelKey: 'samples', icon: FlaskConical, tint: 'text-amber-400' },
       { section: 'shipments', href: '/admin/shipments', labelKey: 'shipments', icon: Truck, tint: 'text-cyan-400' },
       { section: 'ndas', href: '/admin/ndas', labelKey: 'ndas', icon: FileSignature, tint: 'text-violet-400' },
+      { section: 'do_not_contact', href: '/admin/do-not-contact', labelKey: 'do_not_contact', icon: Ban, tint: 'text-rose-400' },
       { section: 'feedback', href: '/admin/feedback', labelKey: 'feedback', icon: MessageSquareText, tint: 'text-purple-400' },
       { section: 'projects', href: '/admin/projects', labelKey: 'projects', icon: FolderKanban },
       { section: 'products', href: '/admin/products', labelKey: 'products', icon: Boxes },
