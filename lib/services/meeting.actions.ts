@@ -112,7 +112,10 @@ export async function createMeetingWithNotifications(
           type: "meeting_scheduled",
           workspace: "internal",
           title: input.title,
-          body: `Scheduled for ${new Date(input.start).toLocaleString("en-GB", {
+          // Stored once, so it cannot follow the viewer's locale — and the team
+          // reading these notifications is Italian, which is also why the dates
+          // are Europe/Rome. Was hardcoded English ("Scheduled for {en-GB}").
+          body: `In programma: ${new Date(input.start).toLocaleString("it-IT", {
             dateStyle: "medium",
             timeStyle: "short",
             timeZone: "Europe/Rome",

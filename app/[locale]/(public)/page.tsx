@@ -119,7 +119,7 @@ export default function LandingPage() {
               it reaches the headline, so it never competes with the text it
               sits behind. Nothing here moves or reacts. */}
           <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[42rem] bg-dot-grid [mask-image:radial-gradient(60%_55%_at_75%_18%,black,transparent_75%)]" aria-hidden />
-          <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[42rem] bg-[radial-gradient(circle_at_78%_16%,rgba(2,132,199,0.10),transparent_38%)] dark:bg-[radial-gradient(circle_at_78%_16%,rgba(56,189,248,0.11),transparent_38%)]" aria-hidden />
+          <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[42rem] bg-[radial-gradient(circle_at_78%_16%,rgba(2,132,199,0.10),transparent_38%)] motion-safe:animate-breathe motion-reduce:animate-none dark:bg-[radial-gradient(circle_at_78%_16%,rgba(56,189,248,0.11),transparent_38%)]" aria-hidden />
           <div className="container grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(26rem,1fr)] lg:gap-16">
             <div className="motion-safe:animate-fade-up">
               <p className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.2em] text-brand-molecular dark:text-brand-blueBright">
@@ -171,7 +171,7 @@ export default function LandingPage() {
                   height={520}
                   priority
                   sizes="(max-width: 640px) 60vw, 24rem"
-                  className="h-auto w-full max-w-[20rem] drop-shadow-[0_30px_38px_rgba(0,0,0,0.38)] sm:max-w-[25rem]"
+                  className="h-auto w-full max-w-[20rem] drop-shadow-[0_30px_38px_rgba(0,0,0,0.38)] motion-safe:animate-float-slow motion-reduce:animate-none sm:max-w-[25rem]"
                 />
               </div>
               <figcaption className="absolute inset-x-5 bottom-5 flex items-end justify-between gap-5 border-t border-white/15 pt-4 sm:inset-x-7 sm:bottom-7">

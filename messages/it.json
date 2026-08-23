@@ -1707,7 +1707,11 @@
     "ariaDelete": "Elimina",
     "toastCaughtUpTitle": "Sei in pari",
     "toastCaughtUpDescription": "Tutte le notifiche sono state segnate come lette.",
-    "toastRemovedTitle": "Notifica rimossa"
+    "toastRemovedTitle": "Notifica rimossa",
+    "unreadCount": "{count} da leggere",
+    "ariaLabelUnread": "Notifiche, {count} da leggere",
+    "emptyPopoverTitle": "Ancora nessuna notifica",
+    "emptyPopoverHint": "Aggiornamenti e inviti alle riunioni appariranno qui."
   },
   "AdminDoNotContact": {
     "title": "Da non contattare",

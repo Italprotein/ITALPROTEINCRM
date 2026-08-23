@@ -1707,7 +1707,11 @@
     "ariaDelete": "Delete",
     "toastCaughtUpTitle": "All caught up",
     "toastCaughtUpDescription": "All notifications marked as read.",
-    "toastRemovedTitle": "Notification removed"
+    "toastRemovedTitle": "Notification removed",
+    "unreadCount": "{count} unread",
+    "ariaLabelUnread": "Notifications, {count} unread",
+    "emptyPopoverTitle": "No notifications yet",
+    "emptyPopoverHint": "Updates and meeting invitations will appear here."
   },
   "AdminDoNotContact": {
     "title": "Do Not Contact",

@@ -245,7 +245,9 @@ export function Amina() {
         <span className="hidden rounded-full border bg-background/95 px-3 py-2 text-sm font-semibold text-foreground shadow-lg backdrop-blur sm:block">
           {t('askMe')}
         </span>
-        <span className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-[1.6rem] border-2 border-primary/20 bg-white shadow-xl ring-4 ring-background/80">
+        {/* The float lives on this span, not the button: the button owns the
+            hover -translate-y, and two transforms on one element would fight. */}
+        <span className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-[1.6rem] border-2 border-primary/20 bg-white shadow-xl ring-4 ring-background/80 motion-safe:animate-float-slow motion-reduce:animate-none">
           <Image src={MASCOT_SRC} alt="" width={80} height={80} className="h-[78px] w-[78px] object-contain" />
           <span className="absolute bottom-1.5 right-1.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
         </span>
@@ -368,7 +370,7 @@ function Welcome({
 
   return (
     <div className="py-2">
-      <div className="mx-auto mb-3 flex h-28 w-28 items-center justify-center overflow-hidden rounded-[2rem] bg-gradient-to-b from-sky-50 to-white shadow-sm ring-1 ring-primary/10">
+      <div className="mx-auto mb-3 flex h-28 w-28 items-center justify-center overflow-hidden rounded-[2rem] bg-gradient-to-b from-sky-50 to-white shadow-sm ring-1 ring-primary/10 motion-safe:animate-float-slow motion-reduce:animate-none">
         <Image src={MASCOT_SRC} alt="" width={112} height={112} className="h-28 w-28 object-contain" priority />
       </div>
       <div className="text-center">

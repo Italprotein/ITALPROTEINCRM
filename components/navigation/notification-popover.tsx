@@ -1,9 +1,10 @@
 'use client';
 
 import * as React from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { Bell, CalendarClock, CheckCheck, FileSignature, PackageCheck, UserPlus } from 'lucide-react';
 
-import type { AppNotification } from '@/lib/types';
+import type { AppNotification, Locale } from '@/lib/types';
 import { notificationService } from '@/lib/mock-services';
 import { useSession } from '@/components/providers/session-provider';
 import { Link } from '@/lib/i18n/navigation';
@@ -21,6 +22,8 @@ function notificationIcon(type: AppNotification['type']) {
 }
 
 export function NotificationPopover() {
+  const t = useTranslations('AdminNotifications');
+  const locale = useLocale() as Locale;
   const { session } = useSession();
   const [open, setOpen] = React.useState(false);
   const [notifications, setNotifications] = React.useState<AppNotification[]>([]);
@@ -69,7 +72,7 @@ export function NotificationPopover() {
       <PopoverTrigger asChild>
         <button
           className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
+          aria-label={unread ? t('ariaLabelUnread', { count: unread }) : t('title')}
         >
           <Bell className="h-5 w-5" />
           {unread > 0 && (
@@ -80,13 +83,13 @@ export function NotificationPopover() {
       <PopoverContent align="end" sideOffset={10} className="w-[min(92vw,390px)] overflow-hidden p-0 shadow-xl">
         <div className="flex items-center justify-between border-b bg-brand-navy px-4 py-3 text-white">
           <div>
-            <h2 className="font-display text-base font-semibold">Notifications</h2>
-            <p className="text-xs text-white/65">{unread ? `${unread} unread` : 'You are all caught up'}</p>
+            <h2 className="font-display text-base font-semibold">{t('title')}</h2>
+            <p className="text-xs text-white/65">{unread ? t('unreadCount', { count: unread }) : t('emptyTitle')}</p>
           </div>
           {unread > 0 && (
             <Button variant="ghost" size="sm" className="gap-1.5 text-white hover:bg-white/10 hover:text-white" onClick={() => void markAllRead()}>
               <CheckCheck className="h-4 w-4" />
-              Mark all read
+              {t('markAllAsRead')}
             </Button>
           )}
         </div>
@@ -106,8 +109,8 @@ export function NotificationPopover() {
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <Bell className="h-5 w-5" />
               </span>
-              <p className="mt-3 text-sm font-semibold">No notifications yet</p>
-              <p className="mt-1 text-xs text-muted-foreground">Updates and meeting invitations will appear here.</p>
+              <p className="mt-3 text-sm font-semibold">{t('emptyPopoverTitle')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t('emptyPopoverHint')}</p>
             </div>
           ) : (
             notifications.slice(0, 30).map((notification) => {
@@ -129,7 +132,7 @@ export function NotificationPopover() {
                       {!notification.read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-danger" />}
                     </span>
                     {notification.body && <span className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{notification.body}</span>}
-                    <span className="mt-1 block text-2xs font-medium text-brand-teal">{formatRelative(notification.createdAt)}</span>
+                    <span className="mt-1 block text-2xs font-medium text-brand-teal">{formatRelative(notification.createdAt, locale)}</span>
                   </span>
                 </div>
               );

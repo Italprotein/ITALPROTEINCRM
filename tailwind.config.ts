@@ -188,6 +188,19 @@ const config: Config = {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-12px)' },
         },
+        /* Gentler sibling of `float` for persistent chrome (the Amina launcher,
+         * the hero bottle): −12px every 4s reads as bouncing on an element that
+         * never leaves the screen, so this drifts a third of that, slower. */
+        'float-slow': {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-7px)' },
+        },
+        /* Ambient breathing for large decorative glows. Opacity-only — a
+         * transform here would repaint the whole hero band it sits behind. */
+        breathe: {
+          '0%, 100%': { opacity: '0.65' },
+          '50%': { opacity: '1' },
+        },
         'pulse-glow': {
           '0%, 100%': { opacity: '0.5', transform: 'scale(1)' },
           '50%': { opacity: '0.85', transform: 'scale(1.06)' },
@@ -234,6 +247,8 @@ const config: Config = {
         'slide-in-left': 'slide-in-left 0.45s cubic-bezier(0.22,1,0.36,1) forwards',
         'scale-in': 'scale-in 0.3s cubic-bezier(0.22,1,0.36,1) forwards',
         float: 'float 4s ease-in-out infinite',
+        'float-slow': 'float-slow 6.5s ease-in-out infinite',
+        breathe: 'breathe 9s ease-in-out infinite',
         'pulse-glow': 'pulse-glow 3s ease-in-out infinite',
         'map-pulse': 'map-pulse 3.4s ease-in-out infinite',
         'spin-slow': 'spin-slow 28s linear infinite',
