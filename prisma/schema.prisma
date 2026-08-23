@@ -245,6 +245,18 @@ enum CompanySize {
   enterprise
 }
 
+/// Why a company must never be contacted again. See model DoNotContactEntry.
+enum DoNotContactReason {
+  opt_out
+  not_interested
+  gdpr_request
+  competitor
+  bounced
+  complaint
+  not_relevant
+  other
+}
+
 enum DecisionRole {
   decision_maker
   influencer
@@ -779,6 +791,7 @@ model User {
   leads                Lead[]              @relation("LeadAdmin")
   passwordResetCodes   PasswordResetCode[] @relation("UserPasswordResetCodes")
   activationTokens     AccountActivationToken[] @relation("UserAccountActivationTokens")
+  doNotContactEntries  DoNotContactEntry[]      @relation("DoNotContactAddedBy")
 
   @@index([roleId])
   @@index([companyId])
@@ -1140,6 +1153,9 @@ model Company {
   supportRequests       SupportRequest[]  @relation("CompanySupportRequests")
   assistantThreads      AssistantThread[] @relation("AssistantThreadCompany")
 
+  // Do-not-contact register (at most one entry per company — companyId is unique).
+  doNotContact DoNotContactEntry? @relation("CompanyDoNotContact")
+
   @@index([type])
   @@index([segment])
   @@index([country])
@@ -1147,6 +1163,31 @@ model Company {
   @@index([ownerUserId])
   @@index([priority])
   @@map("companies")
+}
+
+/// Companies nobody may contact, maintained by hand from /admin/do-not-contact.
+///
+/// `companyId` is UNIQUE: a company is either on the list or it is not, so
+/// re-adding one updates its reason/notes instead of creating a rival entry
+/// that could disagree with the badge on the company record. The FK cascades —
+/// once the company row is gone there is nobody left to protect — while
+/// `addedById` is SetNull so deleting a staff account never deletes a
+/// suppression.
+model DoNotContactEntry {
+  id        String             @id @default(cuid())
+  companyId String             @unique
+  reason    DoNotContactReason
+  notes     String?
+  addedById String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  company Company @relation("CompanyDoNotContact", fields: [companyId], references: [id], onDelete: Cascade)
+  addedBy User?   @relation("DoNotContactAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+
+  @@index([reason])
+  @@index([addedById])
+  @@map("do_not_contact_entries")
 }
 
 model Contact {

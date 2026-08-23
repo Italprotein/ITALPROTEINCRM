@@ -49,6 +49,8 @@ import { projectService as mockProjectService } from './projectService';
 import { projectService as apiProjectService } from '@/lib/services/project';
 import { productService as mockProductService } from './productService';
 import { productService as apiProductService } from '@/lib/services/product';
+import { doNotContactService as mockDoNotContactService } from './doNotContactService';
+import { doNotContactService as apiDoNotContactService } from '@/lib/services/do-not-contact';
 import { userService as mockUserService } from './userService';
 import { userService as apiUserService } from '@/lib/services/user';
 import { agencyService as mockAgencyService } from './agencyService';
@@ -82,6 +84,7 @@ export const supportService = isApiMode ? apiSupportService : mockSupportService
 export const financeService = isApiMode ? apiFinanceService : mockFinanceService;
 export const projectService = isApiMode ? apiProjectService : mockProjectService;
 export const productService = isApiMode ? apiProductService : mockProductService;
+export const doNotContactService = isApiMode ? apiDoNotContactService : mockDoNotContactService;
 export const userService = isApiMode ? apiUserService : mockUserService;
 export const agencyService = isApiMode ? apiAgencyService : mockAgencyService;
 export type { Agency } from './agencyService';

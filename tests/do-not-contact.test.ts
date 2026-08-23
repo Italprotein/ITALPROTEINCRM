@@ -1,0 +1,274 @@
+import { describe, it, expect, afterEach } from 'vitest';
+
+import {
+  applyDoNotContactUpsert,
+  doNotContactReasonLabel,
+  draftForCompany,
+  isDoNotContactReason,
+  toDoNotContactReason,
+  DEFAULT_DO_NOT_CONTACT_REASON,
+} from '@/lib/do-not-contact';
+import { DO_NOT_CONTACT_REASONS, type DoNotContactEntry } from '@/lib/types';
+import { setLabelLocale } from '@/lib/labels';
+import { doNotContactService } from '@/lib/mock-services/doNotContactService';
+import { DO_NOT_CONTACT_ENTRIES } from '@/fixtures';
+
+/*
+ * Pure logic behind the Do Not Contact list.
+ *
+ * Two rules matter enough to pin here. First, a reason arriving from a form, a
+ * URL or an import must be validated before it reaches a Prisma enum column —
+ * an unknown string is a 500, not a blank field. Second, a company is on this
+ * list exactly once: adding a company that is already listed must UPDATE the
+ * existing entry, never append a second one. A duplicate would split the reason
+ * across two rows and let a "remove" leave the company still listed (or, worse,
+ * let the header badge disagree with the list).
+ *
+ * Both run with no database — the mock service and the Prisma-backed service
+ * share this module, so the rules cannot drift between data modes.
+ */
+
+afterEach(() => setLabelLocale('en'));
+
+const entry = (over: Partial<DoNotContactEntry> = {}): DoNotContactEntry => ({
+  id: 'dnc_1',
+  companyId: 'c_venchi',
+  reason: 'opt_out',
+  notes: 'Asked to be removed at Fi Europe.',
+  addedById: 'u_simone',
+  createdAt: '2026-05-01T09:00:00.000Z',
+  updatedAt: '2026-05-01T09:00:00.000Z',
+  ...over,
+});
+
+const ctx = { id: 'dnc_new', addedById: 'u_marco', now: '2026-08-23T10:00:00.000Z' };
+
+describe('reason validation', () => {
+  it('accepts every declared reason', () => {
+    for (const reason of DO_NOT_CONTACT_REASONS) {
+      expect(isDoNotContactReason(reason), reason).toBe(true);
+    }
+  });
+
+  it('rejects anything that is not a declared reason', () => {
+    for (const value of ['', 'OPT_OUT', 'optOut', 'unsubscribed', null, undefined, 7, {}]) {
+      expect(isDoNotContactReason(value), String(value)).toBe(false);
+    }
+  });
+
+  it('coerces an unknown value to "other" rather than throwing', () => {
+    expect(toDoNotContactReason('unsubscribed')).toBe('other');
+    expect(toDoNotContactReason(null)).toBe('other');
+    expect(toDoNotContactReason('gdpr_request')).toBe('gdpr_request');
+  });
+
+  /*
+   * The six companies the real CRM already holds at relationshipStage 'lost'
+   * (Chokay, SmartSweets, Ritter Sport, Wander AG, Conad FO, Rausch) are the
+   * first rows this register will ever get, and four of them are plain "not
+   * interested" refusals — not an opt-out, not a GDPR erasure, not a bounce.
+   * Without this value those four would land on `other` and the list would lose
+   * the single most common reason a company is on it. Pinned by name because
+   * the enum shipped once without it.
+   */
+  it('recognises not_interested — the most common reason in the real data', () => {
+    expect(DO_NOT_CONTACT_REASONS).toContain('not_interested');
+    expect(isDoNotContactReason('not_interested')).toBe(true);
+    expect(toDoNotContactReason('not_interested')).toBe('not_interested');
+  });
+
+  it('labels not_interested in both locales', () => {
+    expect(doNotContactReasonLabel('not_interested')).toBe('Not interested');
+    setLabelLocale('it');
+    expect(doNotContactReasonLabel('not_interested')).toBe('Non interessato');
+  });
+});
+
+/*
+ * `getLabel` falls back IT → EN → humanize(code), and humanize turns
+ * 'never_reply' into a plausible-looking "Never reply". That means a reason
+ * added to the enum with NO entry in either label map still produces a
+ * non-empty, underscore-free string — so the two generic assertions above
+ * ("has a label", "no underscore") can never fail on a missing translation.
+ * This CRM's production users are Italian; shipping them an English chip
+ * because someone forgot a map entry is a real, silent regression.
+ *
+ * The check below is exact rather than generic: a missing IT entry makes the
+ * Italian label byte-identical to the English one, so comparing the two
+ * detects precisely that and nothing else.
+ *
+ * There is deliberately NO equivalent assertion for English. I tried
+ * `label !== humanize(code)` and it failed on `not_interested`, whose correct
+ * English label ("Not interested") IS the humanised code — as are Competitor,
+ * Complaint, Bounced and Other. That is not a gap in coverage: when the
+ * English label and humanize(code) coincide, a missing EN map entry renders
+ * the identical string, so it is invisible to the user by definition. Italian
+ * is the only side where a forgotten entry silently changes what a person
+ * reads, which is exactly why this CRM's users would be the ones to find it.
+ */
+/*
+ * Brief §8 promises future send paths a cheap `isCompanyDoNotContact(companyId)`
+ * on the service. The server action had that name but the surface reached
+ * through the services barrel only had `isCompanyListed`, so a send guard
+ * written from the brief would have called a method that does not exist — and
+ * `undefined is not a function` in a guard fails OPEN: the email goes out.
+ * The Prisma-backed service is typed `: DoNotContactService` against this mock,
+ * so pinning the name here pins it on both implementations.
+ */
+describe('the send-path guard is reachable by its documented name', () => {
+  it('answers true for a listed company and false for an unlisted one', async () => {
+    await doNotContactService.reset();
+    expect(typeof doNotContactService.isCompanyDoNotContact).toBe('function');
+
+    const listedId = DO_NOT_CONTACT_ENTRIES[0].companyId;
+    expect(await doNotContactService.isCompanyDoNotContact(listedId)).toBe(true);
+    expect(await doNotContactService.isCompanyDoNotContact('c_not_on_the_list')).toBe(false);
+  });
+});
+
+describe('every reason is translated in both label maps', () => {
+  it('has a real Italian entry — not the English label falling through', () => {
+    setLabelLocale('en');
+    const en = DO_NOT_CONTACT_REASONS.map((r) => doNotContactReasonLabel(r));
+    setLabelLocale('it');
+    const it = DO_NOT_CONTACT_REASONS.map((r) => doNotContactReasonLabel(r));
+
+    DO_NOT_CONTACT_REASONS.forEach((reason, i) => {
+      expect(it[i], reason).not.toBe(en[i]);
+    });
+  });
+});
+
+describe('reason labels', () => {
+  it('gives every reason a human label, never the raw code', () => {
+    for (const reason of DO_NOT_CONTACT_REASONS) {
+      const label = doNotContactReasonLabel(reason);
+      expect(label.length, reason).toBeGreaterThan(0);
+      expect(label, reason).not.toContain('_');
+    }
+  });
+
+  it('follows the active label locale', () => {
+    setLabelLocale('it');
+    expect(doNotContactReasonLabel('gdpr_request')).toBe('Richiesta GDPR');
+    setLabelLocale('en');
+    expect(doNotContactReasonLabel('gdpr_request')).toBe('GDPR request');
+  });
+});
+
+describe('adding a company that is already listed', () => {
+  it('creates a new entry when the company is not on the list', () => {
+    const result = applyDoNotContactUpsert([], { companyId: 'c_barilla', reason: 'competitor' }, ctx);
+
+    expect(result.created).toBe(true);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entry).toMatchObject({
+      id: 'dnc_new',
+      companyId: 'c_barilla',
+      reason: 'competitor',
+      addedById: 'u_marco',
+      createdAt: ctx.now,
+      updatedAt: ctx.now,
+    });
+  });
+
+  it('updates the existing entry instead of appending a duplicate', () => {
+    const existing = entry();
+    const result = applyDoNotContactUpsert(
+      [existing],
+      { companyId: 'c_venchi', reason: 'gdpr_request', notes: 'Formal erasure request.' },
+      ctx,
+    );
+
+    expect(result.created).toBe(false);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries.filter((e) => e.companyId === 'c_venchi')).toHaveLength(1);
+    expect(result.entry.reason).toBe('gdpr_request');
+    expect(result.entry.notes).toBe('Formal erasure request.');
+  });
+
+  it('keeps the identity of the existing entry — same id, first-listed date and author', () => {
+    const existing = entry();
+    const { entry: updated } = applyDoNotContactUpsert(
+      [existing],
+      { companyId: 'c_venchi', reason: 'complaint' },
+      ctx,
+    );
+
+    expect(updated.id).toBe('dnc_1');
+    expect(updated.createdAt).toBe('2026-05-01T09:00:00.000Z');
+    expect(updated.addedById).toBe('u_simone');
+    expect(updated.updatedAt).toBe(ctx.now);
+  });
+
+  it('leaves other companies untouched', () => {
+    const others = [entry({ id: 'dnc_2', companyId: 'c_barilla', reason: 'competitor' })];
+    const result = applyDoNotContactUpsert([...others, entry()], { companyId: 'c_venchi', reason: 'bounced' }, ctx);
+
+    expect(result.entries).toHaveLength(2);
+    expect(result.entries.find((e) => e.companyId === 'c_barilla')).toEqual(others[0]);
+  });
+
+  it('normalises notes: blank or whitespace-only clears the field', () => {
+    const created = applyDoNotContactUpsert([], { companyId: 'c_barilla', reason: 'other', notes: '   ' }, ctx);
+    expect(created.entry.notes).toBeUndefined();
+
+    const cleared = applyDoNotContactUpsert([entry()], { companyId: 'c_venchi', reason: 'other', notes: '' }, ctx);
+    expect(cleared.entry.notes).toBeUndefined();
+
+    const trimmed = applyDoNotContactUpsert([], { companyId: 'c_barilla', reason: 'other', notes: '  spoke to CEO  ' }, ctx);
+    expect(trimmed.entry.notes).toBe('spoke to CEO');
+  });
+
+  it('seeds the Add dialog from the entry when the picked company is listed', () => {
+    const entries = [entry({ companyId: 'c_naturasi', reason: 'gdpr_request', notes: 'DPO erasure request.' })];
+    expect(draftForCompany(entries, 'c_naturasi')).toEqual({
+      reason: 'gdpr_request',
+      notes: 'DPO erasure request.',
+    });
+  });
+
+  /*
+   * The Add dialog used to fill its reason/notes fields from the picked
+   * company but never clear them again, so this sequence suppressed the wrong
+   * company for the wrong reason: pick NaturaSì (listed — the form auto-fills
+   * 'gdpr_request' and the DPO's erasure text), change your mind, pick Venchi
+   * (not listed — nothing clears), press Add. Venchi is now recorded as a GDPR
+   * erasure that was never requested, carrying another company's audit note.
+   *
+   * Seeding the form is a pure function of (entries, companyId), so the rule
+   * lives here rather than inside the component: the dialog reads its initial
+   * state from it and is remounted on companyId, which makes "switch away and
+   * the fields go with it" structural instead of an effect someone has to
+   * remember to write an else branch for.
+   */
+  it('clears the fields when the picked company is NOT listed', () => {
+    const entries = [entry({ companyId: 'c_naturasi', reason: 'gdpr_request', notes: 'DPO erasure request.' })];
+
+    // Switching from the listed company to an unlisted one must carry nothing over.
+    expect(draftForCompany(entries, 'c_venchi')).toEqual({
+      reason: DEFAULT_DO_NOT_CONTACT_REASON,
+      notes: '',
+    });
+    expect(draftForCompany(entries, 'c_venchi').notes).not.toContain('DPO');
+  });
+
+  it('clears the fields when the picker is empty', () => {
+    const entries = [entry({ companyId: 'c_naturasi', reason: 'gdpr_request', notes: 'DPO erasure request.' })];
+    expect(draftForCompany(entries, '')).toEqual({ reason: DEFAULT_DO_NOT_CONTACT_REASON, notes: '' });
+  });
+
+  it('treats an entry with no notes as an empty textarea, never undefined', () => {
+    const entries = [entry({ companyId: 'c_gimoka', reason: 'other', notes: undefined })];
+    expect(draftForCompany(entries, 'c_gimoka')).toEqual({ reason: 'other', notes: '' });
+  });
+
+  it('coerces an unknown incoming reason instead of writing it through', () => {
+    const result = applyDoNotContactUpsert(
+      [],
+      { companyId: 'c_barilla', reason: 'unsubscribed' as never },
+      ctx,
+    );
+    expect(result.entry.reason).toBe('other');
+  });
+});

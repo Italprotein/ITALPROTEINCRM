@@ -220,6 +220,36 @@ export interface Company {
   createdAt: ISODate;
 }
 
+/* ────────────────────────────── Do Not Contact ────────────────────────────── */
+
+/** Why a company must never be contacted again. */
+export type DoNotContactReason =
+  | 'opt_out'
+  /** Told us plainly they are not interested. The commonest reason in practice. */
+  | 'not_interested'
+  | 'gdpr_request'
+  | 'competitor'
+  | 'bounced'
+  | 'complaint'
+  | 'not_relevant'
+  | 'other';
+
+/**
+ * A company on the do-not-contact list. `companyId` is unique — a company is
+ * listed once, so re-adding an already-listed company updates its entry rather
+ * than creating a second one (see lib/do-not-contact.ts).
+ */
+export interface DoNotContactEntry {
+  id: ID;
+  companyId: ID;
+  reason: DoNotContactReason;
+  notes?: string;
+  /** Who put the company on the list. Absent once that account is deleted. */
+  addedById?: ID;
+  createdAt: ISODate;
+  updatedAt: ISODate;
+}
+
 /* ────────────────────────────── Contacts ────────────────────────────── */
 
 export type DecisionRole = 'decision_maker' | 'influencer' | 'gatekeeper' | 'champion' | 'user' | 'unknown';
@@ -1123,6 +1153,10 @@ export const COMPANY_TYPES: CompanyType[] = [
   'sports_nutrition', 'retailer', 'horeca', 'other',
   // Legacy values — still valid on existing records.
   'dairy_manufacturer', 'confectionery_manufacturer', 'ingredient_company', 'laboratory',
+];
+
+export const DO_NOT_CONTACT_REASONS: DoNotContactReason[] = [
+  'opt_out', 'not_interested', 'gdpr_request', 'competitor', 'bounced', 'complaint', 'not_relevant', 'other',
 ];
 
 export const APPLICATION_CATEGORIES: ApplicationCategory[] = [

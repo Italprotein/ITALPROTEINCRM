@@ -61,6 +61,7 @@ export type LabelKind =
   | 'registrationStatus'
   | 'productStatus'
   | 'agreementStatus'
+  | 'doNotContactReason'
   | 'priority'
   | 'role'
   | 'workspace';
@@ -510,6 +511,17 @@ const agreementStatusLabels: LabelMap = {
   expired: 'Expired',
 };
 
+const doNotContactReasonLabels: LabelMap = {
+  opt_out: 'Opted out',
+  not_interested: 'Not interested',
+  gdpr_request: 'GDPR request',
+  competitor: 'Competitor',
+  bounced: 'Email bouncing',
+  complaint: 'Complaint',
+  not_relevant: 'Not relevant',
+  other: 'Other',
+};
+
 const priorityLabels: LabelMap = {
   low: 'Low',
   medium: 'Medium',
@@ -895,6 +907,22 @@ const agreementStatusTones: ToneMap = {
   expired: 'danger',
 };
 
+/* Every reason here blocks outreach, so none of them is a 'success'. The split
+   is between a reason we are legally or explicitly bound by (danger) and one we
+   chose ourselves and could revisit (warning / muted). */
+const doNotContactReasonTones: ToneMap = {
+  opt_out: 'danger',
+  gdpr_request: 'danger',
+  complaint: 'danger',
+  bounced: 'warning',
+  competitor: 'warning',
+  // A refusal we were told directly. Firmer than "we decided they're not
+  // relevant", but revisitable in a way a GDPR erasure never is.
+  not_interested: 'warning',
+  not_relevant: 'muted',
+  other: 'muted',
+};
+
 const priorityTones: ToneMap = {
   low: 'muted',
   medium: 'info',
@@ -958,6 +986,7 @@ const LABELS: Record<LabelKind, LabelMap> = {
   registrationStatus: registrationStatusLabels,
   productStatus: productStatusLabels,
   agreementStatus: agreementStatusLabels,
+  doNotContactReason: doNotContactReasonLabels,
   priority: priorityLabels,
   role: roleLabels,
   workspace: workspaceLabels,
@@ -994,6 +1023,7 @@ const TONES: Partial<Record<LabelKind, ToneMap>> = {
   registrationStatus: registrationStatusTones,
   productStatus: productStatusTones,
   agreementStatus: agreementStatusTones,
+  doNotContactReason: doNotContactReasonTones,
   priority: priorityTones,
   role: roleTones,
   workspace: workspaceTones,
@@ -1141,6 +1171,11 @@ const LABELS_IT: Record<LabelKind, LabelMap> = {
   },
   productStatus: { in_development: 'In sviluppo', tested: 'Testato', launched: 'Lanciato', archived: 'Archiviato' },
   agreementStatus: { none: 'Nessun accordo', draft: 'Bozza', active: 'Attivo', expired: 'Scaduto' },
+  doNotContactReason: {
+    opt_out: 'Disiscrizione', not_interested: 'Non interessato', gdpr_request: 'Richiesta GDPR',
+    competitor: 'Concorrente', bounced: 'Email non recapitate', complaint: 'Reclamo',
+    not_relevant: 'Non pertinente', other: 'Altro',
+  },
   priority: { low: 'Bassa', medium: 'Media', high: 'Alta', urgent: 'Urgente' },
   role: {
     super_admin: 'Super admin', crm_admin: 'Admin CRM', business_dev: 'Sviluppo commerciale', rnd_technical: 'R&S / Tecnico',
