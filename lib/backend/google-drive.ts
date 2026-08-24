@@ -13,6 +13,10 @@ import { getGmailAuth, GmailError } from "./gmail";
 
 const DRIVE_BASE = "https://www.googleapis.com/drive/v3";
 
+// Lives in its own module because it is pure and this one is `server-only`;
+// re-exported here so folder-id normalisation reads as part of the Drive API.
+export { driveFolderId } from "./drive-folder-id";
+
 export interface DriveFile {
   id: string;
   name: string;

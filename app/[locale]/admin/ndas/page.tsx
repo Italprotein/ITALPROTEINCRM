@@ -28,6 +28,8 @@ import {
   FileText,
   ShieldCheck,
   RefreshCw,
+  HardDrive,
+  Trash2,
 } from 'lucide-react';
 
 import { ndaService, companyService, documentService } from '@/lib/mock-services';
@@ -91,6 +93,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { toast } from '@/components/ui/use-toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 /* ────────────────────────────── Constants ────────────────────────────── */
 
@@ -125,8 +128,11 @@ export default function NdasPage() {
   const canMarkSigned = !!role && can(role, 'nda.mark_signed');
   const canEditNdas = !!role && canEdit(role, 'ndas');
 
+  const { confirm, ConfirmDialog: confirmDialog } = useConfirm();
+
   const [rows, setRows] = React.useState<NDA[] | null>(null);
   const [syncingEmail, setSyncingEmail] = React.useState(false);
+  const [syncingDrive, setSyncingDrive] = React.useState(false);
   const [companies, setCompanies] = React.useState<Map<string, Company>>(new Map());
   const [stats, setStats] = React.useState<Stats | null>(null);
   const [technicalCount, setTechnicalCount] = React.useState<number | null>(null);
@@ -228,7 +234,7 @@ export default function NdasPage() {
   );
 
   function toastActionFailed() {
-    toast({ variant: 'danger', title: 'Action failed', description: 'The change could not be saved. Please try again.' });
+    toast({ variant: 'danger', title: t('toastActionFailedTitle'), description: t('toastActionFailedDescription') });
   }
 
   async function markSent(n: NDA) {
@@ -278,7 +284,7 @@ export default function NdasPage() {
   function download(n: NDA) {
     const file = n.signedFiles?.[0];
     if (!file) {
-      toast({ variant: 'danger', title: 'No NDA file', description: 'Sync or upload the latest NDA document first.' });
+      toast({ variant: 'danger', title: t('toastNoFileTitle'), description: t('toastNoFileDescription') });
       return;
     }
     window.location.assign(`/api/documents/${file.id}/download`);
@@ -291,20 +297,83 @@ export default function NdasPage() {
       const response = await fetch('/api/ndas/sync-email', { method: 'POST' });
       const result = await response.json();
       if (!response.ok) {
-        toast({ variant: 'danger', title: 'Email NDA sync failed', description: result.error ?? 'Could not read the connected Gmail mailbox.' });
+        // The route's own error code is more specific than anything we could
+        // say here (RATE_LIMITED, NO_SYNC_ACTOR …), so it wins when present.
+        toast({ variant: 'danger', title: t('toastSyncEmailFailedTitle'), description: result.error ?? t('toastSyncEmailFailedDescription') });
         return;
       }
       setRows(await ndaService.list());
       refreshStats();
       toast({
         variant: 'success',
-        title: 'Email NDAs synced',
-        description: `${result.ndaFilesImported} NDA files imported from company email threads.`,
+        title: t('toastSyncEmailDoneTitle'),
+        description: t('toastSyncEmailDoneDescription', { count: result.ndaFilesImported ?? 0 }),
       });
     } catch {
-      toast({ variant: 'danger', title: 'Email NDA sync failed', description: 'Could not read the connected Gmail mailbox.' });
+      toast({ variant: 'danger', title: t('toastSyncEmailFailedTitle'), description: t('toastSyncEmailFailedDescription') });
     } finally {
       setSyncingEmail(false);
+    }
+  }
+
+  /**
+   * The Drive half of NDA ingestion: it walks the shared "Clienti Industriali"
+   * folder, matches each subfolder to a CRM company and files the newest
+   * agreement it finds. The endpoint has existed for a while with nothing in the
+   * UI able to reach it — the only way to run it was a cron secret.
+   */
+  async function syncDriveNdas() {
+    setSyncingDrive(true);
+    try {
+      const response = await fetch('/api/ndas/sync-drive', { method: 'POST' });
+      const result = await response.json();
+      if (!response.ok) {
+        toast({ variant: 'danger', title: t('toastSyncDriveFailedTitle'), description: result.error ?? t('toastSyncDriveFailedDescription') });
+        return;
+      }
+      setRows(await ndaService.list());
+      refreshStats();
+      toast({
+        variant: 'success',
+        title: t('toastSyncDriveDoneTitle'),
+        description: t('toastSyncDriveDoneDescription', {
+          synced: result.synced ?? 0,
+          matched: result.matched ?? 0,
+          // Per-folder failures now land in `skipped` instead of killing the
+          // run, so this count is the honest "look at the server log" signal.
+          skipped: result.skipped?.length ?? 0,
+        }),
+      });
+    } catch {
+      toast({ variant: 'danger', title: t('toastSyncDriveFailedTitle'), description: t('toastSyncDriveFailedDescription') });
+    } finally {
+      setSyncingDrive(false);
+    }
+  }
+
+  /**
+   * Deleting an NDA drops the register row AND recomputes the company's NDA
+   * status from what is left, so it can flip a company out of "signed" and
+   * change who may read post-NDA documents. Hence the confirmation.
+   */
+  async function deleteNda(n: NDA) {
+    const ok = await confirm({
+      title: t('deleteConfirmTitle'),
+      description: t('deleteConfirmDescription', { reference: n.reference, company: companyName(n.companyId) }),
+      confirmLabel: t('delete'),
+      cancelLabel: t('cancel'),
+      variant: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await ndaService.remove(n.id);
+      // Only after the server confirms: an optimistic removal here would hide a
+      // permission failure behind a row that quietly comes back on reload.
+      setRows((prev) => (prev ? prev.filter((row) => row.id !== n.id) : prev));
+      refreshStats();
+      toast({ variant: 'success', title: t('toastDeletedTitle'), description: t('toastDeletedDescription', { reference: n.reference }) });
+    } catch {
+      toast({ variant: 'danger', title: t('toastActionFailedTitle'), description: t('toastDeleteFailedDescription') });
     }
   }
 
@@ -522,6 +591,16 @@ export default function NdasPage() {
             <ListChecks />
             {t('actionCreateFollowUp')}
           </DropdownMenuItem>
+          {/* Same gate as the server action behind it (requireSectionEdit("ndas")). */}
+          {canEditNdas ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-danger-text focus:text-danger-text" onSelect={() => void deleteNda(n)}>
+                <Trash2 />
+                {t('actionDelete')}
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -569,7 +648,11 @@ export default function NdasPage() {
             <>
               <Button variant="outline" onClick={() => void syncEmailNdas()} disabled={syncingEmail}>
                 <RefreshCw className={syncingEmail ? 'animate-spin' : ''} />
-                {syncingEmail ? 'Syncing email…' : 'Sync Email NDAs'}
+                {syncingEmail ? t('syncEmailNdasRunning') : t('syncEmailNdas')}
+              </Button>
+              <Button variant="outline" onClick={() => void syncDriveNdas()} disabled={syncingDrive}>
+                <HardDrive className={syncingDrive ? 'animate-pulse' : ''} />
+                {syncingDrive ? t('syncDriveNdasRunning') : t('syncDriveNdas')}
               </Button>
               <Button variant="outline" onClick={() => setUploadOpen(true)}>
                 <Upload />
@@ -691,6 +774,8 @@ export default function NdasPage() {
           setRevisionFor(null);
         }}
       />
+
+      {confirmDialog}
     </div>
   );
 }
@@ -1044,7 +1129,7 @@ function CreateNdaDialog({
       reset();
       onOpenChange(false);
     } catch {
-      toast({ variant: 'danger', title: 'Action failed', description: 'The NDA could not be created. Please try again.' });
+      toast({ variant: 'danger', title: t('toastActionFailedTitle'), description: t('toastCreateFailedDescription') });
     } finally {
       setSubmitting(false);
     }
@@ -1235,7 +1320,7 @@ function UploadNdaDialog({
       reset();
       onOpenChange(false);
     } catch {
-      toast({ variant: 'danger', title: 'Action failed', description: 'The NDA could not be uploaded. Please try again.' });
+      toast({ variant: 'danger', title: t('toastActionFailedTitle'), description: t('toastUploadFailedDescription') });
     } finally {
       setSubmitting(false);
     }

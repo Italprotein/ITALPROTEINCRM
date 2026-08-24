@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { DRIVE_FOLDER_MIME, downloadDriveFile, listDriveFolder } from "./google-drive";
+import { DRIVE_FOLDER_MIME, downloadDriveFile, driveFolderId, listDriveFolder } from "./google-drive";
 import { inferTechnicalCategory } from "@/lib/technical-docs";
 
 /**
@@ -33,7 +33,17 @@ export interface TechnicalSyncResult {
 }
 
 export async function syncTechnicalDriveDocuments(actorId: string): Promise<TechnicalSyncResult> {
-  const folderId = process.env.GOOGLE_DRIVE_TECHNICAL_FOLDER_ID;
+  // No fallback: there is no sane default "Documenti Tecnici" folder to guess.
+  // `driveFolderId` is what makes an empty string or the env template's
+  // `<1abc…>` placeholder count as unset, so a misconfigured deployment stops
+  // here with a name for its problem rather than asking Drive for a folder id
+  // that cannot exist and reporting the resulting 404.
+  //
+  // Still a throw, not a returned error object: the sole caller
+  // (app/api/documents/sync-technical/route.ts) turns a thrown message into
+  // `{ error: "TECHNICAL_FOLDER_NOT_CONFIGURED" }`, which is exactly the
+  // response contract wanted — and TechnicalSyncResult stays a success shape.
+  const folderId = driveFolderId(process.env.GOOGLE_DRIVE_TECHNICAL_FOLDER_ID);
   if (!folderId) throw new Error("TECHNICAL_FOLDER_NOT_CONFIGURED");
 
   const entries = await listDriveFolder(folderId);

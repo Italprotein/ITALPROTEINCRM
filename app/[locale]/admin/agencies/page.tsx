@@ -17,8 +17,10 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useRouter } from '@/lib/i18n/navigation';
-import { agencyService, leadService, type Agency } from '@/lib/mock-services';
+import { agencyService, companyService, leadService, type Agency } from '@/lib/mock-services';
 import type { LeadEntry } from '@/lib/types';
+import { useSession } from '@/components/providers/session-provider';
+import { can } from '@/lib/permissions';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { formatRelative, flagEmoji } from '@/lib/formatting';
 import { humanize } from '@/lib/labels';
@@ -41,6 +43,7 @@ import {
   SheetClose,
 } from '@/components/ui/sheet';
 import { toast } from '@/components/ui/use-toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
@@ -50,6 +53,12 @@ export default function AgenciesPage() {
   const t = useTranslations('AdminAgencies');
   const router = useRouter();
   const { nameOf } = useStaffDirectory();
+  const { session } = useSession();
+  const role = session?.role;
+  // A partner IS a Company row, so deletion is gated on the same action the
+  // server action behind it requires: `company.edit` (internal-only).
+  const canDeletePartner = !!role && can(role, 'company.edit');
+  const { confirm, ConfirmDialog: confirmDialog } = useConfirm();
   const [rows, setRows] = useState<Agency[] | null>(null);
   const [stats, setStats] = useState<Awaited<ReturnType<typeof agencyService.getStatistics>> | null>(null);
   const [preview, setPreview] = useState<Agency | null>(null);
@@ -64,6 +73,43 @@ export default function AgenciesPage() {
   async function removeLead(id: string) {
     setMyLeads((prev) => (prev ? prev.filter((l) => l.id !== id) : prev));
     await leadService.remove(id);
+  }
+
+  /**
+   * Delete a partner — which means deleting the Company row it is stored in.
+   * The confirmation says so in as many words, because "remove this partner"
+   * and "delete this company and everything filed under it" are the same
+   * button here and only one of them is obvious from where you are standing.
+   */
+  async function deletePartner(a: Agency) {
+    const name = a.tradingName ?? a.legalName;
+    const ok = await confirm({
+      title: t('deleteConfirmTitle'),
+      description: t('deleteConfirmDescription', { name }),
+      confirmLabel: t('delete'),
+      cancelLabel: t('cancel'),
+      variant: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await companyService.remove(a.id);
+      setRows((prev) => (prev ? prev.filter((row) => row.id !== a.id) : prev));
+      void agencyService.getStatistics().then(setStats);
+      toast({ variant: 'success', title: t('toastDeletedTitle'), description: t('toastDeletedDescription', { name }) });
+    } catch (error) {
+      // A company holding quotes, orders or invoices is refused rather than
+      // destroyed. Say which records blocked it instead of leaking the raw
+      // `COMPANY_DELETE_BLOCKED: 2 quote(s)` string at the reader.
+      const message = error instanceof Error ? error.message : '';
+      const blocked = message.includes('COMPANY_DELETE_BLOCKED');
+      toast({
+        variant: 'danger',
+        title: blocked ? t('deleteBlockedTitle') : t('toastActionFailedTitle'),
+        description: blocked
+          ? t('deleteBlockedDescription', { name, reasons: message.split('COMPANY_DELETE_BLOCKED:')[1]?.trim() ?? '' })
+          : t('toastActionFailedDescription'),
+      });
+    }
   }
 
   const ownerName = (id: string, unassignedLabel: string) => nameOf(id, unassignedLabel);
@@ -317,6 +363,17 @@ export default function AgenciesPage() {
             >
               <ArrowUpRight className="h-4 w-4" />
             </Button>
+            {canDeletePartner && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t('deletePartner')}
+                className="text-danger-text"
+                onClick={() => void deletePartner(a)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         )}
         enableColumnVisibility
@@ -422,6 +479,8 @@ export default function AgenciesPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      {confirmDialog}
     </div>
   );
 }
