@@ -19,6 +19,7 @@ import {
   Phone,
   ExternalLink,
   Pencil,
+  Trash2,
 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { Link, useRouter } from '@/lib/i18n/navigation';
@@ -49,6 +50,9 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { toast } from '@/components/ui/use-toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
+import { useSession } from '@/components/providers/session-provider';
+import { can } from '@/lib/permissions';
 
 function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
@@ -59,6 +63,11 @@ export default function AgencyDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const { nameOf } = useStaffDirectory();
+  const { session } = useSession();
+  const role = session?.role;
+  // Same gate as removeCompany's own `requireAction("company.edit")`.
+  const canDeletePartner = !!role && can(role, 'company.edit');
+  const { confirm, ConfirmDialog: confirmDialog } = useConfirm();
   const [agency, setAgency] = useState<Agency | null | undefined>(undefined);
   const [introduced, setIntroduced] = useState<Company[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -96,6 +105,45 @@ export default function AgencyDetailPage() {
       active = false;
     };
   }, [params.id]);
+
+  /**
+   * A partner is a Company row, so this deletes the company record itself —
+   * the confirmation says that outright rather than leaving the reader to
+   * discover it from the introduced-companies tab going empty.
+   */
+  async function deletePartner(a: Agency) {
+    const name = a.tradingName ?? a.legalName;
+    const ok = await confirm({
+      title: t('deleteConfirmTitle'),
+      description: t('deleteConfirmDescription', { name }),
+      confirmLabel: t('delete'),
+      cancelLabel: t('cancel'),
+      variant: 'danger',
+    });
+    if (!ok) return;
+    try {
+      const result = await companyService.remove(a.id);
+      // Blocked: stay on the page, name the reason. Only a real deletion
+      // navigates away.
+      if (!result.ok) {
+        toast({
+          variant: 'danger',
+          title: t('deleteBlockedTitle'),
+          description:
+            result.reason === 'financial_records'
+              ? t('deleteBlockedDescription', { name, reasons: result.details })
+              : t('deleteBlockedLinkedDescription', { name }),
+        });
+        return;
+      }
+      toast({ variant: 'success', title: t('toastDeletedTitle'), description: t('toastDeletedDescription', { name }) });
+      // The record this page is about is gone; staying here would render a
+      // "partner not found" shell over a stale URL.
+      router.push('/admin/agencies');
+    } catch {
+      toast({ variant: 'danger', title: t('toastActionFailedTitle'), description: t('toastActionFailedDescription') });
+    }
+  }
 
   if (agency === undefined) {
     return (
@@ -169,6 +217,12 @@ export default function AgencyDetailPage() {
               <Pencil className="h-4 w-4" />
               {t('editPartner')}
             </Button>
+            {canDeletePartner && (
+              <Button variant="destructive" size="sm" onClick={() => void deletePartner(a)}>
+                <Trash2 className="h-4 w-4" />
+                {t('deletePartner')}
+              </Button>
+            )}
           </div>
         }
       />
@@ -643,6 +697,8 @@ export default function AgencyDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {confirmDialog}
     </div>
   );
 }

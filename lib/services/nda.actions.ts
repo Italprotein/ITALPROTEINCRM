@@ -122,12 +122,39 @@ export async function updateNda(id: string, patch: Partial<NDA>): Promise<NDA | 
 }
 
 export async function removeNda(id: string): Promise<void> {
-  await requireSectionEdit("ndas");
-  const existing = await prisma.nDA.findUnique({ where: { id }, select: { companyId: true } });
+  // `requireSectionEdit("ndas")` alone was too weak, and in a way that mattered:
+  // business_dev holds ndas:edit WITHOUT `nda.mark_signed`, and `updateNda`
+  // above refuses them every signature transition for that reason. But deleting
+  // the register row reaches the same end by the back door — `syncCompanyNdaStatus`
+  // mirrors the register into Company.ndaStatus, so removing a fully-signed NDA
+  // drops the company out of "signed" and takes every post-NDA document away
+  // from that client's portal. Undoing a signature is a signature-state change
+  // whichever verb gets you there, so it carries the same right.
+  const actor = await requireAction("nda.mark_signed");
+  const existing = await prisma.nDA.findUnique({
+    where: { id },
+    select: { companyId: true, reference: true, status: true },
+  });
   if (!existing) return;
   await prisma.$transaction(async (tx) => {
     await tx.nDA.delete({ where: { id } });
     await syncCompanyNdaStatus(tx, existing.companyId);
+    // In the same transaction as the delete: an audit row that can be lost when
+    // the delete succeeds is not an audit trail. `before` keeps the status the
+    // register held, which is the fact that stops being recoverable afterwards.
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: actor.id,
+        actorRole: actor.role,
+        action: "nda.deleted",
+        entityType: "nda",
+        entityId: id,
+        summary: `Deleted NDA ${existing.reference}`,
+        result: "success",
+        before: { reference: existing.reference, status: existing.status, companyId: existing.companyId },
+        companyId: existing.companyId,
+      },
+    });
   });
 }
 

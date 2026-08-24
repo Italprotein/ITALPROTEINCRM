@@ -7,7 +7,7 @@ import { can } from "@/lib/permissions";
 import type { Company } from "@/lib/types";
 import { setCurrentNdaStatus } from "@/lib/backend/nda-status-sync";
 import { currentNdaByCompany, ndaScopeWhere } from "@/lib/backend/nda-current-status";
-import type { CompanyQuery } from "@/lib/mock-services/companyService";
+import type { CompanyQuery, RemoveCompanyResult } from "@/lib/mock-services/companyService";
 import { fetchCompanyLogo } from "@/lib/backend/company-logo";
 import { companyToDTO, companyWriteData, OMIT_LOGO } from "./company.mapper";
 
@@ -121,19 +121,25 @@ export async function updateCompany(id: string, patch: Partial<Company>): Promis
 }
 
 /**
- * Prefix for the "this company still holds records worth keeping" refusal.
+ * Delete a company (an agency/distributor partner is one of these too).
  *
- * A plain Error, not a subclass: a "use server" module may only export async
- * functions, and a custom error class would not survive the server-action
- * boundary as its own type anyway — only the message crosses. The client
- * matches on this prefix.
+ * Business-rule refusals are RETURNED as `{ ok: false, reason }`, never thrown.
+ * Next 16 redacts thrown server-action messages in production, so the previous
+ * `throw new Error("COMPANY_DELETE_BLOCKED: …")` + `message.includes(...)` on
+ * the client could only ever have worked in dev — live, every refusal became a
+ * generic "Action failed". Returned values cross the boundary intact.
+ *
+ * Authorization still throws: FORBIDDEN is not a business outcome to render.
  */
-const DELETE_BLOCKED = "COMPANY_DELETE_BLOCKED";
-
-export async function removeCompany(id: string): Promise<void> {
+export async function removeCompany(id: string): Promise<RemoveCompanyResult> {
   // No `company.delete` action exists; deletion is at least as privileged as
   // editing, and `company.edit` is internal-only, which is the intent here.
-  await requireAction("company.edit");
+  const actor = await requireAction("company.edit");
+
+  const existing = await prisma.company.findUnique({ where: { id }, select: { legalName: true } });
+  // Already gone. Idempotent rather than an error — and no audit row, because
+  // this call deleted nothing.
+  if (!existing) return { ok: true };
 
   // Financial records outlive the company relationship — an issued invoice is
   // an accounting fact, not a CRM detail. Refuse rather than destroy them.
@@ -146,35 +152,65 @@ export async function removeCompany(id: string): Promise<void> {
   if (quotes) blocking.push(`${quotes} quote(s)`);
   if (orders) blocking.push(`${orders} order(s)`);
   if (invoices) blocking.push(`${invoices} invoice(s)`);
-  if (blocking.length) throw new Error(`${DELETE_BLOCKED}: ${blocking.join(", ")}`);
+  if (blocking.length) return { ok: false, reason: "financial_records", details: blocking.join(", ") };
 
   // Everything else belongs to the company and goes with it. Most of these
   // relations have no ON DELETE CASCADE, so a single related row — one draft
   // sample request was enough — made the delete fail. That failure used to be
   // swallowed, so the UI reported success while the row stayed in the database.
-  await prisma.$transaction([
-    prisma.supportMessage.deleteMany({ where: { supportRequest: { companyId: id } } }),
-    prisma.supportRequest.deleteMany({ where: { companyId: id } }),
-    prisma.attachment.deleteMany({ where: { document: { companyId: id } } }),
-    prisma.googleDriveFileLink.deleteMany({ where: { companyId: id } }),
-    prisma.documentAccessEvent.deleteMany({ where: { document: { companyId: id } } }),
-    prisma.document.deleteMany({ where: { companyId: id } }),
-    prisma.nDA.deleteMany({ where: { companyId: id } }),
-    prisma.feedback.deleteMany({ where: { companyId: id } }),
-    prisma.applicationProject.deleteMany({ where: { companyId: id } }),
-    prisma.shipment.deleteMany({ where: { companyId: id } }),
-    prisma.sampleRequest.deleteMany({ where: { companyId: id } }),
-    prisma.opportunity.deleteMany({ where: { companyId: id } }),
-    prisma.meeting.deleteMany({ where: { companyId: id } }),
-    prisma.task.deleteMany({ where: { companyId: id } }),
-    prisma.activity.deleteMany({ where: { companyId: id } }),
-    prisma.notification.deleteMany({ where: { companyId: id } }),
-    prisma.assistantThread.deleteMany({ where: { companyId: id } }),
-    prisma.contact.deleteMany({ where: { companyId: id } }),
-    prisma.company.delete({ where: { id } }),
-  ]);
+  try {
+    await prisma.$transaction([
+      prisma.supportMessage.deleteMany({ where: { supportRequest: { companyId: id } } }),
+      prisma.supportRequest.deleteMany({ where: { companyId: id } }),
+      prisma.attachment.deleteMany({ where: { document: { companyId: id } } }),
+      prisma.googleDriveFileLink.deleteMany({ where: { companyId: id } }),
+      prisma.documentAccessEvent.deleteMany({ where: { document: { companyId: id } } }),
+      prisma.document.deleteMany({ where: { companyId: id } }),
+      prisma.nDA.deleteMany({ where: { companyId: id } }),
+      prisma.feedback.deleteMany({ where: { companyId: id } }),
+      prisma.applicationProject.deleteMany({ where: { companyId: id } }),
+      prisma.shipment.deleteMany({ where: { companyId: id } }),
+      prisma.sampleRequest.deleteMany({ where: { companyId: id } }),
+      prisma.opportunity.deleteMany({ where: { companyId: id } }),
+      prisma.meeting.deleteMany({ where: { companyId: id } }),
+      prisma.task.deleteMany({ where: { companyId: id } }),
+      prisma.activity.deleteMany({ where: { companyId: id } }),
+      prisma.notification.deleteMany({ where: { companyId: id } }),
+      prisma.assistantThread.deleteMany({ where: { companyId: id } }),
+      prisma.contact.deleteMany({ where: { companyId: id } }),
+      prisma.company.delete({ where: { id } }),
+      // Same transaction as the deletes: an audit row that can be lost while
+      // the delete commits is not an audit trail. `before` carries the name,
+      // which is the only thing left to identify the row by afterwards.
+      prisma.auditEvent.create({
+        data: {
+          actorUserId: actor.id,
+          actorRole: actor.role,
+          action: "company.deleted",
+          entityType: "company",
+          entityId: id,
+          summary: `Deleted company ${existing.legalName}`,
+          result: "success",
+          before: { legalName: existing.legalName },
+          companyId: id,
+        },
+      }),
+    ]);
+  } catch (error) {
+    // P2003 = foreign key constraint. The cleanup above removes everything that
+    // hangs off THIS company, but a contact of theirs can also be an attendee on
+    // a meeting recorded against ANOTHER company (meeting_contacts → contact is
+    // RESTRICT), and that row survives to refuse the contact delete. Raw, that
+    // surfaces as an unreadable P2003; named, the user learns the block comes
+    // from records held elsewhere in the CRM.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+      return { ok: false, reason: "linked_records" };
+    }
+    throw error;
+  }
   // Anything still referencing the company (audit events, email logs) keeps its
   // history with a null link, which is the point of an audit trail.
+  return { ok: true };
 }
 
 export async function countCompanies(): Promise<number> {

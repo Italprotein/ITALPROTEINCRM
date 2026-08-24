@@ -18,6 +18,29 @@ export interface CompanyQuery {
   tag?: string;
 }
 
+/**
+ * Outcome of deleting a company.
+ *
+ * A RETURNED value, not a thrown error, and that distinction is load-bearing:
+ * Next 16 redacts server-action error messages in production builds, so a
+ * `throw new Error("COMPANY_DELETE_BLOCKED: 2 invoice(s)")` reaches the browser
+ * as an opaque digest and any `message.includes(...)` branch on the client is
+ * dead code the moment it ships. Return values are serialized faithfully.
+ *
+ * Business-rule refusals come back through here. Authorization still THROWS
+ * (FORBIDDEN) — a caller with no right to delete gets no structured answer.
+ *
+ * Declared beside CompanyQuery rather than in the "use server" module so the
+ * type flows mock → actions, the same direction CompanyQuery already flows, and
+ * no client import ever reaches into a server-action module.
+ */
+export type RemoveCompanyResult =
+  | { ok: true }
+  /** Quotes/orders/invoices exist. `details` is a human-readable tally. */
+  | { ok: false; reason: 'financial_records'; details: string }
+  /** Rows elsewhere in the CRM still point at this company's records. */
+  | { ok: false; reason: 'linked_records' };
+
 function matches(c: Company, q: CompanyQuery): boolean {
   if (q.search) {
     const s = q.search.toLowerCase();
@@ -46,7 +69,13 @@ export const companyService = {
   getById: (id: string) => repo.get(id),
   create: (c: Company) => repo.create(c),
   update: (id: string, patch: Partial<Company>) => repo.update(id, patch),
-  remove: (id: string) => repo.remove(id),
+  // Mock mode has no quotes/orders/invoices to protect and no foreign keys to
+  // trip, so it always succeeds — but it answers in the same shape, so the UI
+  // has one contract to handle rather than two.
+  async remove(id: string): Promise<RemoveCompanyResult> {
+    await repo.remove(id);
+    return { ok: true };
+  },
   reset: () => repo.reset(),
 
   async count(): Promise<number> {

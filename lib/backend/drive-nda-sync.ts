@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { DRIVE_FOLDER_MIME, downloadDriveFile, listDriveFolder } from "./google-drive";
+import { DRIVE_FOLDER_MIME, downloadDriveFile, driveFolderId, listDriveFolder } from "./google-drive";
 import { syncCompanyNdaStatus } from "./nda-status-sync";
 
 const DEFAULT_ROOT = "1Nq5vcROWHTjmROZXzU-tD2RcJZMZoOuc";
@@ -83,8 +83,19 @@ function looksLikeNda(name: string) {
   );
 }
 
+/** Reason text for the `skipped` list — never the raw object. */
+function reasonOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export async function syncLatestDriveNdas(actorId: string) {
-  const rootId = process.env.GOOGLE_DRIVE_INDUSTRIAL_CLIENTS_FOLDER_ID ?? DEFAULT_ROOT;
+  // `??` used to sit here, which let an EMPTY STRING through: docker-compose
+  // injects `GOOGLE_DRIVE_INDUSTRIAL_CLIENTS_FOLDER_ID: "${…:-}"` and the VPS
+  // env file does not set it, so the sync asked Drive for `'' in parents` and
+  // the whole run died on a bare 404. `driveFolderId` treats empty, whitespace
+  // and the env template's `<…>` placeholder as unset, so we fall back to the
+  // real "Clienti Industriali" root instead.
+  const rootId = driveFolderId(process.env.GOOGLE_DRIVE_INDUSTRIAL_CLIENTS_FOLDER_ID, DEFAULT_ROOT);
   const [folders, companies] = await Promise.all([
     listDriveFolder(rootId),
     prisma.company.findMany({ select: { id: true, legalName: true, tradingName: true, createdAt: true } }),
@@ -97,65 +108,80 @@ export async function syncLatestDriveNdas(actorId: string) {
     file: Awaited<ReturnType<typeof listDriveFolder>>[number];
   }>();
 
+  // One folder per iteration, each isolated. A single unreadable or
+  // permission-denied subfolder used to abort the whole run with one opaque
+  // Drive error and lose the other 78 folders' work; now it costs that folder a
+  // line in `skipped` and nothing else. Only the ROOT listing above may throw,
+  // because if that fails there is genuinely nothing to sync.
   for (const folder of folders.filter((item) => item.mimeType === DRIVE_FOLDER_MIME)) {
-    const company = companyForFolder(folder.name, companies);
-    if (!company) {
-      skipped.push(`${folder.name}: no unique CRM company match`);
-      continue;
-    }
-    const documents = (await listDriveFolder(folder.id)).filter(isDocument);
-    const named = documents.filter((file) => looksLikeNda(file.name));
-    // A handful of scanned agreements have generic scanner names. Accept a
-    // single document as the folder's agreement, but never guess when multiple
-    // non-NDA documents compete.
-    const candidates = (named.length ? named : documents.length === 1 ? documents : [])
-      .sort((a, b) => (b.modifiedTime ?? "").localeCompare(a.modifiedTime ?? ""));
-    const latest = candidates[0];
-    if (!latest) {
-      skipped.push(`${folder.name}: no unambiguous NDA document`);
-      continue;
-    }
-    const previous = discoveries.get(company.id);
-    if (!previous || (latest.modifiedTime ?? "") > (previous.file.modifiedTime ?? "")) {
-      discoveries.set(company.id, { company, folderName: folder.name, file: latest });
+    try {
+      const company = companyForFolder(folder.name, companies);
+      if (!company) {
+        skipped.push(`${folder.name}: no unique CRM company match`);
+        continue;
+      }
+      const documents = (await listDriveFolder(folder.id)).filter(isDocument);
+      const named = documents.filter((file) => looksLikeNda(file.name));
+      // A handful of scanned agreements have generic scanner names. Accept a
+      // single document as the folder's agreement, but never guess when multiple
+      // non-NDA documents compete.
+      const candidates = (named.length ? named : documents.length === 1 ? documents : [])
+        .sort((a, b) => (b.modifiedTime ?? "").localeCompare(a.modifiedTime ?? ""));
+      const latest = candidates[0];
+      if (!latest) {
+        skipped.push(`${folder.name}: no unambiguous NDA document`);
+        continue;
+      }
+      const previous = discoveries.get(company.id);
+      if (!previous || (latest.modifiedTime ?? "") > (previous.file.modifiedTime ?? "")) {
+        discoveries.set(company.id, { company, folderName: folder.name, file: latest });
+      }
+    } catch (error) {
+      skipped.push(`${folder.name}: ${reasonOf(error)}`);
     }
   }
 
+  // Same isolation on the expensive half: one file that will not download, or
+  // one row that will not persist, must not cost the other matches their sync.
   for (const { company, folderName, file: latest } of discoveries.values()) {
-    const existing = await prisma.googleDriveFileLink.findUnique({ where: { googleFileId: latest.id } });
-    if (existing?.driveModifiedTime?.toISOString() === latest.modifiedTime) continue;
-    const downloaded = await downloadDriveFile(latest);
-    if (downloaded.bytes.length > MAX_BYTES) {
-      skipped.push(`${folderName}: file exceeds 20 MB`);
-      continue;
-    }
-
-    await prisma.$transaction(async (tx) => {
-      const document = existing?.documentId
-        ? await tx.document.update({
-            where: { id: existing.documentId },
-            data: { title: latest.name, mimeType: downloaded.mimeType, fileType: downloaded.mimeType, sizeBytes: downloaded.bytes.length, uploadedAt: new Date(), updatedById: actorId },
-          })
-        : await tx.document.create({
-            data: { title: latest.name, category: "nda", confidentialityClass: "company_specific", companyId: company.id, mimeType: downloaded.mimeType, fileType: downloaded.mimeType, sizeBytes: downloaded.bytes.length, uploadedAt: new Date(), uploadedByUserId: actorId, createdById: actorId, updatedById: actorId },
-          });
-      await tx.attachment.create({
-        data: { name: latest.name, fileType: downloaded.mimeType, mimeType: downloaded.mimeType, sizeBytes: downloaded.bytes.length, sizeKb: Math.ceil(downloaded.bytes.length / 1024), bytes: new Uint8Array(downloaded.bytes), documentId: document.id, uploadedByUserId: actorId, uploadedAt: new Date(), createdById: actorId, updatedById: actorId },
-      });
-      await tx.googleDriveFileLink.upsert({
-        where: { googleFileId: latest.id },
-        create: { googleFileId: latest.id, documentId: document.id, companyId: company.id, name: latest.name, mimeType: latest.mimeType, webViewLink: latest.webViewLink, accessLevel: "company_specific", driveModifiedTime: latest.modifiedTime ? new Date(latest.modifiedTime) : null, linkedByUserId: actorId, createdById: actorId, updatedById: actorId },
-        update: { documentId: document.id, companyId: company.id, name: latest.name, mimeType: latest.mimeType, webViewLink: latest.webViewLink, driveModifiedTime: latest.modifiedTime ? new Date(latest.modifiedTime) : null, updatedById: actorId },
-      });
-      const nda = await tx.nDA.findFirst({ where: { companyId: company.id }, orderBy: { updatedAt: "desc" } });
-      if (nda) {
-        await tx.nDA.update({ where: { id: nda.id }, data: { signedFileId: document.id, updatedById: actorId } });
-      } else {
-        await tx.nDA.create({ data: { reference: `NDA-DRV-${company.id.slice(-10)}`, companyId: company.id, status: "under_review", reminderDates: [], signedFileId: document.id, createdById: actorId, updatedById: actorId } });
+    try {
+      const existing = await prisma.googleDriveFileLink.findUnique({ where: { googleFileId: latest.id } });
+      if (existing?.driveModifiedTime?.toISOString() === latest.modifiedTime) continue;
+      const downloaded = await downloadDriveFile(latest);
+      if (downloaded.bytes.length > MAX_BYTES) {
+        skipped.push(`${folderName}: file exceeds 20 MB`);
+        continue;
       }
-      await syncCompanyNdaStatus(tx, company.id);
-    });
-    synced += 1;
+
+      await prisma.$transaction(async (tx) => {
+        const document = existing?.documentId
+          ? await tx.document.update({
+              where: { id: existing.documentId },
+              data: { title: latest.name, mimeType: downloaded.mimeType, fileType: downloaded.mimeType, sizeBytes: downloaded.bytes.length, uploadedAt: new Date(), updatedById: actorId },
+            })
+          : await tx.document.create({
+              data: { title: latest.name, category: "nda", confidentialityClass: "company_specific", companyId: company.id, mimeType: downloaded.mimeType, fileType: downloaded.mimeType, sizeBytes: downloaded.bytes.length, uploadedAt: new Date(), uploadedByUserId: actorId, createdById: actorId, updatedById: actorId },
+            });
+        await tx.attachment.create({
+          data: { name: latest.name, fileType: downloaded.mimeType, mimeType: downloaded.mimeType, sizeBytes: downloaded.bytes.length, sizeKb: Math.ceil(downloaded.bytes.length / 1024), bytes: new Uint8Array(downloaded.bytes), documentId: document.id, uploadedByUserId: actorId, uploadedAt: new Date(), createdById: actorId, updatedById: actorId },
+        });
+        await tx.googleDriveFileLink.upsert({
+          where: { googleFileId: latest.id },
+          create: { googleFileId: latest.id, documentId: document.id, companyId: company.id, name: latest.name, mimeType: latest.mimeType, webViewLink: latest.webViewLink, accessLevel: "company_specific", driveModifiedTime: latest.modifiedTime ? new Date(latest.modifiedTime) : null, linkedByUserId: actorId, createdById: actorId, updatedById: actorId },
+          update: { documentId: document.id, companyId: company.id, name: latest.name, mimeType: latest.mimeType, webViewLink: latest.webViewLink, driveModifiedTime: latest.modifiedTime ? new Date(latest.modifiedTime) : null, updatedById: actorId },
+        });
+        const nda = await tx.nDA.findFirst({ where: { companyId: company.id }, orderBy: { updatedAt: "desc" } });
+        if (nda) {
+          await tx.nDA.update({ where: { id: nda.id }, data: { signedFileId: document.id, updatedById: actorId } });
+        } else {
+          await tx.nDA.create({ data: { reference: `NDA-DRV-${company.id.slice(-10)}`, companyId: company.id, status: "under_review", reminderDates: [], signedFileId: document.id, createdById: actorId, updatedById: actorId } });
+        }
+        await syncCompanyNdaStatus(tx, company.id);
+      });
+      synced += 1;
+    } catch (error) {
+      skipped.push(`${folderName}: ${reasonOf(error)}`);
+    }
   }
   return { folders: folders.length, matched: discoveries.size, synced, skipped };
 }
