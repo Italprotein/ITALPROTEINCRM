@@ -92,23 +92,25 @@ export default function AgenciesPage() {
     });
     if (!ok) return;
     try {
-      await companyService.remove(a.id);
+      // Refusals come back as a result object — thrown messages are redacted in
+      // production, so a rule can only be reported reliably by returning it.
+      const result = await companyService.remove(a.id);
+      if (!result.ok) {
+        toast({
+          variant: 'danger',
+          title: t('deleteBlockedTitle'),
+          description:
+            result.reason === 'financial_records'
+              ? t('deleteBlockedDescription', { name, reasons: result.details })
+              : t('deleteBlockedLinkedDescription', { name }),
+        });
+        return;
+      }
       setRows((prev) => (prev ? prev.filter((row) => row.id !== a.id) : prev));
       void agencyService.getStatistics().then(setStats);
       toast({ variant: 'success', title: t('toastDeletedTitle'), description: t('toastDeletedDescription', { name }) });
-    } catch (error) {
-      // A company holding quotes, orders or invoices is refused rather than
-      // destroyed. Say which records blocked it instead of leaking the raw
-      // `COMPANY_DELETE_BLOCKED: 2 quote(s)` string at the reader.
-      const message = error instanceof Error ? error.message : '';
-      const blocked = message.includes('COMPANY_DELETE_BLOCKED');
-      toast({
-        variant: 'danger',
-        title: blocked ? t('deleteBlockedTitle') : t('toastActionFailedTitle'),
-        description: blocked
-          ? t('deleteBlockedDescription', { name, reasons: message.split('COMPANY_DELETE_BLOCKED:')[1]?.trim() ?? '' })
-          : t('toastActionFailedDescription'),
-      });
+    } catch {
+      toast({ variant: 'danger', title: t('toastActionFailedTitle'), description: t('toastActionFailedDescription') });
     }
   }
 

@@ -591,8 +591,11 @@ export default function NdasPage() {
             <ListChecks />
             {t('actionCreateFollowUp')}
           </DropdownMenuItem>
-          {/* Same gate as the server action behind it (requireSectionEdit("ndas")). */}
-          {canEditNdas ? (
+          {/* Gated on nda.mark_signed, NOT on ndas:edit — deleting the register
+              row recomputes Company.ndaStatus, so it can undo a signature.
+              business_dev has ndas:edit without mark_signed and must not see
+              this. Mirrors removeNda's own requireAction("nda.mark_signed"). */}
+          {canMarkSigned ? (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-danger-text focus:text-danger-text" onSelect={() => void deleteNda(n)}>

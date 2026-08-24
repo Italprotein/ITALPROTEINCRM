@@ -122,22 +122,26 @@ export default function AgencyDetailPage() {
     });
     if (!ok) return;
     try {
-      await companyService.remove(a.id);
+      const result = await companyService.remove(a.id);
+      // Blocked: stay on the page, name the reason. Only a real deletion
+      // navigates away.
+      if (!result.ok) {
+        toast({
+          variant: 'danger',
+          title: t('deleteBlockedTitle'),
+          description:
+            result.reason === 'financial_records'
+              ? t('deleteBlockedDescription', { name, reasons: result.details })
+              : t('deleteBlockedLinkedDescription', { name }),
+        });
+        return;
+      }
       toast({ variant: 'success', title: t('toastDeletedTitle'), description: t('toastDeletedDescription', { name }) });
       // The record this page is about is gone; staying here would render a
       // "partner not found" shell over a stale URL.
       router.push('/admin/agencies');
-    } catch (error) {
-      // Quotes, orders or invoices refuse the delete. Name them.
-      const message = error instanceof Error ? error.message : '';
-      const blocked = message.includes('COMPANY_DELETE_BLOCKED');
-      toast({
-        variant: 'danger',
-        title: blocked ? t('deleteBlockedTitle') : t('toastActionFailedTitle'),
-        description: blocked
-          ? t('deleteBlockedDescription', { name, reasons: message.split('COMPANY_DELETE_BLOCKED:')[1]?.trim() ?? '' })
-          : t('toastActionFailedDescription'),
-      });
+    } catch {
+      toast({ variant: 'danger', title: t('toastActionFailedTitle'), description: t('toastActionFailedDescription') });
     }
   }
 

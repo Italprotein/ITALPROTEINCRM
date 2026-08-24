@@ -427,6 +427,7 @@
     "toastDeletedDescription": "{name} è stato rimosso.",
     "deleteBlockedTitle": "Impossibile eliminare questo partner",
     "deleteBlockedDescription": "“{name}” ha ancora {reasons}. I documenti contabili vengono conservati, quindi l'azienda non può essere rimossa.",
+    "deleteBlockedLinkedDescription": "“{name}” è ancora collegato a record presenti altrove nel CRM — ad esempio un contatto che ha partecipato a una riunione registrata su un'altra azienda. Scollega prima quei record, poi elimina.",
     "toastActionFailedTitle": "Azione non riuscita",
     "toastActionFailedDescription": "Riprova."
   },
@@ -524,6 +525,7 @@
     "toastDeletedDescription": "{name} è stato rimosso.",
     "deleteBlockedTitle": "Impossibile eliminare questo partner",
     "deleteBlockedDescription": "“{name}” ha ancora {reasons}. I documenti contabili vengono conservati, quindi l'azienda non può essere rimossa.",
+    "deleteBlockedLinkedDescription": "“{name}” è ancora collegato a record presenti altrove nel CRM — ad esempio un contatto che ha partecipato a una riunione registrata su un'altra azienda. Scollega prima quei record, poi elimina.",
     "toastActionFailedTitle": "Azione non riuscita",
     "toastActionFailedDescription": "Riprova."
   },
@@ -616,7 +618,8 @@
     "updateFailedTitle": "Salvataggio non riuscito",
     "updateFailedDescription": "La modifica è stata annullata. Riprova.",
     "deleteBlockedTitle": "Impossibile eliminare questa azienda",
-    "deleteBlockedDescription": "“{name}” ha ancora {reasons}. I documenti contabili vengono conservati, quindi l’azienda non può essere rimossa."
+    "deleteBlockedDescription": "“{name}” ha ancora {reasons}. I documenti contabili vengono conservati, quindi l’azienda non può essere rimossa.",
+    "deleteBlockedLinkedDescription": "“{name}” è ancora collegato a record presenti altrove nel CRM — ad esempio un contatto che ha partecipato a una riunione registrata su un'altra azienda. Scollega prima quei record, poi elimina."
   },
   "AdminCompanyDetail": {
     "unassigned": "Non assegnato",

@@ -308,25 +308,32 @@ export default function CompaniesPage() {
     const prev = rows;
     setRows((r) => (r ? r.filter((x) => x.id !== c.id) : r));
     setStats((s) => (s ? { ...s, total: Math.max(0, s.total - 1) } : s));
-    try {
-      await companyService.remove(c.id);
-      toast({ variant: 'success', title: t('toastDeletedTitle'), description: t('toastDeletedDescription', { name }) });
-    } catch (error) {
+    const restore = () => {
       setRows(prev ?? null); // roll back the optimistic removal
-      // A company holding quotes, orders or invoices is refused rather than
-      // destroyed — say which, instead of a generic failure.
-      const message = error instanceof Error ? error.message : '';
-      const blocked = message.includes('COMPANY_DELETE_BLOCKED');
-      toast({
-        variant: 'danger',
-        title: blocked ? t('deleteBlockedTitle') : t('toastActionFailedTitle'),
-        description: blocked
-          ? t('deleteBlockedDescription', {
-              name,
-              reasons: message.split('COMPANY_DELETE_BLOCKED:')[1]?.trim() ?? '',
-            })
-          : t('toastActionFailedDescription'),
-      });
+      setStats((s) => (s ? { ...s, total: s.total + 1 } : s));
+    };
+    try {
+      // A refusal is a RETURNED result, not a thrown error: Next redacts thrown
+      // server-action messages in production, so the old `message.includes(...)`
+      // branch here could never have matched live.
+      const result = await companyService.remove(c.id);
+      if (!result.ok) {
+        restore();
+        toast({
+          variant: 'danger',
+          title: t('deleteBlockedTitle'),
+          description:
+            result.reason === 'financial_records'
+              ? t('deleteBlockedDescription', { name, reasons: result.details })
+              : t('deleteBlockedLinkedDescription', { name }),
+        });
+        return;
+      }
+      toast({ variant: 'success', title: t('toastDeletedTitle'), description: t('toastDeletedDescription', { name }) });
+    } catch {
+      // What is left here is a genuine failure (auth, network), not a rule.
+      restore();
+      toast({ variant: 'danger', title: t('toastActionFailedTitle'), description: t('toastActionFailedDescription') });
     }
   }
 

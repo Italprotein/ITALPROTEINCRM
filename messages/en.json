@@ -427,6 +427,7 @@
     "toastDeletedDescription": "{name} was removed.",
     "deleteBlockedTitle": "Cannot delete this partner",
     "deleteBlockedDescription": "“{name}” still has {reasons}. Financial records are kept, so the company cannot be removed.",
+    "deleteBlockedLinkedDescription": "“{name}” is still linked to records held elsewhere in the CRM — for example a contact who attended a meeting recorded against another company. Unlink those records first, then delete.",
     "toastActionFailedTitle": "Action failed",
     "toastActionFailedDescription": "Please try again."
   },
@@ -524,6 +525,7 @@
     "toastDeletedDescription": "{name} was removed.",
     "deleteBlockedTitle": "Cannot delete this partner",
     "deleteBlockedDescription": "“{name}” still has {reasons}. Financial records are kept, so the company cannot be removed.",
+    "deleteBlockedLinkedDescription": "“{name}” is still linked to records held elsewhere in the CRM — for example a contact who attended a meeting recorded against another company. Unlink those records first, then delete.",
     "toastActionFailedTitle": "Action failed",
     "toastActionFailedDescription": "Please try again."
   },
@@ -616,7 +618,8 @@
     "updateFailedTitle": "Could not save",
     "updateFailedDescription": "The change was reverted. Please try again.",
     "deleteBlockedTitle": "Cannot delete this company",
-    "deleteBlockedDescription": "“{name}” still has {reasons}. Financial records are kept, so the company cannot be removed."
+    "deleteBlockedDescription": "“{name}” still has {reasons}. Financial records are kept, so the company cannot be removed.",
+    "deleteBlockedLinkedDescription": "“{name}” is still linked to records held elsewhere in the CRM — for example a contact who attended a meeting recorded against another company. Unlink those records first, then delete."
   },
   "AdminCompanyDetail": {
     "unassigned": "Unassigned",
