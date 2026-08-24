@@ -28,7 +28,6 @@ import {
   FileText,
   ShieldCheck,
   RefreshCw,
-  HardDrive,
   Trash2,
 } from 'lucide-react';
 
@@ -48,6 +47,7 @@ import { cn, uid } from '@/lib/utils';
 import { useRouter, Link } from '@/lib/i18n/navigation';
 import { useSession } from '@/components/providers/session-provider';
 import { can, canEdit } from '@/lib/permissions';
+import { isApiMode } from '@/lib/data-mode';
 
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
@@ -131,8 +131,7 @@ export default function NdasPage() {
   const { confirm, ConfirmDialog: confirmDialog } = useConfirm();
 
   const [rows, setRows] = React.useState<NDA[] | null>(null);
-  const [syncingEmail, setSyncingEmail] = React.useState(false);
-  const [syncingDrive, setSyncingDrive] = React.useState(false);
+  const [autoSyncing, setAutoSyncing] = React.useState(false);
   const [companies, setCompanies] = React.useState<Map<string, Company>>(new Map());
   const [stats, setStats] = React.useState<Stats | null>(null);
   const [technicalCount, setTechnicalCount] = React.useState<number | null>(null);
@@ -291,65 +290,69 @@ export default function NdasPage() {
     toast({ variant: 'info', title: t('toastDownloadStartedTitle'), description: t('toastDownloadStartedDescription', { reference: n.reference }) });
   }
 
-  async function syncEmailNdas() {
-    setSyncingEmail(true);
-    try {
-      const response = await fetch('/api/ndas/sync-email', { method: 'POST' });
-      const result = await response.json();
-      if (!response.ok) {
-        // The route's own error code is more specific than anything we could
-        // say here (RATE_LIMITED, NO_SYNC_ACTOR …), so it wins when present.
-        toast({ variant: 'danger', title: t('toastSyncEmailFailedTitle'), description: result.error ?? t('toastSyncEmailFailedDescription') });
-        return;
-      }
-      setRows(await ndaService.list());
-      refreshStats();
-      toast({
-        variant: 'success',
-        title: t('toastSyncEmailDoneTitle'),
-        description: t('toastSyncEmailDoneDescription', { count: result.ndaFilesImported ?? 0 }),
-      });
-    } catch {
-      toast({ variant: 'danger', title: t('toastSyncEmailFailedTitle'), description: t('toastSyncEmailFailedDescription') });
-    } finally {
-      setSyncingEmail(false);
-    }
-  }
-
   /**
-   * The Drive half of NDA ingestion: it walks the shared "Clienti Industriali"
-   * folder, matches each subfolder to a CRM company and files the newest
-   * agreement it finds. The endpoint has existed for a while with nothing in the
-   * UI able to reach it — the only way to run it was a cron secret.
+   * Background ingestion. Both syncs used to be buttons; they now fire once
+   * when the page mounts, for anyone holding nda.prepare (the same right the
+   * routes demand). Everything about this is deliberately quiet:
+   *
+   * - The server rate-limits each sync to 3 per 10 minutes, so most loads get
+   *   a 429 that simply means "already fresh" — never an error worth showing.
+   * - A sessionStorage throttle mirrors that window client-side, so ordinary
+   *   navigation does not even fire the requests.
+   * - Failures stay silent. The nightly cron is the ingestion guarantee; a
+   *   danger toast on every page load for a disconnected Google account would
+   *   train people to dismiss toasts. The one thing worth interrupting for is
+   *   NEW documents, so that is the only time a toast appears.
    */
-  async function syncDriveNdas() {
-    setSyncingDrive(true);
+  const AUTO_SYNC_THROTTLE_KEY = 'ndas:auto-sync-at';
+  const AUTO_SYNC_THROTTLE_MS = 10 * 60 * 1000;
+  const autoSyncStarted = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!canPrepare || !isApiMode || autoSyncStarted.current) return;
+    autoSyncStarted.current = true;
     try {
-      const response = await fetch('/api/ndas/sync-drive', { method: 'POST' });
-      const result = await response.json();
-      if (!response.ok) {
-        toast({ variant: 'danger', title: t('toastSyncDriveFailedTitle'), description: result.error ?? t('toastSyncDriveFailedDescription') });
-        return;
-      }
-      setRows(await ndaService.list());
-      refreshStats();
-      toast({
-        variant: 'success',
-        title: t('toastSyncDriveDoneTitle'),
-        description: t('toastSyncDriveDoneDescription', {
-          synced: result.synced ?? 0,
-          matched: result.matched ?? 0,
-          // Per-folder failures now land in `skipped` instead of killing the
-          // run, so this count is the honest "look at the server log" signal.
-          skipped: result.skipped?.length ?? 0,
-        }),
-      });
+      const last = Number(sessionStorage.getItem(AUTO_SYNC_THROTTLE_KEY));
+      if (Number.isFinite(last) && Date.now() - last < AUTO_SYNC_THROTTLE_MS) return;
+      sessionStorage.setItem(AUTO_SYNC_THROTTLE_KEY, String(Date.now()));
     } catch {
-      toast({ variant: 'danger', title: t('toastSyncDriveFailedTitle'), description: t('toastSyncDriveFailedDescription') });
-    } finally {
-      setSyncingDrive(false);
+      /* storage unavailable — sync anyway, the server limiter is the backstop */
     }
-  }
+
+    let active = true;
+    setAutoSyncing(true);
+    const run = async (path: string): Promise<Record<string, unknown> | null> => {
+      try {
+        const response = await fetch(path, { method: 'POST' });
+        if (!response.ok) return null;
+        return (await response.json()) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    };
+    void Promise.all([run('/api/ndas/sync-email'), run('/api/ndas/sync-drive')]).then(
+      async ([email, drive]) => {
+        if (!active) return;
+        const imported =
+          Number(email?.ndaFilesImported ?? 0) + Number(drive?.synced ?? 0);
+        if (imported > 0) {
+          setRows(await ndaService.list());
+          refreshStats();
+          if (!active) return;
+          toast({
+            variant: 'success',
+            title: t('toastAutoSyncDoneTitle'),
+            description: t('toastAutoSyncDoneDescription', { count: imported }),
+          });
+        }
+        setAutoSyncing(false);
+      },
+    );
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once per mount, when the gate is known
+  }, [canPrepare]);
 
   /**
    * Deleting an NDA drops the register row AND recomputes the company's NDA
@@ -649,14 +652,12 @@ export default function NdasPage() {
         actions={
           canPrepare ? (
             <>
-              <Button variant="outline" onClick={() => void syncEmailNdas()} disabled={syncingEmail}>
-                <RefreshCw className={syncingEmail ? 'animate-spin' : ''} />
-                {syncingEmail ? t('syncEmailNdasRunning') : t('syncEmailNdas')}
-              </Button>
-              <Button variant="outline" onClick={() => void syncDriveNdas()} disabled={syncingDrive}>
-                <HardDrive className={syncingDrive ? 'animate-pulse' : ''} />
-                {syncingDrive ? t('syncDriveNdasRunning') : t('syncDriveNdas')}
-              </Button>
+              {autoSyncing ? (
+                <span className="inline-flex items-center gap-2 px-2 text-xs font-medium text-muted-foreground" role="status">
+                  <RefreshCw className="h-3.5 w-3.5 motion-safe:animate-spin" aria-hidden />
+                  {t('autoSyncRunning')}
+                </span>
+              ) : null}
               <Button variant="outline" onClick={() => setUploadOpen(true)}>
                 <Upload />
                 {t('uploadNda')}
