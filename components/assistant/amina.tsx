@@ -172,9 +172,17 @@ export function Amina() {
     try {
       const result = await generateAiTasksFromInbox(locale === 'it' ? 'it' : 'en');
       if (!result.ok) {
+        // The follow-up pass runs before the AI gates and commits real rows.
+        // Every failure message below is appended to, never replaced, so Amina
+        // cannot report "nothing happened" over work she has already done.
+        const alsoCreated = result.tasks.length
+          ? `
+
+${t('followUpsStillCreated', { count: result.tasks.length })}`
+          : '';
         if (result.error === 'rate_limited') {
           const hours = Math.max(1, Math.ceil((result.retryAfterSeconds ?? 24 * 3600) / 3600));
-          addMessage({ role: 'assistant', content: t('taskLimitReached', { hours }) });
+          addMessage({ role: 'assistant', content: t('taskLimitReached', { hours }) + alsoCreated });
           return;
         }
         // The provider's own allowance, not ours. Say so, and say when to come
@@ -183,9 +191,10 @@ export function Amina() {
           const seconds = result.retryAfterSeconds;
           addMessage({
             role: 'assistant',
-            content: seconds
-              ? t('aiQuotaExhausted', { hours: Math.max(1, Math.ceil(seconds / 3600)) })
-              : t('aiQuotaExhaustedNoEta'),
+            content:
+              (seconds
+                ? t('aiQuotaExhausted', { hours: Math.max(1, Math.ceil(seconds / 3600)) })
+                : t('aiQuotaExhaustedNoEta')) + alsoCreated,
           });
           return;
         }
@@ -199,7 +208,7 @@ export function Amina() {
                 : result.error === 'ai_invalid_output'
                   ? t('aiInvalidOutput')
                   : t('taskGenerationFailed');
-        addMessage({ role: 'assistant', content, failed: true });
+        addMessage({ role: 'assistant', content: content + alsoCreated, failed: true });
         return;
       }
 

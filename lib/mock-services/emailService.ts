@@ -33,6 +33,8 @@ export const emailService = {
       ndaFilesImported: 0,
       leadsCreated: 0,
       leadsUpdated: 0,
+      companiesCreated: 0,
+      companiesSkipped: 0,
     };
   },
 

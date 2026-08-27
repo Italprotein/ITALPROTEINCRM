@@ -21,6 +21,15 @@ import {
 } from "./nda-classification";
 import { firstMentionedLeadMember } from "./lead-attribution";
 import { syncCompanyNdaStatus } from "./nda-status-sync";
+import {
+  classifyEmailEntity,
+  isFreemailDomain,
+  isInfrastructureDomain,
+  normalizeEntityName,
+  organisationNameFromDomain,
+  registrableDomainOf,
+} from "@/lib/email-entity";
+import { isAutomatedReply } from "@/lib/investor/auto-reply";
 
 // Gmail inbox sync engine. For every new inbox message it:
 //  1. stores an EmailMessage row (dedupe key: gmailMessageId),
@@ -32,32 +41,9 @@ import { syncCompanyNdaStatus } from "./nda-status-sync";
 
 const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
 
-const FREEMAIL_DOMAINS = new Set([
-  "gmail.com",
-  "googlemail.com",
-  "outlook.com",
-  "outlook.it",
-  "hotmail.com",
-  "hotmail.it",
-  "live.com",
-  "live.it",
-  "yahoo.com",
-  "yahoo.it",
-  "libero.it",
-  "icloud.com",
-  "me.com",
-  "aol.com",
-  "proton.me",
-  "protonmail.com",
-  "gmx.com",
-  "gmx.de",
-  "mail.com",
-  "msn.com",
-  "tiscali.it",
-  "virgilio.it",
-  "alice.it",
-  "tin.it",
-]);
+// The freemail list, the domain reducer and the entity scorer all live in
+// lib/email-entity.ts, which imports no Prisma and is unit-tested. This file
+// keeps the I/O; it must not keep a second copy of any of those rules.
 
 interface MemberRecord {
   id: string;
@@ -97,24 +83,46 @@ function domainOf(email: string): string {
 }
 
 function isFreemail(domain: string): boolean {
-  return FREEMAIL_DOMAINS.has(domain);
+  return isFreemailDomain(domain);
 }
 
-/** "acme-foods.com" -> "Acme Foods" (crude second-level-domain handling). */
-function companyNameFromDomain(domain: string): string | null {
-  if (!domain || isFreemail(domain)) return null;
-  const parts = domain.split(".");
-  if (parts.length < 2) return null;
-  const secondLevel = new Set(["co", "com", "org", "net", "gov", "ac", "edu"]);
-  let label = parts[parts.length - 2];
-  if (parts.length >= 3 && secondLevel.has(label)) label = parts[parts.length - 3];
-  if (!label) return null;
-  const pretty = label
-    .split(/[-_.]+/)
-    .filter(Boolean)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-  return pretty || null;
+/** All headers of a message as a plain record, for the auto-reply probe. */
+function headerRecord(message: GmailMessage): Record<string, string> {
+  const record: Record<string, string> = {};
+  for (const header of message.payload?.headers ?? []) {
+    if (header?.name) record[header.name] = header.value ?? "";
+  }
+  return record;
+}
+
+/**
+ * Domains, and individual addresses, an operator has said must never become
+ * anything. Read once per sync run: the register is tiny and every message in
+ * the batch is checked against it.
+ */
+interface SuppressionSets {
+  domains: Set<string>;
+  emails: Set<string>;
+}
+
+async function loadSuppressions(): Promise<SuppressionSets> {
+  const rows = await prisma.suppressedEntity.findMany({
+    where: { kind: { in: ["domain", "email"] } },
+    select: { kind: true, normalizedValue: true },
+  });
+  return {
+    domains: new Set(rows.filter((r) => r.kind === "domain").map((r) => r.normalizedValue)),
+    emails: new Set(rows.filter((r) => r.kind === "email").map((r) => r.normalizedValue)),
+  };
+}
+
+function isSuppressedSender(
+  email: string,
+  registrableDomain: string,
+  suppressions: SuppressionSets,
+): boolean {
+  if (suppressions.emails.has(email.trim().toLowerCase())) return true;
+  return registrableDomain !== "" && suppressions.domains.has(registrableDomain);
 }
 
 function initialsOf(name: string): string {
@@ -136,9 +144,30 @@ function matchLeadMember(body: string, admins: MemberRecord[]): MemberRecord | n
 
 // ── Company resolution for NDA filing ──────────────────────────────────────
 
-async function resolveCompanyId(senderEmail: string, domain: string): Promise<string | null> {
+/**
+ * Which company is this address? A ladder, strongest evidence first.
+ *
+ *  1. a Contact row carrying the address, or an address on the same domain
+ *  2. the CompanyDomain register, matched on the REGISTRABLE domain
+ *  3. the CompanyAlias register, when we have a name to match
+ *  4. Company.website containing the domain — last, because it is a substring
+ *     test on a free-text field: website "https://acme.com/partners/foo.it"
+ *     contains "foo.it".
+ *
+ * Every rung is a read. Nothing here writes, so a wrong answer costs one
+ * mis-linked message that a person can move, not a row nobody asked for.
+ */
+async function resolveCompanyId(
+  senderEmail: string,
+  domain: string,
+  senderName?: string | null,
+): Promise<string | null> {
+  const registrable = registrableDomainOf(senderEmail) || registrableDomainOf(domain);
+  const usableDomain = Boolean(domain) && !isFreemail(domain) && !isInfrastructureDomain(domain);
+
+  // 1. Contacts.
   const orConditions: object[] = [{ email: { equals: senderEmail, mode: "insensitive" } }];
-  if (domain && !isFreemail(domain)) {
+  if (usableDomain) {
     orConditions.push(
       { email: { endsWith: `@${domain}`, mode: "insensitive" } },
       { secondaryEmail: { endsWith: `@${domain}`, mode: "insensitive" } },
@@ -146,7 +175,38 @@ async function resolveCompanyId(senderEmail: string, domain: string): Promise<st
   }
   const contact = await prisma.contact.findFirst({ where: { OR: orConditions } });
   if (contact) return contact.companyId;
-  if (domain && !isFreemail(domain)) {
+
+  // 2. The domain register. Both the literal sending domain and its registrable
+  // base, so a company registered as "bulla.com.au" still matches mail sent
+  // from "mail.bulla.com.au".
+  if (usableDomain && registrable) {
+    const candidates = [...new Set([domain, registrable])];
+    const mapped = await prisma.companyDomain.findFirst({
+      where: { domain: { in: candidates }, verified: true },
+      select: { companyId: true },
+    });
+    if (mapped) return mapped.companyId;
+  }
+
+  // 3. The alias register. The sender's display name first (a signature block
+  // often carries the trading name), then the name the domain implies.
+  const nameCandidates = [senderName, usableDomain ? organisationNameFromDomain(registrable) : null];
+  for (const candidate of nameCandidates) {
+    const normalizedName = normalizeEntityName(candidate);
+    // Two characters is not a company name, it is a coin flip.
+    if (normalizedName.length < 3) continue;
+    const matches = await prisma.companyAlias.findMany({
+      where: { normalizedName },
+      select: { companyId: true },
+      take: 2,
+    });
+    const companyIds = [...new Set(matches.map((match) => match.companyId))];
+    // Exactly one, or the name is ambiguous across companies and links nothing.
+    if (companyIds.length === 1) return companyIds[0];
+  }
+
+  // 4. The old website-substring fallback, kept last.
+  if (usableDomain) {
     const company = await prisma.company.findFirst({
       where: { website: { contains: domain, mode: "insensitive" } },
     });
@@ -196,39 +256,144 @@ async function fallbackOwnerId(admins: MemberRecord[]): Promise<string | null> {
   return anyInternal?.id ?? null;
 }
 
-async function createCompanyFromEmail(options: {
+/**
+ * Find or create the company that owns a registrable domain, idempotently.
+ *
+ * This replaced a bare `prisma.company.create`, which is how production ended
+ * up with FOUR "Pphosted" companies created on 2026-08-24 — one per Proofpoint
+ * bounce, each bounce arriving from a different per-message host
+ * (mx0a-0025e601.pphosted.com and friends) so nothing ever looked like a
+ * repeat. Two things fix that and both are needed:
+ *
+ *  - the caller only gets here after classifyEmailEntity returns
+ *    `link_or_create`, which a bounce cannot reach; and
+ *  - the domain is stored REGISTRABLE in company_domains, whose UNIQUE
+ *    constraint makes the second attempt a lookup instead of an insert —
+ *    including two sync runs racing on the same domain in the same instant.
+ *
+ * The audit event is not optional bookkeeping. A company nobody asked for is
+ * only tolerable if the answer to "why is this here" is one query away, so the
+ * scorer's evidence array is written with the row.
+ */
+async function ensureCompanyForDomain(options: {
   name: string;
-  domain: string | null;
+  registrableDomain: string;
   ownerUserId: string;
   emailDate: Date;
-  personName?: string;
-}): Promise<string> {
-  const { name, domain, ownerUserId, emailDate, personName } = options;
-  const company = await prisma.company.create({
-    data: {
-      legalName: name,
-      type: "other",
-      initials: initialsOf(name),
-      headquarters: { line1: "", city: "", country: "", countryCode: "" },
-      firstContact: {
-        date: emailDate.toISOString(),
-        channel: "gmail",
-        personName: personName ?? undefined,
-        note: "Auto-created from Gmail sync",
-      },
-      country: "",
-      countryCode: "",
-      city: "",
-      website: domain ? `https://${domain}` : null,
-      relationshipStage: "nda_in_progress",
-      // No ndaStatus here: the cache is derived from the register, and the
-      // filing step that follows creates the register row and syncs from it.
-      // Setting it here produced companies counted with zero NDA rows.
-      tags: ["gmail-import"],
-      ownerUserId,
-    },
-  });
-  return company.id;
+  personName?: string | null;
+  senderEmail: string;
+  score: number;
+  evidence: string[];
+}): Promise<{ companyId: string | null; created: boolean }> {
+  const {
+    name,
+    registrableDomain,
+    ownerUserId,
+    emailDate,
+    personName,
+    senderEmail,
+    score,
+    evidence,
+  } = options;
+  const normalizedName = normalizeEntityName(name);
+
+  const attachDomain = async (
+    tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+    companyId: string,
+  ) => {
+    await tx.companyDomain.create({
+      data: { companyId, domain: registrableDomain, verified: true, source: "gmail_sync" },
+    });
+  };
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // Re-check inside the transaction: the resolution ladder ran before the
+      // attachments were read, which is a long time in a 200-message batch.
+      const mapped = await tx.companyDomain.findUnique({
+        where: { domain: registrableDomain },
+        select: { companyId: true },
+      });
+      if (mapped) return { companyId: mapped.companyId, created: false };
+
+      // A company we already hold under this name: adopt it and record the
+      // domain, so the next message from it takes rung 2 of the ladder.
+      if (normalizedName.length >= 3) {
+        const aliasMatches = await tx.companyAlias.findMany({
+          where: { normalizedName },
+          select: { companyId: true },
+          take: 2,
+        });
+        const aliasIds = [...new Set(aliasMatches.map((match) => match.companyId))];
+        if (aliasIds.length === 1) {
+          await attachDomain(tx, aliasIds[0]);
+          return { companyId: aliasIds[0], created: false };
+        }
+        if (aliasIds.length > 1) return { companyId: null, created: false };
+      }
+      const byName = await tx.company.findFirst({
+        where: {
+          OR: [
+            { legalName: { equals: name, mode: "insensitive" } },
+            { tradingName: { equals: name, mode: "insensitive" } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (byName) {
+        await attachDomain(tx, byName.id);
+        return { companyId: byName.id, created: false };
+      }
+
+      const company = await tx.company.create({
+        data: {
+          legalName: name,
+          type: "other",
+          initials: initialsOf(name),
+          headquarters: { line1: "", city: "", country: "", countryCode: "" },
+          firstContact: {
+            date: emailDate.toISOString(),
+            channel: "gmail",
+            personName: personName ?? undefined,
+            note: "Auto-created from Gmail sync",
+          },
+          country: "",
+          countryCode: "",
+          city: "",
+          website: `https://${registrableDomain}`,
+          relationshipStage: "nda_in_progress",
+          // No ndaStatus here: the cache is derived from the register, and the
+          // filing step that follows creates the register row and syncs from it.
+          // Setting it here produced companies counted with zero NDA rows.
+          tags: ["gmail-import"],
+          ownerUserId,
+        },
+      });
+      await attachDomain(tx, company.id);
+      await tx.companyAlias.create({
+        data: { companyId: company.id, name, normalizedName, kind: "legal_name" },
+      });
+      await tx.auditEvent.create({
+        data: {
+          action: "company.auto_created",
+          entityType: "company",
+          entityId: company.id,
+          companyId: company.id,
+          summary: `Auto-created "${name}" (${registrableDomain}) from an NDA attachment sent by ${senderEmail}.`,
+          after: { source: "gmail_sync", domain: registrableDomain, senderEmail, score, evidence },
+          result: "success",
+        },
+      });
+      return { companyId: company.id, created: true };
+    });
+  } catch {
+    // Almost certainly the UNIQUE on company_domains.domain: another run won
+    // the race, and its company is the right answer for this message too.
+    const mapped = await prisma.companyDomain
+      .findUnique({ where: { domain: registrableDomain }, select: { companyId: true } })
+      .catch(() => null);
+    return { companyId: mapped?.companyId ?? null, created: false };
+  }
 }
 
 // ── NDA detection + filing ─────────────────────────────────────────────────
@@ -449,6 +614,7 @@ async function parkUnattributedNda(options: {
 async function reconcileStoredLeadOwnership(
   members: MemberRecord[],
   memberEmails: Set<string>,
+  suppressions: SuppressionSets,
 ): Promise<{ created: number; updated: number }> {
   const messages = await prisma.emailMessage.findMany({
     where: { direction: "inbound" },
@@ -466,10 +632,23 @@ async function reconcileStoredLeadOwnership(
     const from = message.fromAddress.toLowerCase();
     const domain = domainOf(from);
     if (!domain || domain === "italprotein.com" || memberEmails.has(from)) continue;
-    const companyName = companyNameFromDomain(domain);
+    // Mail infrastructure and anything an operator suppressed are skipped here
+    // as well as on the creation path. This rebuild wipes and re-derives every
+    // gmail-source lead on each run, so without this rung a bounce handler that
+    // was cleaned out by hand simply reappears as a lead the next time the sync
+    // runs, and "Pphosted is gone" would only ever be true until tomorrow.
+    const registrable = registrableDomainOf(from);
+    if (!registrable) continue;
+    if (isInfrastructureDomain(domain) || isSuppressedSender(from, registrable, suppressions)) {
+      continue;
+    }
+    const companyName = organisationNameFromDomain(registrable);
     if (!companyName) continue;
     const key = companyName.toLocaleLowerCase();
-    const bucket = byCompany.get(key) ?? { companyName, sourceDomain: domain, messages: [] };
+    // The registrable base, not the sending host: this is the string a future
+    // promotion writes into CompanyDomain, and it has to be the one the sync
+    // matches on.
+    const bucket = byCompany.get(key) ?? { companyName, sourceDomain: registrable, messages: [] };
     bucket.messages.push(message);
     byCompany.set(key, bucket);
   }
@@ -563,6 +742,8 @@ export async function runGmailSync(options?: {
     ndaFilesImported: 0,
     leadsCreated: 0,
     leadsUpdated: 0,
+    companiesCreated: 0,
+    companiesSkipped: 0,
   };
   const auth = await getGmailAuth();
   if (!auth) return { ok: false, error: "gmail_not_connected", ...empty };
@@ -572,6 +753,7 @@ export async function runGmailSync(options?: {
   const mailboxEmail = auth.email.toLowerCase();
   const admins = await loadMembers();
   const adminEmails = new Set(admins.map((a) => a.email).filter(Boolean));
+  const suppressions = await loadSuppressions();
 
   const newest = await prisma.emailMessage.findFirst({
     where: { direction: "inbound" },
@@ -637,6 +819,21 @@ export async function runGmailSync(options?: {
       const fromEmail = from.email.toLowerCase();
       const direction = fromEmail === mailboxEmail ? "outbound" : "inbound";
       const senderDomain = domainOf(fromEmail);
+      const senderRegistrable = registrableDomainOf(fromEmail);
+      const headers = headerRecord(message);
+      // One automation verdict per message, from the one detector
+      // (lib/investor/auto-reply.ts). Everything downstream consumes this flag
+      // rather than re-deriving it, so the two can never disagree.
+      const automatedSender = isAutomatedReply({
+        from: headerValue(message, "From") ?? fromEmail,
+        subject,
+        headers,
+      });
+      // A sender that must never become a lead, a company, or anything else.
+      const senderIsNoise =
+        !senderRegistrable ||
+        isInfrastructureDomain(senderDomain) ||
+        isSuppressedSender(fromEmail, senderRegistrable, suppressions);
 
       const existingRow = existingByMessageId.get(message.id);
       const row = existingRow ?? (await prisma.emailMessage.create({
@@ -671,7 +868,7 @@ export async function runGmailSync(options?: {
 
       // ── My Leads: store the counterparty company NAME under the admin.
       let leadId: string | null = null;
-      const companyName = companyNameFromDomain(senderDomain);
+      const companyName = senderIsNoise ? null : organisationNameFromDomain(senderRegistrable);
       if (admin && companyName) {
         const existingLead = await prisma.lead.findUnique({
           where: { adminUserId_companyName: { adminUserId: admin.id, companyName } },
@@ -692,7 +889,7 @@ export async function runGmailSync(options?: {
             data: {
               adminUserId: admin.id,
               companyName,
-              sourceDomain: senderDomain || null,
+              sourceDomain: senderRegistrable || null,
               source: "gmail",
               firstSeenAt: emailDate,
               lastSeenAt: emailDate,
@@ -726,7 +923,7 @@ export async function runGmailSync(options?: {
 
       let counterpartyEmail = fromEmail;
       if (isExternal && !companyId) {
-        companyId = await resolveCompanyId(fromEmail, senderDomain);
+        companyId = await resolveCompanyId(fromEmail, senderDomain, from.name ?? null);
       } else if (direction === "outbound") {
         const resolvedRecipients = await resolveUniqueCompanyFromEmails([...to, ...cc], adminEmails);
         counterpartyEmail = resolvedRecipients.counterpartyEmail ?? fromEmail;
@@ -757,18 +954,49 @@ export async function runGmailSync(options?: {
         // path deliberately. An agreement is evidence of a real relationship;
         // an ordinary email is not, and auto-creating from every unknown domain
         // would fill the CRM with couriers and newsletters.
-        if (!companyId && isExternal && senderDomain && !isFreemail(senderDomain)) {
-          // A real organisation domain we simply have not met yet.
-          const ownerId = admin?.id ?? (await fallbackOwnerId(admins));
-          const name = companyName ?? from.name ?? from.email.split("@")[0];
-          if (ownerId && name) {
-            companyId = await createCompanyFromEmail({
+        //
+        // "Has an NDA-looking attachment" was, on its own, the whole test until
+        // 2026-08-27 — and a Proofpoint bounce returning OUR OWN NDA passes it.
+        // Now the sender has to survive the scorer as well, which a machine, a
+        // relay and a suppressed domain each cannot.
+        if (!companyId && isExternal && senderDomain) {
+          const classification = classifyEmailEntity({
+            fromEmail,
+            fromName: from.name ?? null,
+            subject,
+            headers,
+            isAutomatedReply: automatedSender,
+            hasNdaAttachment: true,
+            isSuppressed: senderIsNoise,
+          });
+          const ownerId =
+            classification.verdict === "link_or_create"
+              ? admin?.id ?? (await fallbackOwnerId(admins))
+              : null;
+          // Deliberately NOT `?? from.name`: the display name on an email is a
+          // person, and "Olivia Li" is not a company. If the domain cannot name
+          // an organisation, nothing here can, and the attachment is parked for
+          // a human to assign instead.
+          const name = companyName;
+          if (ownerId && name && senderRegistrable) {
+            const outcome = await ensureCompanyForDomain({
               name,
-              domain: senderDomain,
+              registrableDomain: senderRegistrable,
               ownerUserId: ownerId,
               emailDate,
               personName: from.name,
+              senderEmail: fromEmail,
+              score: classification.score,
+              evidence: classification.evidence,
             });
+            companyId = outcome.companyId;
+            if (outcome.created) result.companiesCreated += 1;
+            if (!outcome.companyId) result.companiesSkipped += 1;
+          } else {
+            // Counted, not logged: a skip is a normal outcome on a mailbox that
+            // receives bounces, and the count is what tells an operator whether
+            // the guard is doing anything.
+            result.companiesSkipped += 1;
           }
         }
         for (const match of ndaMatches) {
@@ -819,7 +1047,7 @@ export async function runGmailSync(options?: {
   }
 
   if (!ndaBackfill) {
-    const reconciled = await reconcileStoredLeadOwnership(admins, adminEmails);
+    const reconciled = await reconcileStoredLeadOwnership(admins, adminEmails, suppressions);
     result.leadsCreated = reconciled.created;
     result.leadsUpdated = reconciled.updated;
   }

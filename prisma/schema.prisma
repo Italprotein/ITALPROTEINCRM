@@ -257,6 +257,29 @@ enum DoNotContactReason {
   other
 }
 
+/// What kind of name a CompanyAlias row records. See model CompanyAlias.
+enum CompanyAliasKind {
+  legal_name
+  trading_name
+  former_name
+  spelling
+}
+
+/// Where a CompanyDomain row came from. See model CompanyDomain.
+enum CompanyDomainSource {
+  import
+  gmail_sync
+  manual
+  reconciliation
+}
+
+/// What a SuppressedEntity row identifies. See model SuppressedEntity.
+enum SuppressedEntityKind {
+  domain
+  email
+  name
+}
+
 enum DecisionRole {
   decision_maker
   influencer
@@ -699,31 +722,31 @@ enum AssistantCitationTargetType {
  */
 
 model User {
-  id              String     @id @default(cuid())
-  name            String?
-  email           String?    @unique
-  emailVerified   DateTime?
-  image           String?
-  roleId          String
-  kind            UserKind   @default(internal)
-  companyId       String?
-  contactId       String?    @unique
-  status          UserStatus @default(invited)
-  passwordHash    String?
-  authVersion     Int        @default(0) @map("auth_version")
-  mfaEnrolled     Boolean    @default(false)
+  id                 String     @id @default(cuid())
+  name               String?
+  email              String?    @unique
+  emailVerified      DateTime?
+  image              String?
+  roleId             String
+  kind               UserKind   @default(internal)
+  companyId          String?
+  contactId          String?    @unique
+  status             UserStatus @default(invited)
+  passwordHash       String?
+  authVersion        Int        @default(0) @map("auth_version")
+  mfaEnrolled        Boolean    @default(false)
   // Set when an account is created with a password someone else chose (seeded
   // bootstrap admins, operator resets). Every guarded action refuses until the
   // owner picks their own, so a credential shared over chat or email is a
   // one-time bootstrap rather than a standing password.
-  mustChangePassword Boolean @default(false) @map("must_change_password")
-  language        Locale     @default(en)
-  lastLoginAt     DateTime?
-  invitedByUserId String?
-  createdById     String?
-  updatedById     String?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  mustChangePassword Boolean    @default(false) @map("must_change_password")
+  language           Locale     @default(en)
+  lastLoginAt        DateTime?
+  invitedByUserId    String?
+  createdById        String?
+  updatedById        String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
   // Identity-domain relations
   role                   Role                   @relation("RoleUsers", fields: [roleId], references: [id])
@@ -787,11 +810,18 @@ model User {
   confirmedAssistantActions AssistantMessage[] @relation("AssistantMessageConfirmedBy")
 
   // Gmail-sync / lead / password-reset back-relations
-  matchedEmailMessages EmailMessage[]      @relation("EmailMessageMatchedAdmin")
-  leads                Lead[]              @relation("LeadAdmin")
-  passwordResetCodes   PasswordResetCode[] @relation("UserPasswordResetCodes")
+  matchedEmailMessages EmailMessage[]           @relation("EmailMessageMatchedAdmin")
+  leads                Lead[]                   @relation("LeadAdmin")
+  passwordResetCodes   PasswordResetCode[]      @relation("UserPasswordResetCodes")
   activationTokens     AccountActivationToken[] @relation("UserAccountActivationTokens")
   doNotContactEntries  DoNotContactEntry[]      @relation("DoNotContactAddedBy")
+
+  // Email-reconciliation registers this user seeded by hand. All SetNull:
+  // deleting a staff account must never delete a domain mapping or a
+  // suppression, only forget who wrote it.
+  createdCompanyAliases     CompanyAlias[]     @relation("CompanyAliasCreatedBy")
+  createdCompanyDomains     CompanyDomain[]    @relation("CompanyDomainCreatedBy")
+  createdSuppressedEntities SuppressedEntity[] @relation("SuppressedEntityCreatedBy")
 
   @@index([roleId])
   @@index([companyId])
@@ -1134,7 +1164,7 @@ model Company {
 
   // Documents / NDA / Google
   ndas                 NDA[]
-  emailMessages        EmailMessage[] @relation("CompanyEmailMessages")
+  emailMessages        EmailMessage[]        @relation("CompanyEmailMessages")
   documents            Document[]
   googleDriveFileLinks GoogleDriveFileLink[]
 
@@ -1155,6 +1185,12 @@ model Company {
 
   // Do-not-contact register (at most one entry per company — companyId is unique).
   doNotContact DoNotContactEntry? @relation("CompanyDoNotContact")
+
+  // Email reconciliation registers. `aliasEntries` is the normalized, matchable
+  // form of the free-text `aliases` array above; `domains` is what the Gmail
+  // sync matches a sender's registrable domain against.
+  aliasEntries CompanyAlias[]  @relation("CompanyAliases")
+  domains      CompanyDomain[] @relation("CompanyDomains")
 
   @@index([type])
   @@index([segment])
@@ -1188,6 +1224,108 @@ model DoNotContactEntry {
   @@index([reason])
   @@index([addedById])
   @@map("do_not_contact_entries")
+}
+
+/// Every name one company is known by, in a form two strings can be compared in.
+///
+/// Company.aliases is a free-text String[] a person types into a form; it is
+/// fine for display and useless for matching, because "Regal Cream Products
+/// Pty. Ltd." and "regal cream products pty ltd" are the same organisation and
+/// two different strings. `normalizedName` (lib/email-entity.ts) is the
+/// comparable form, and the Gmail sync looks a sender's company name up here
+/// before it considers creating anything.
+///
+/// The unique key is (companyId, normalizedName), NOT normalizedName alone: two
+/// unrelated companies genuinely do share a trading name across markets, and a
+/// global unique would make the second one unsaveable. The plain index on
+/// normalizedName is what keeps the cross-company lookup cheap; when it returns
+/// more than one row the sync treats the name as ambiguous and links nothing.
+model CompanyAlias {
+  id             String           @id @default(cuid())
+  companyId      String
+  name           String
+  normalizedName String
+  kind           CompanyAliasKind
+  createdById    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  company   Company @relation("CompanyAliases", fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("CompanyAliasCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, normalizedName])
+  @@index([normalizedName])
+  @@index([companyId])
+  @@index([createdById])
+  @@map("company_aliases")
+}
+
+/// The email domains that belong to a company — the idempotency backbone of
+/// Gmail reconciliation.
+///
+/// `domain` is UNIQUE across the whole table on purpose, and that constraint is
+/// what makes auto-creation race-proof: two sync runs processing two messages
+/// from the same new domain at the same moment cannot both win, because the
+/// second INSERT fails and its transaction rolls back to a lookup. Production
+/// held four "Pphosted" companies created in one day precisely because nothing
+/// anywhere said "this domain is already taken".
+///
+/// Domains are stored in their registrable form (pphosted.com, bulla.com.au),
+/// never as the per-message bounce host that produced them.
+///
+/// `verified` defaults to true because every writer today has evidence — an
+/// import, an operator, or a message that actually arrived. It exists so a
+/// future guessed domain can be stored without being trusted for matching.
+model CompanyDomain {
+  id          String              @id @default(cuid())
+  companyId   String
+  domain      String              @unique
+  verified    Boolean             @default(true)
+  source      CompanyDomainSource
+  createdById String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  company   Company @relation("CompanyDomains", fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("CompanyDomainCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([createdById])
+  @@map("company_domains")
+}
+
+/// Domains, addresses and names the Gmail sync must never turn into anything.
+///
+/// This is its own table rather than a column on Lead because
+/// reconcileStoredLeadOwnership DELETES and rebuilds every gmail-source lead on
+/// each run: a "never again" flag stored there would be wiped by the next sync,
+/// and the entity it suppressed would walk straight back in. Suppression has to
+/// outlive the rows it is about.
+///
+/// It is also separate from DoNotContactEntry, which suppresses OUTBOUND
+/// contact with a company that exists. This one suppresses INBOUND
+/// interpretation of mail from something that must never become a company at
+/// all — a bounce handler, a relay, a courier. Different subject, different
+/// lifetime, different table.
+///
+/// `normalizedValue` carries the comparable form (registrable domain, lowercased
+/// address, normalized name) and is half of the unique key, so re-adding an
+/// entry updates it instead of stacking duplicates.
+model SuppressedEntity {
+  id              String               @id @default(cuid())
+  kind            SuppressedEntityKind
+  value           String
+  normalizedValue String
+  reason          String?
+  createdById     String?
+  createdAt       DateTime             @default(now())
+
+  createdBy User? @relation("SuppressedEntityCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([kind, normalizedValue])
+  @@index([kind])
+  @@index([createdById])
+  @@map("suppressed_entities")
 }
 
 model Contact {
@@ -2444,8 +2582,8 @@ model EmailMessage {
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
-  matchedAdmin User? @relation("EmailMessageMatchedAdmin", fields: [matchedAdminUserId], references: [id], onDelete: SetNull)
-  lead         Lead? @relation("LeadEmailMessages", fields: [leadId], references: [id], onDelete: SetNull)
+  matchedAdmin User?    @relation("EmailMessageMatchedAdmin", fields: [matchedAdminUserId], references: [id], onDelete: SetNull)
+  lead         Lead?    @relation("LeadEmailMessages", fields: [leadId], references: [id], onDelete: SetNull)
   // companyId carried no relation until 2026-08-03, so nothing stopped it
   // pointing at a deleted company — production had two such orphans, both from
   // companies auto-created by the Gmail sync and later removed. SetNull matches

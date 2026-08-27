@@ -105,6 +105,7 @@ import {
 } from '@/lib/formatting';
 import { JourneyTimeline, type JourneyStep } from '@/components/admin/company-profile/journey-timeline';
 import { QuickActionDialog, type QuickField } from '@/components/admin/company-profile/quick-action-dialog';
+import { CompanyIdentityCard } from '@/components/admin/company-profile/company-identity-card';
 
 /* ────────────────────────────── data bundle ────────────────────────────── */
 
@@ -645,6 +646,15 @@ export default function CompanyProfilePage() {
                   </dl>
                 </CardContent>
               </Card>
+              {/* The registers the Gmail sync matches senders against. They live
+                  on the overview because "which domains are this company?" is a
+                  fact about the company, not a workflow tab. */}
+              <div className="lg:col-span-5">
+                <CompanyIdentityCard
+                  companyId={company.id}
+                  companyName={company.tradingName ?? company.legalName}
+                />
+              </div>
             </div>
           </TabsContent>
 

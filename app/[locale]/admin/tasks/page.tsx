@@ -322,7 +322,20 @@ export default function TasksPage() {
             : result.error === 'rate_limited'
               ? 'aiErrorRateLimited'
               : 'aiErrorGeneration';
-        toast({ variant: 'danger', title: t('aiErrorTitle'), description: t(key) });
+        // The deterministic follow-up pass commits before the AI gates, so its
+        // rows exist even when this call "failed". Show them and say so, rather
+        // than leaving the operator to find tasks a red toast denied making.
+        if (result.tasks.length) {
+          setRows((previous) => (previous ? [...result.tasks, ...previous] : result.tasks));
+          refreshStats();
+        }
+        toast({
+          variant: 'danger',
+          title: t('aiErrorTitle'),
+          description: result.tasks.length
+            ? `${t(key)} ${t('aiFollowUpsStillCreated', { count: result.tasks.length })}`
+            : t(key),
+        });
         return;
       }
       setRows((previous) => (previous ? [...result.tasks, ...previous] : result.tasks));

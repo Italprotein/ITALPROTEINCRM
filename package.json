@@ -19,6 +19,8 @@
     "import:crm:dry": "tsx scripts/import-crm.ts --dry",
     "import:crm": "tsx scripts/import-crm.ts",
     "import:samples:list": "tsx scripts/import-sample-requests.ts",
+    "reconcile:dry": "tsx scripts/reconcile-email-companies.ts",
+    "reconcile:apply": "tsx scripts/reconcile-email-companies.ts --apply",
     "verify": "tsx scripts/verify-backend.ts",
     "verify:auth": "tsx scripts/verify-auth-runtime.ts",
     "test": "vitest run",
