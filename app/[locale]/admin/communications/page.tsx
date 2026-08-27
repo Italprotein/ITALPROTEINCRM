@@ -16,6 +16,7 @@ import { useSession } from '@/components/providers/session-provider';
 import { canEdit } from '@/lib/permissions';
 import { useStaffDirectory } from '@/lib/hooks/use-staff';
 import { PageHeader } from '@/components/shared/page-header';
+import { LeadReviewPanel } from '@/components/admin/lead-review-panel';
 import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Card, CardContent } from '@/components/ui/card';
@@ -149,6 +150,11 @@ export default function CommunicationsPage() {
           {/* Mailbox total when the connection reports one; the loaded page length
               is only a lower bound (the fetch is capped server-side). */}
           <TabsTrigger value="inbox">{t('inboxTab', { count: gmail?.inboxCount ?? inbox?.length ?? 0 })}</TabsTrigger>
+          {/* Leads live here rather than on the agencies page: they are made by
+              the Gmail sync out of the very mail the inbox tab beside this one
+              shows, and reviewing one needs the company picker this page
+              already loads. The agencies card stays a personal shortcut. */}
+          <TabsTrigger value="leads">{t('leadsTab')}</TabsTrigger>
           <TabsTrigger value="requests">{t('requestsTab', { count: stats.total })}</TabsTrigger>
           <TabsTrigger value="email">{t('emailLogTab', { count: emails.length })}</TabsTrigger>
         </TabsList>
@@ -225,6 +231,11 @@ export default function CommunicationsPage() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── Gmail leads awaiting a human decision ────────────────── */}
+        <TabsContent value="leads">
+          <LeadReviewPanel companies={[...companyMap.values()]} />
         </TabsContent>
 
         {/* ── Support requests (unchanged two-pane) ───────────────── */}
