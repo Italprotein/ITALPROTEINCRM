@@ -353,4 +353,34 @@ describe('proposeFalseCompanies', () => {
     expect(proposal.survivorNdaCount).toBe(1);
     expect(proposal.foldedNdaCount).toBe(3);
   });
+
+  it('is not shielded by the document its own bounce filed — the production regression', () => {
+    // The first dry-run against production found all four Pphosted rows
+    // carrying documents: 1 (the auto-filed bounce attachment) and proposed
+    // nothing. A document created by the same bug is not evidence of a person.
+    const rows = [1, 2, 3, 4].map((i) => ({
+      companyId: `c${i}`,
+      legalName: 'Pphosted',
+      tradingName: null,
+      tags: ['gmail-import'],
+      createdAt: `2026-08-24T0${i}:00:00Z`,
+      domains: [],
+      counts: { contacts: 0, ndas: 1, emailMessages: 1, documents: 1 },
+      ndaIds: [`nda${i}`],
+    }));
+    const proposals = proposeFalseCompanies(rows as never);
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0].duplicateCompanyIds).toHaveLength(3);
+    expect(proposals[0].ndaIdsToReview).toHaveLength(4);
+  });
+
+  it('still refuses to fold a row a person has worked with', () => {
+    const row = {
+      companyId: 'c1', legalName: 'Pphosted', tradingName: null,
+      tags: ['gmail-import'], createdAt: '2026-08-24T01:00:00Z', domains: [],
+      counts: { contacts: 1, ndas: 1, documents: 1 }, ndaIds: ['nda1'],
+    };
+    expect(proposeFalseCompanies([row] as never)).toHaveLength(0);
+  });
+
 });
