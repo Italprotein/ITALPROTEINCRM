@@ -413,10 +413,12 @@ export interface FalseCompanyProposal {
 export const AUTO_IMPORT_TAG = 'gmail-import';
 
 /**
- * Counts that mean a person has actually worked with this company. NDAs and
- * email messages are deliberately absent: the bounce carried our own NDA back
- * to us, and the resulting NDA row is the artefact of the bug, not evidence
- * against it.
+ * Counts that mean a person has actually worked with this company. NDAs,
+ * email messages AND documents are deliberately absent: the bounce carried our
+ * own NDA back to us, and the auto-filed NDA row plus the Document/Attachment
+ * it created are artefacts of the bug, not evidence against it. The first
+ * production dry-run proved the point — all four Pphosted rows were shielded
+ * by the one Document their own bounce had filed.
  */
 const REAL_DATA_KEYS = [
   'contacts',
@@ -426,7 +428,6 @@ const REAL_DATA_KEYS = [
   'sampleRequests',
   'shipments',
   'opportunities',
-  'documents',
   'feedbacks',
   'projects',
   'meetings',
