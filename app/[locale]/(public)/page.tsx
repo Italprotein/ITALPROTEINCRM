@@ -173,7 +173,7 @@ export default function LandingPage() {
           <div className="container relative z-10 -mb-14 mt-12 sm:-mb-20 sm:mt-16 lg:-mb-24 lg:mt-20 lg:[perspective:2000px]">
             <div className="motion-safe:animate-fade-up motion-safe:[animation-delay:180ms] motion-safe:[animation-duration:700ms] motion-safe:[animation-fill-mode:both]">
               <BrowserMockup
-                src="/marketing/crm-dashboard.png"
+                src="/marketing/crm-companies.png"
                 alt={t('screenshotAlt')}
                 url="crm.italprotein.com"
                 width={1804}
