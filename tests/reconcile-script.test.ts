@@ -83,12 +83,23 @@ describe('reconcile-email-companies dry-run safety', () => {
     ).toEqual([]);
   });
 
-  it('never writes from a planning function', () => {
+  it('keeps the planning passes out of this file entirely', () => {
+    // They live in lib/reconcile/plan.ts, which `npm run typecheck` covers and
+    // tests/reconcile-plan.test.ts EXECUTES. They were here once, unreachable
+    // by both, and that is how a reassigned `const` shipped.
     const planners = FUNCTIONS.filter((fn) => fn.name.startsWith('plan') || fn.name.startsWith('load'));
-    expect(planners.length).toBeGreaterThan(3);
-    for (const planner of planners) {
-      expect(writesIn(planner.body), `${planner.name} must only read`).toEqual([]);
-    }
+    expect(planners, 'planning belongs in lib/reconcile/plan.ts').toEqual([]);
+    expect(SOURCE).toContain("from \"@/lib/reconcile/plan\"");
+  });
+
+  it('is pinned into tsconfig `files`, so typecheck reads it despite scripts/ being excluded', () => {
+    const tsconfig = JSON.parse(
+      fs.readFileSync(path.resolve(__dirname, '..', 'tsconfig.json'), 'utf8'),
+    ) as { files?: string[]; exclude?: string[] };
+    // `exclude` only filters `include`; `files` entries are always compiled.
+    // Without this pin, `npm run typecheck` never opens the script at all.
+    expect(tsconfig.exclude).toContain('scripts');
+    expect(tsconfig.files ?? []).toContain('scripts/reconcile-email-companies.ts');
   });
 
   it('calls every apply* function only under an APPLY check', () => {

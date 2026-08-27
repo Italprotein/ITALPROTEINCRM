@@ -334,4 +334,23 @@ describe('proposeFalseCompanies', () => {
     expect(proposals[0].duplicateCompanyIds).toEqual([]);
     expect(proposals[0].suppressDomain).toBe('pphosted.com');
   });
+
+  it('does not exonerate the survivor: it is named, counted and reported too', () => {
+    // Folding four rows into one leaves ONE company still named after a bounce
+    // handler, now holding all four bounce-filed NDAs. If the proposal only
+    // listed the three duplicates, that row would quietly become permanent.
+    const [proposal] = proposeFalseCompanies(pphostedRows);
+    expect(proposal.keepCompanyName).toBe('Pphosted');
+    expect(proposal.survivorNdaCount).toBe(1);
+    expect(proposal.foldedNdaCount).toBe(3);
+  });
+
+  it('names the bounce-born NDA rows when the caller supplied their ids', () => {
+    const withIds = pphostedRows.map((row, index) => ({ ...row, ndaIds: [`nda-${index + 1}`] }));
+    const [proposal] = proposeFalseCompanies(withIds);
+    // Survivor's own first, then everything the fold moves onto it.
+    expect(proposal.ndaIdsToReview).toEqual(['nda-1', 'nda-2', 'nda-3', 'nda-4']);
+    expect(proposal.survivorNdaCount).toBe(1);
+    expect(proposal.foldedNdaCount).toBe(3);
+  });
 });

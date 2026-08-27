@@ -1158,7 +1158,8 @@
     "aiErrorNotConfigured": "Configura sul server il provider AI selezionato.",
     "aiErrorUnknown": "Al momento non è possibile analizzare la posta.",
     "aiTasksReady": "La lista dei task di oggi è pronta",
-    "aiTasksReadyDetail": "{count} nuovi task creati dalle email assegnate."
+    "aiTasksReadyDetail": "{count} nuovi task creati dalle email assegnate.",
+    "aiFollowUpsStillCreated": "Sono state comunque create {count} attività di follow-up."
   },
   "AdminActivities": {
     "title": "Attività",
@@ -2293,7 +2294,8 @@
     "cancel": "Annulla",
     "creating": "Creazione…",
     "createTask": "Crea task",
-    "dropHere": "Rilascia qui"
+    "dropHere": "Rilascia qui",
+    "aiFollowUpsStillCreated": "Sono state comunque create {count} attività di follow-up."
   },
   "AdminUsers": {
     "title": "Utenti e Ruoli",
@@ -2383,7 +2385,8 @@
     "example3": "Quali riunioni e scadenze sono in arrivo?",
     "errorConfiguration": "La connessione AI non è pronta. Chiedi a un amministratore di verificare il provider selezionato e la chiave API del server.",
     "errorRateLimited": "Troppi messaggi. Attendi un momento e riprova.",
-    "errorGeneric": "Si è verificato un errore. Riprova."
+    "errorGeneric": "Si è verificato un errore. Riprova.",
+    "followUpsStillCreated": "Ho comunque creato {count} attività di follow-up per aziende rimaste in silenzio."
   },
   "PasswordGate": {
     "title": "Scegli la tua password per continuare",

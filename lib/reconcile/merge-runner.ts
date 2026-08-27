@@ -13,7 +13,7 @@
  * The cast lives at each call site, once.
  */
 
-import { COMPANY_MERGE_RELATIONS } from './company-merge';
+import { COMPANY_ID_COLUMNS_WITHOUT_RELATIONS, COMPANY_MERGE_RELATIONS } from './company-merge';
 
 export interface RepointableDelegate {
   updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }): Promise<{ count: number }>;
@@ -43,6 +43,33 @@ export async function blockingRelationCounts(
     if (count) blocking.push(`${count} ${relation.relation}`);
   }
   return blocking;
+}
+
+/**
+ * Move the company-id columns that carry NO foreign key and no relation field
+ * on Company, so the schema diff in tests/company-merge-relations.test.ts
+ * cannot see them: `email_logs.companyId` moves, `audit_events.companyId`
+ * deliberately does not.
+ *
+ * Split out and called by `repointCompanyRelations` rather than left to each
+ * caller: the reconciliation fold originally forgot it, which left every
+ * `email_logs` row pointing at a duplicate that an operator was then told to
+ * delete by hand — a dangling id with no constraint to catch it.
+ */
+async function repointCompanyIdColumns(
+  resolve: DelegateResolver,
+  sourceId: string,
+  targetId: string,
+  moved: Record<string, number>,
+): Promise<void> {
+  for (const column of COMPANY_ID_COLUMNS_WITHOUT_RELATIONS) {
+    if (column.strategy !== 'repoint') continue;
+    const result = await resolve(column.delegate).updateMany({
+      where: { [column.foreignKey]: sourceId },
+      data: { [column.foreignKey]: targetId },
+    });
+    moved[column.delegate] = result.count;
+  }
 }
 
 /**
@@ -98,6 +125,8 @@ export async function repointCompanyRelations(
     const result = await delegate.updateMany({ where, data });
     moved[relation.relation] = result.count;
   }
+
+  await repointCompanyIdColumns(resolve, sourceId, targetId, moved);
 
   return moved;
 }

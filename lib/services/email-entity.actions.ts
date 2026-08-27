@@ -10,7 +10,6 @@ import {
   normalizeEntityName,
   registrableDomainOf,
 } from "@/lib/email-entity";
-import { COMPANY_ID_COLUMNS_WITHOUT_RELATIONS } from "@/lib/reconcile/company-merge";
 import {
   blockingRelationCounts,
   repointCompanyRelations,
@@ -759,17 +758,9 @@ export async function mergeCompanies(sourceId: string, targetId: string): Promis
   let outcome: { moved: Record<string, number>; aliasesAdded: number };
   try {
     outcome = await prisma.$transaction(async (tx) => {
-      // Shared with scripts/reconcile-email-companies.ts so the two cannot drift.
+      // Shared with scripts/reconcile-email-companies.ts so the two cannot
+      // drift. It moves the relation-less company-id columns too.
       const moved = await repointCompanyRelations((name) => delegateOf(tx, name), sourceId, targetId);
-
-      for (const column of COMPANY_ID_COLUMNS_WITHOUT_RELATIONS) {
-        if (column.strategy !== "repoint") continue;
-        const result = await delegateOf(tx, column.delegate).updateMany({
-          where: { [column.foreignKey]: sourceId },
-          data: { [column.foreignKey]: targetId },
-        });
-        moved[column.delegate] = result.count;
-      }
 
       // The source's own names survive as aliases, so mail signed with the old
       // name still resolves to the surviving company.

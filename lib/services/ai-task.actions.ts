@@ -47,7 +47,15 @@ type AiTaskError =
 
 export type GenerateAiTasksResult =
   | { ok: true; tasks: Task[]; consideredEmails: number }
-  | { ok: false; error: AiTaskError; retryAfterSeconds?: number };
+  /**
+   * `tasks` is present on FAILURE too, and is not a courtesy.
+   *
+   * The deterministic follow-up pass runs before the AI gates and writes real
+   * rows. Reporting "AI not configured" or "rate limited" without them told the
+   * operator nothing had happened while the tasks sat in their list — so every
+   * failure carries what was in fact created.
+   */
+  | { ok: false; error: AiTaskError; retryAfterSeconds?: number; tasks: Task[] };
 
 export type CreateAiDraftResult =
   | { ok: true; draftId: string; gmailUrl: string }
@@ -110,7 +118,25 @@ async function createQuietCompanyFollowUpTasks(user: SessionUser): Promise<Task[
   // and not lost/dormant. It reads stored mail, which the hourly Gmail cron
   // keeps current — the pass deliberately does not sync first, so it still runs
   // when this member's daily AI slot is spent.
-  const candidates = await followUpCandidates(FOLLOW_UP_TASK_BATCH);
+  //
+  // Companies that already hold an OPEN follow-up task are excluded BEFORE the
+  // batch cap rather than after it. Filtering afterwards meant the quietest
+  // FOLLOW_UP_TASK_BATCH companies — which are exactly the ones most likely to
+  // have an open task already — consumed every slot and produced nothing, while
+  // the company just behind them never came up at all.
+  const openFollowUpCompanies = await prisma.task.findMany({
+    where: {
+      type: "follow_up",
+      status: { notIn: ["done", "cancelled"] },
+      companyId: { not: null },
+    },
+    select: { companyId: true },
+    distinct: ["companyId"],
+  });
+  const candidates = await followUpCandidates(
+    FOLLOW_UP_TASK_BATCH,
+    openFollowUpCompanies.map((task) => task.companyId!),
+  );
   if (!candidates.length) return [];
 
   const companyIds = candidates.map((candidate) => candidate.companyId);
@@ -234,13 +260,20 @@ export async function generateAiTasksFromInbox(
     return [] as Task[];
   });
 
-  if (!isCrmTaskAiConfigured()) return { ok: false, error: "openai_not_configured" };
+  if (!isCrmTaskAiConfigured()) {
+    return { ok: false, error: "openai_not_configured", tasks: followUpTasks };
+  }
 
   // Peek only: the daily slot is consumed after a SUCCESSFUL run (below), so a
   // provider outage or an empty inbox never burns the member's one pass a day.
   const daily = await peekRateLimit(DAILY_TASKS_LIMIT_KEY(user.id), 1, DAILY_TASKS_WINDOW_SECONDS);
   if (!daily.ok) {
-    return { ok: false, error: "rate_limited", retryAfterSeconds: daily.retryAfterSeconds };
+    return {
+      ok: false,
+      error: "rate_limited",
+      retryAfterSeconds: daily.retryAfterSeconds,
+      tasks: followUpTasks,
+    };
   }
 
   // Best effort: stored mail remains usable if Google is temporarily unavailable.
@@ -403,19 +436,22 @@ export async function generateAiTasksFromInbox(
     console.error(
       `[ai-tasks] generation failed for ${user.id} (${failure.kind}): ${failure.detail}`,
     );
+    // The model half failed; the deterministic half already committed rows.
+    // Every branch carries them, so no failure message can imply otherwise.
     switch (failure.kind) {
       case "quota_exhausted":
         return {
           ok: false,
           error: "ai_quota_exhausted",
           retryAfterSeconds: failure.retryAfterSeconds,
+          tasks: followUpTasks,
         };
       case "provider_refused":
-        return { ok: false, error: "openai_not_configured" };
+        return { ok: false, error: "openai_not_configured", tasks: followUpTasks };
       case "invalid_output":
-        return { ok: false, error: "ai_invalid_output" };
+        return { ok: false, error: "ai_invalid_output", tasks: followUpTasks };
       default:
-        return { ok: false, error: "ai_provider_unavailable" };
+        return { ok: false, error: "ai_provider_unavailable", tasks: followUpTasks };
     }
   }
 }

@@ -1158,7 +1158,8 @@
     "aiErrorNotConfigured": "Configure the selected AI provider on the server.",
     "aiErrorUnknown": "The inbox could not be analyzed right now.",
     "aiTasksReady": "Today's task list is ready",
-    "aiTasksReadyDetail": "{count} new tasks were created from assigned email."
+    "aiTasksReadyDetail": "{count} new tasks were created from assigned email.",
+    "aiFollowUpsStillCreated": "{count} follow-up task(s) were still created."
   },
   "AdminActivities": {
     "title": "Activities",
@@ -2293,7 +2294,8 @@
     "cancel": "Cancel",
     "creating": "Creating…",
     "createTask": "Create task",
-    "dropHere": "Drop here"
+    "dropHere": "Drop here",
+    "aiFollowUpsStillCreated": "{count} follow-up task(s) were still created."
   },
   "AdminUsers": {
     "title": "Users & Roles",
@@ -2383,7 +2385,8 @@
     "example3": "What meetings and deadlines are coming next?",
     "errorConfiguration": "The AI connection is not ready. Ask an administrator to verify the selected provider and server API key.",
     "errorRateLimited": "Too many messages. Please wait a moment and try again.",
-    "errorGeneric": "Something went wrong. Please try again."
+    "errorGeneric": "Something went wrong. Please try again.",
+    "followUpsStillCreated": "I still created {count} follow-up task(s) for companies that have gone quiet."
   },
   "PasswordGate": {
     "title": "Choose your own password to continue",

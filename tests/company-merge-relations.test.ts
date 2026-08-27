@@ -7,6 +7,7 @@ import {
   COMPANY_ID_COLUMNS_WITHOUT_RELATIONS,
   MERGE_BLOCKING_RELATIONS,
 } from '@/lib/reconcile/company-merge';
+import { repointCompanyRelations, type RepointableDelegate } from '@/lib/reconcile/merge-runner';
 
 /*
  * mergeCompanies() must repoint EVERY row that names the source company before
@@ -144,6 +145,37 @@ describe('mergeCompanies relation coverage', () => {
     const covered = COMPANY_ID_COLUMNS_WITHOUT_RELATIONS.map((c) => c.delegate).sort();
     expect(covered).toEqual(['auditEvent', 'emailLog']);
     expect(COMPANY_ID_COLUMNS_WITHOUT_RELATIONS.find((c) => c.delegate === 'auditEvent')?.strategy).toBe('keep');
+  });
+
+  it('actually moves the relation-less company-id columns as well', async () => {
+    // Not a schema question — a behavioural one. The reconciliation fold used
+    // to repoint relations with its own loop and skip these two columns, which
+    // left every email_logs row pointing at a company the operator was then
+    // told to delete by hand. Both callers now go through one runner, so this
+    // asserts the runner itself does it.
+    const calls: { delegate: string; where: Record<string, unknown>; data: Record<string, unknown> }[] = [];
+    const delegate = (name: string): RepointableDelegate => ({
+      updateMany: async ({ where, data }) => {
+        calls.push({ delegate: name, where, data });
+        return { count: 1 };
+      },
+      deleteMany: async () => ({ count: 0 }),
+      count: async () => 0,
+      findMany: async () => [],
+    });
+
+    const moved = await repointCompanyRelations(delegate, 'source', 'target');
+
+    expect(calls.some((c) => c.delegate === 'emailLog' && c.where.companyId === 'source')).toBe(true);
+    expect(moved.emailLog).toBe(1);
+    // Audit events keep pointing at the row that existed — rewriting them would
+    // erase the fact that the source ever did.
+    expect(calls.some((c) => c.delegate === 'auditEvent')).toBe(false);
+    expect(moved.auditEvent).toBeUndefined();
+    // And the financial relations are never touched by the runner at all.
+    for (const blocked of MERGE_BLOCKING_RELATIONS) {
+      expect(calls.some((c) => c.delegate === blocked.delegate)).toBe(false);
+    }
   });
 
   it('uses the unique-aware strategies exactly where the schema is unique', () => {

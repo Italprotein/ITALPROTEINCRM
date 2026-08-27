@@ -320,7 +320,16 @@ export function OperationalOverviewDashboard() {
                 : result.error === 'ai_invalid_output'
                   ? t('aiErrorInvalidOutput')
                   : t('aiErrorUnknown');
-        toast({ variant: 'danger', title: t('aiFailed'), description });
+        // The deterministic follow-up pass runs before the AI gates and its
+        // rows are already committed. Saying only "AI failed" would hide them.
+        toast({
+          variant: 'danger',
+          title: t('aiFailed'),
+          description: result.tasks.length
+            ? `${description} ${t('aiFollowUpsStillCreated', { count: result.tasks.length })}`
+            : description,
+        });
+        if (result.tasks.length) await load();
       } else {
         toast({ variant: 'success', title: t('aiTasksReady'), description: t('aiTasksReadyDetail', { count: result.tasks.length }) });
         await load();

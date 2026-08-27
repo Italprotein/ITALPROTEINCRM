@@ -11,7 +11,19 @@ import { FOLLOW_UP_AFTER_DAYS, type FollowUpCandidate } from "@/lib/follow-up";
  * is real, and the silence since proves it has stalled. A company that never
  * replied is a prospecting problem, not a follow-up — it does not belong here.
  */
-export async function followUpCandidates(limit = 12): Promise<FollowUpCandidate[]> {
+export async function followUpCandidates(
+  limit = 12,
+  /**
+   * Companies to drop BEFORE the cap is applied.
+   *
+   * Without this the cap starved everything behind it: the list is sorted by
+   * quiet days descending, so once the quietest `limit` companies each held an
+   * open follow-up task they occupied every slot permanently and company 21
+   * could never be reached. Excluding them first means the cap limits work
+   * that can actually be done, not work that has already been done.
+   */
+  excludeCompanyIds: string[] = [],
+): Promise<FollowUpCandidate[]> {
   await requireInternal();
 
   const cutoff = new Date(Date.now() - FOLLOW_UP_AFTER_DAYS * 86_400_000);
@@ -64,6 +76,7 @@ export async function followUpCandidates(limit = 12): Promise<FollowUpCandidate[
   });
   const byId = new Map(companies.map((company) => [company.id, company]));
 
+  const excluded = new Set(excludeCompanyIds);
   const now = Date.now();
   return stalled
     .filter(([id]) => byId.has(id))
@@ -81,6 +94,7 @@ export async function followUpCandidates(limit = 12): Promise<FollowUpCandidate[
         lastContactAt: touched.toISOString(),
       };
     })
+    .filter((candidate) => !excluded.has(candidate.companyId))
     .sort((a, b) => b.quietDays - a.quietDays)
     .slice(0, limit);
 }

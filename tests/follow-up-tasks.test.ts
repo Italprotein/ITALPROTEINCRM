@@ -215,8 +215,14 @@ describe('the pass wires the rule up (structural)', () => {
       source.indexOf('async function createQuietCompanyFollowUpTasks'),
       source.indexOf('export async function generateAiTasksFromInbox'),
     );
-    const queryStart = pass.indexOf('prisma.task.findMany(');
-    expect(queryStart, 'the pass must read the existing follow-up tasks').toBeGreaterThan(-1);
+    // The DEDUPE query specifically — the one that reads completedAt so the
+    // "wait out the threshold again" rule can see closed follow-ups. The pass
+    // also runs a separate, deliberately status-filtered query to exclude
+    // companies before the batch cap; that one is asserted below.
+    const dedupeSelect = pass.indexOf('completedAt: true');
+    expect(dedupeSelect, 'the pass must read the existing follow-up tasks').toBeGreaterThan(-1);
+    const queryStart = pass.lastIndexOf('prisma.task.findMany(', dedupeSelect);
+    expect(queryStart).toBeGreaterThan(-1);
     const where = pass.slice(queryStart, pass.indexOf('select:', queryStart));
 
     expect(where, 'the dedupe query must be company + type scoped').toContain('type: "follow_up"');
@@ -231,6 +237,26 @@ describe('the pass wires the rule up (structural)', () => {
     expect(where).not.toContain('status:');
   });
 
+  it('excludes open follow-ups BEFORE the batch cap, not after it', () => {
+    const pass = source.slice(
+      source.indexOf('async function createQuietCompanyFollowUpTasks'),
+      source.indexOf('export async function generateAiTasksFromInbox'),
+    );
+    const exclusion = pass.indexOf('prisma.task.findMany(');
+    const capped = pass.indexOf('followUpCandidates(');
+    expect(exclusion, 'the pass must read which companies already hold one').toBeGreaterThan(-1);
+    // Order is the whole fix: filtering after the cap let the quietest companies
+    // hold every slot with tasks that already existed, so nothing behind them
+    // could ever be reached.
+    expect(exclusion).toBeLessThan(capped);
+    const where = pass.slice(exclusion, pass.indexOf('select:', exclusion));
+    expect(where).toContain('type: "follow_up"');
+    expect(where, 'only OPEN tasks exclude a company from the batch').toContain('notIn');
+    expect(pass, 'the exclusion must reach the candidate query').toMatch(
+      /followUpCandidates\(\s*FOLLOW_UP_TASK_BATCH,/,
+    );
+  });
+
   it('runs before the AI configuration and rate-limit early returns', () => {
     const deterministic = source.indexOf('createQuietCompanyFollowUpTasks(user)');
     const aiConfigured = source.indexOf('if (!isCrmTaskAiConfigured())');
@@ -238,5 +264,26 @@ describe('the pass wires the rule up (structural)', () => {
     expect(deterministic).toBeGreaterThan(-1);
     expect(deterministic).toBeLessThan(aiConfigured);
     expect(deterministic).toBeLessThan(dailyLimit);
+  });
+
+  it('reports the tasks it created even when the AI half fails', () => {
+    // Running first is only safe if failing says so. `tasks` is REQUIRED on the
+    // failure variant, so the compiler refuses any new early return that would
+    // tell the operator nothing happened while rows sat in their list — make
+    // that field optional and this test is the thing that notices.
+    expect(source).toMatch(
+      /ok:\s*false;\s*error:\s*AiTaskError;\s*retryAfterSeconds\?:\s*number;\s*tasks:\s*Task\[\]/,
+    );
+    // Bounded to THIS function: createAiReplyDraft below it returns a different
+    // result type that has no tasks to report.
+    const pass = source.slice(
+      source.indexOf('export async function generateAiTasksFromInbox'),
+      source.indexOf('function replySubject('),
+    );
+    const failures = [...pass.matchAll(/return\s*\{[^}]*ok:\s*false[^}]*\}/g)].map((m) => m[0]);
+    expect(failures.length).toBeGreaterThan(3);
+    for (const failure of failures) {
+      expect(failure, `this failure hides the follow-ups it created: ${failure}`).toContain('tasks:');
+    }
   });
 });

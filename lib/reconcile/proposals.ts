@@ -372,18 +372,41 @@ export interface CompanyFactsRow {
   createdAt: string;
   domains: string[];
   counts: Record<string, number>;
+  /**
+   * The NDA rows filed under this company. Carried so the proposal can name
+   * them: on an infrastructure-born row every one of them was filed from a
+   * bounce handing our own attachment back to us, and a fold moves them onto
+   * the survivor rather than making them disappear.
+   */
+  ndaIds?: string[];
 }
 
 export interface FalseCompanyProposal {
   kind: 'PROPOSE-FALSE-COMPANY';
   infrastructureDomain: string;
-  /** The one row to keep. Never invented — always an id that was passed in. */
+  /**
+   * The row everything is folded onto. Never invented — always an id that was
+   * passed in — and NOT a row that has been cleared: it is still a company
+   * named after a bounce handler, so it is reported for review too.
+   */
   keepCompanyId: string;
+  keepCompanyName: string;
   /** Rows for a HUMAN to delete. This module proposes; the script never deletes a company. */
   duplicateCompanyIds: string[];
   suppressDomain: string;
   evidence: string[];
   names: string[];
+  /** NDAs already on the survivor, before anything is folded onto it. */
+  survivorNdaCount: number;
+  /** NDAs that the fold moves from the duplicates onto the survivor. */
+  foldedNdaCount: number;
+  /**
+   * Every NDA id the survivor ends up holding. All bounce-born under this rule:
+   * the sender that filed each one fails the automated/infrastructure test the
+   * sync now applies, which is why these rows exist at all. Named so an
+   * operator can find and judge them instead of inheriting them silently.
+   */
+  ndaIdsToReview: string[];
 }
 
 /** The tag `ensureCompanyForDomain` stamps on everything it creates. */
@@ -454,13 +477,24 @@ export function proposeFalseCompanies(rows: CompanyFactsRow[]): FalseCompanyProp
         (a, b) => a.createdAt.localeCompare(b.createdAt) || a.companyId.localeCompare(b.companyId),
       );
       const [keep, ...duplicates] = ordered;
+      const ndasOf = (row: CompanyFactsRow) => row.ndaIds ?? [];
+      const foldedNdaIds = duplicates.flatMap(ndasOf);
       return {
         kind: 'PROPOSE-FALSE-COMPANY' as const,
         infrastructureDomain: domain,
         keepCompanyId: keep.companyId,
+        keepCompanyName: keep.legalName,
         duplicateCompanyIds: duplicates.map((row) => row.companyId),
         suppressDomain: domain,
         names: ordered.map((row) => row.legalName),
+        // Counted from the ids when the caller supplied them, and from the
+        // `ndas` count when it did not — the count is always present.
+        survivorNdaCount: keep.ndaIds ? keep.ndaIds.length : (keep.counts.ndas ?? 0),
+        foldedNdaCount: duplicates.reduce(
+          (total, row) => total + (row.ndaIds ? row.ndaIds.length : (row.counts.ndas ?? 0)),
+          0,
+        ),
+        ndaIdsToReview: [...ndasOf(keep), ...foldedNdaIds],
         evidence: [
           `tagged-${AUTO_IMPORT_TAG}`,
           'named-after-mail-infrastructure',
