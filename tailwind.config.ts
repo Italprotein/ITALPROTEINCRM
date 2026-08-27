@@ -237,6 +237,13 @@ const config: Config = {
           from: { transform: 'translateX(0)' },
           to: { transform: 'translateX(-50%)' },
         },
+        // Aurora drift (adapted from Aceternity's aurora-background). Both
+        // layers travel +300%: the band layer is 200% wide with a 20% period,
+        // so the shift covers whole periods and the loop restart is seamless.
+        aurora: {
+          from: { backgroundPosition: '50% 50%, 50% 50%' },
+          to: { backgroundPosition: '350% 50%, 350% 50%' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -259,6 +266,8 @@ const config: Config = {
         // ease-in-out is fastest. Easing turned a 9s drift into a whoosh.
         sheen: 'sheen 9s linear infinite',
         marquee: 'marquee 90s linear infinite',
+        // Slow on purpose: at 60s the bands read as atmosphere, not weather.
+        aurora: 'aurora 60s linear infinite',
       },
     },
   },

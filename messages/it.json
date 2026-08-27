@@ -98,13 +98,14 @@
     "notifications": "Notifiche"
   },
   "Landing": {
-    "eyebrow": "Italprotein Srl · Bologna, Italia",
     "statsRegion": "Indicatori chiave",
     "navPrimary": "Navigazione principale",
     "mapLabel": "Mappa della presenza internazionale di Italprotein",
     "mapMarkers": "{count} località raggiunte",
-    "heroTitle": "Il sistema operativo del business ITALPROTEIN",
-    "heroSubtitle": "Un'unica piattaforma per gestire aziende, NDA, campioni, logistica, feedback tecnici e la pipeline commerciale di Proamina® — il dolcificante 100% proteico brevettato di Italprotein.",
+    "heroKicker": "Proamina® CRM",
+    "heroTitle": "Gestisci ogni relazione Proamina® da un unico posto.",
+    "heroSubtitle": "Aziende, contatti, NDA, campioni e follow-up — tutto il flusso di sviluppo commerciale Italprotein in un unico spazio di lavoro.",
+    "screenshotAlt": "La dashboard del CRM Proamina: indicatori chiave, attività di oggi e prossimi appuntamenti",
     "platformNote": "Un'unica piattaforma connessa per il team Italprotein e i suoi partner — dal primo contatto ai campioni consegnati e al feedback tecnico.",
     "featuresTitle": "Pensato per il lavoro operativo quotidiano",
     "features": [
@@ -133,7 +134,6 @@
         "desc": "Navigazione e azioni si adattano a ogni ruolo dello staff e a ogni referente aziendale."
       }
     ],
-    "heroCaption": "Proamina® · 100% proteine · brevetto Italprotein",
     "stats": [
       {
         "value": 36,

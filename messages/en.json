@@ -98,13 +98,14 @@
     "notifications": "Notifications"
   },
   "Landing": {
-    "eyebrow": "Italprotein Srl · Bologna, Italy",
     "statsRegion": "Key figures",
     "navPrimary": "Primary navigation",
     "mapLabel": "Italprotein international presence map",
     "mapMarkers": "{count} locations reached",
-    "heroTitle": "The operating system for the ITALPROTEIN business",
-    "heroSubtitle": "One platform to manage companies, NDAs, samples, logistics, technical feedback and the commercial pipeline behind Proamina® — Italprotein's patented 100% protein sweetener.",
+    "heroKicker": "Proamina® CRM",
+    "heroTitle": "Manage every Proamina® relationship from one place.",
+    "heroSubtitle": "Companies, contacts, NDAs, samples and follow-ups — the whole Italprotein business development flow, in one workspace.",
+    "screenshotAlt": "The Proamina CRM dashboard: key figures, today's activities and upcoming appointments",
     "platformNote": "One connected platform for the Italprotein team and its partners — from first contact to delivered samples and technical feedback.",
     "featuresTitle": "Built for daily operational work",
     "features": [
@@ -133,7 +134,6 @@
         "desc": "Navigation and actions adapt to each staff role and each company contact."
       }
     ],
-    "heroCaption": "Proamina® · 100% protein · Italprotein patent",
     "stats": [
       {
         "value": 36,

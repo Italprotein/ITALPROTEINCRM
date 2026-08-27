@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import {
   ArrowRight,
@@ -17,8 +17,9 @@ import {
 
 import { Logo } from '@/components/brand/logo';
 import { LanguageSwitcher } from '@/components/i18n/language-switcher';
+import { AuroraBackdrop } from '@/components/landing/aurora-backdrop';
+import { BrowserMockup } from '@/components/landing/browser-mockup';
 import { Reveal } from '@/components/landing/reveal';
-import { SpotlightCard } from '@/components/landing/spotlight-card';
 import { MARKERS, PARTNERS } from '@/components/landing/partners';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { InfiniteMovingCards } from '@/components/ui/infinite-moving-cards';
@@ -76,9 +77,26 @@ export default function LandingPage() {
   const stats = t.raw('stats') as { value: number; suffix: string; label: string }[];
   const steps = t.raw('journey') as { title: string; body: string }[];
 
+  // The header starts transparent over the aurora and gains its glass chrome
+  // (blur + tint + rule) only once the page scrolls, so the first viewport
+  // reads as one composed surface instead of content under a bar.
+  const [scrolled, setScrolled] = React.useState(false);
+  React.useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
     <div className="min-h-screen overflow-x-clip bg-background text-foreground">
-      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-xl">
+      <header
+        className={`sticky top-0 z-40 border-b transition-[background-color,border-color] duration-300 ${
+          scrolled
+            ? 'border-border/70 bg-background/85 backdrop-blur-xl'
+            : 'border-transparent bg-transparent'
+        }`}
+      >
         <div className="container flex h-16 items-center justify-between gap-3 sm:h-[4.5rem]">
           <Logo tone="dark" href="/" />
 
@@ -111,80 +129,62 @@ export default function LandingPage() {
       </header>
 
       <main>
-        <section className="relative isolate border-b border-border/70 px-4 py-10 sm:py-14 lg:py-16">
-          {/* Two composed backdrop layers, both static: the dot field gives the
-              surface a texture to catch the light, the radial glow above it
-              gives that texture a source. The dot field is masked to the same
-              top-right quadrant the glow already occupies and dissolves before
-              it reaches the headline, so it never competes with the text it
-              sits behind. Nothing here moves or reacts. */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[42rem] bg-dot-grid [mask-image:radial-gradient(60%_55%_at_75%_18%,black,transparent_75%)]" aria-hidden />
-          <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[42rem] bg-[radial-gradient(circle_at_78%_16%,rgba(2,132,199,0.10),transparent_38%)] motion-safe:animate-breathe motion-reduce:animate-none dark:bg-[radial-gradient(circle_at_78%_16%,rgba(56,189,248,0.11),transparent_38%)]" aria-hidden />
-          <div className="container grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(26rem,1fr)] lg:gap-16">
-            <div className="motion-safe:animate-fade-up">
-              <p className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.2em] text-brand-molecular dark:text-brand-blueBright">
-                {t('eyebrow')}
-              </p>
-              <h1 className="mt-6 max-w-[18ch] text-balance text-4xl font-semibold leading-[1.03] tracking-[-0.045em] text-brand-navy dark:text-white sm:text-5xl lg:text-6xl xl:text-[4.5rem] [overflow-wrap:anywhere]">
-                {t('heroTitle')}
-              </h1>
-              <p className="mt-6 max-w-xl text-pretty text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
-                {t('heroSubtitle')}
-              </p>
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/team-login"
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-brand-navy px-6 text-sm font-semibold text-white shadow-md shadow-brand-blue/20 transition-[background-color,color,transform,box-shadow] hover:-translate-y-0.5 hover:bg-brand-molecular hover:shadow-blue-halo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:bg-brand-molecular dark:hover:bg-brand-blueBright dark:hover:text-brand-navy motion-reduce:transform-none"
-                >
-                  {t('ctaInternal')}
-                  <ArrowRight className="h-4 w-4" aria-hidden />
-                </Link>
-                <Link
-                  href="/login"
-                  className="inline-flex min-h-12 items-center justify-center rounded-md border border-border bg-card px-6 text-sm font-semibold text-card-foreground shadow-xs transition-colors hover:border-brand-blue/60 hover:text-brand-molecular focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:hover:border-brand-blueBright/60 dark:hover:text-brand-blueBright"
-                >
-                  {t('ctaExternal')}
-                </Link>
-              </div>
-            </div>
+        <section className="relative isolate px-4 pt-12 sm:pt-16 lg:pt-20">
+          {/* Aurora first, dot grid above it: the drifting bands give the hero
+              its atmosphere, the static dot field gives the surface a texture
+              to catch that light. Both dissolve on a radial mask before the
+              body copy, and both are decoration — aria-hidden, pointer-inert. */}
+          <AuroraBackdrop />
+          <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[38rem] bg-dot-grid [mask-image:radial-gradient(55%_50%_at_50%_10%,black,transparent_75%)]" aria-hidden />
 
-            <SpotlightCard className="relative min-h-[29rem] overflow-hidden rounded-[1.75rem] border border-brand-blueBright/20 bg-brand-navy shadow-[0_28px_80px_-36px_rgba(2,132,199,0.45)] motion-safe:animate-scale-in sm:min-h-[35rem] lg:min-h-[39rem]">
-              <Image
-                src="/marketing/powder-marble.jpg"
-                alt=""
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 52vw"
-                className="object-cover opacity-35 grayscale"
+          <div className="container flex flex-col items-center text-center motion-safe:animate-fade-up">
+            <p className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.2em] text-brand-molecular dark:text-brand-blueBright">
+              {t('heroKicker')}
+            </p>
+            <h1 className="mt-6 max-w-[20ch] text-balance text-4xl font-semibold leading-[1.05] tracking-[-0.045em] text-brand-navy dark:text-white sm:text-5xl lg:text-6xl xl:text-[4.25rem] [overflow-wrap:anywhere]">
+              {t('heroTitle')}
+            </h1>
+            <p className="mt-6 max-w-2xl text-pretty text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+              {t('heroSubtitle')}
+            </p>
+            <div className="mt-9 flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
+              <Link
+                href="/team-login"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-brand-navy px-6 text-sm font-semibold text-white shadow-md shadow-brand-blue/20 transition-[background-color,color,transform,box-shadow] hover:-translate-y-0.5 hover:bg-brand-molecular hover:shadow-blue-halo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:bg-brand-molecular dark:hover:bg-brand-blueBright dark:hover:text-brand-navy motion-reduce:transform-none"
+              >
+                {t('ctaInternal')}
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex min-h-12 items-center justify-center rounded-md border border-border bg-card px-6 text-sm font-semibold text-card-foreground shadow-xs transition-colors hover:border-brand-blue/60 hover:text-brand-molecular focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:hover:border-brand-blueBright/60 dark:hover:text-brand-blueBright"
+              >
+                {t('ctaExternal')}
+              </Link>
+            </div>
+          </div>
+
+          {/* The product itself is the hero visual: the live dashboard in a
+              browser frame, ~80% of the container on desktop, gently tilted
+              back (desktop only) and overlapping into the stats band below so
+              the page reads as one continuous surface. The tilt lives here and
+              the entrance animation on the wrapper above it — fade-up's
+              `forwards` fill would otherwise overwrite the rotateX. */}
+          <div className="container relative z-10 -mb-14 mt-12 sm:-mb-20 sm:mt-16 lg:-mb-24 lg:mt-20 lg:[perspective:2000px]">
+            <div className="motion-safe:animate-fade-up motion-safe:[animation-delay:180ms] motion-safe:[animation-duration:700ms] motion-safe:[animation-fill-mode:both]">
+              <BrowserMockup
+                src="/marketing/crm-dashboard.png"
+                alt={t('screenshotAlt')}
+                url="crm.italprotein.com"
+                width={3200}
+                height={2000}
+                className="mx-auto w-full max-w-6xl lg:[transform:rotateX(3deg)] lg:[transform-origin:top_center]"
               />
-              <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(10,22,40,0.22),rgba(10,22,40,0.62)_58%,rgba(10,22,40,0.96))]" aria-hidden />
-              <div className="absolute inset-y-20 left-5 w-5 border-y border-brand-blueBright/45 bg-[repeating-linear-gradient(to_bottom,rgba(125,211,252,0.65)_0,rgba(125,211,252,0.65)_1px,transparent_1px,transparent_18px)] sm:left-7" aria-hidden />
-              <div className="absolute inset-x-5 top-5 flex items-start justify-between gap-4 border-b border-white/15 pb-4 font-mono text-[0.625rem] uppercase tracking-[0.18em] text-brand-blueSoft sm:inset-x-7 sm:top-7">
-                <span>Proamina®</span>
-                <span className="text-right text-white/55">{stats[1]?.value}{stats[1]?.suffix} {stats[1]?.label}</span>
-              </div>
-              <div className="absolute inset-x-12 bottom-16 top-20 flex items-end justify-center sm:inset-x-20 sm:bottom-20">
-                <Image
-                  src="/marketing/proamina-bottle.png"
-                  alt="Proamina®"
-                  width={520}
-                  height={520}
-                  priority
-                  sizes="(max-width: 640px) 60vw, 24rem"
-                  className="h-auto w-full max-w-[20rem] drop-shadow-[0_30px_38px_rgba(0,0,0,0.38)] motion-safe:animate-float-slow motion-reduce:animate-none sm:max-w-[25rem]"
-                />
-              </div>
-              <figcaption className="absolute inset-x-5 bottom-5 flex items-end justify-between gap-5 border-t border-white/15 pt-4 sm:inset-x-7 sm:bottom-7">
-                <span className="max-w-[28rem] font-mono text-[0.625rem] uppercase leading-relaxed tracking-[0.16em] text-white/65 sm:text-[0.6875rem]">
-                  {t('heroCaption')}
-                </span>
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-brand-blueBright shadow-[0_0_0_5px_rgba(56,189,248,0.12)]" aria-hidden />
-              </figcaption>
-            </SpotlightCard>
+            </div>
           </div>
         </section>
 
-        <section className={`border-b border-border/70 px-4 ${BAND}`} aria-label={t('statsRegion')}>
+        <section className={`border-b border-border/70 px-4 pt-24 sm:pt-32 lg:pt-36 ${BAND}`} aria-label={t('statsRegion')}>
           <dl className="container grid grid-cols-2 lg:grid-cols-4">
             {stats.map((stat, index) => (
               <div
