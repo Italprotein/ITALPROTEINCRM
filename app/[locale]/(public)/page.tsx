@@ -176,8 +176,8 @@ export default function LandingPage() {
                 src="/marketing/crm-dashboard.png"
                 alt={t('screenshotAlt')}
                 url="crm.italprotein.com"
-                width={3200}
-                height={2000}
+                width={1804}
+                height={872}
                 className="mx-auto w-full max-w-6xl lg:[transform:rotateX(3deg)] lg:[transform-origin:top_center]"
               />
             </div>
