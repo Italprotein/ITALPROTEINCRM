@@ -1012,6 +1012,15 @@ export interface GmailSyncResult {
   ndaFilesImported: number;
   leadsCreated: number;
   leadsUpdated: number;
+  /** Companies the NDA path auto-created this run. */
+  companiesCreated: number;
+  /**
+   * Senders that carried an NDA-looking attachment and were NOT turned into a
+   * company — a machine, a relay, a suppressed domain, or a name we could not
+   * derive. Counted rather than logged: on a mailbox that receives bounces this
+   * is a normal outcome, and the count is the only way to see the guard working.
+   */
+  companiesSkipped: number;
 }
 
 export interface SendEmailResult {
