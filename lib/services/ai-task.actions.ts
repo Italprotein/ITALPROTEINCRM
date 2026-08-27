@@ -17,8 +17,16 @@ import {
 import { runGmailSync } from "@/lib/backend/gmail-sync";
 import { prisma } from "@/lib/backend/prisma";
 import { checkRateLimit, clientIpFromHeaders, peekRateLimit } from "@/lib/backend/rate-limit";
-import { requireSection, requireSectionEdit } from "@/lib/backend/session";
+import { requireSection, requireSectionEdit, type SessionUser } from "@/lib/backend/session";
+import {
+  FOLLOW_UP_AFTER_DAYS,
+  followUpTaskDecision,
+  followUpTaskDescription,
+  followUpTaskTitle,
+} from "@/lib/follow-up";
 import type { Task } from "@/lib/types";
+import { isCompanyDoNotContact } from "./do-not-contact.actions";
+import { followUpCandidates } from "./follow-up.actions";
 import { taskToDTO } from "./task.mapper";
 
 type AiTaskError =
@@ -73,12 +81,159 @@ const TASK_NOTE_LABELS = {
   it: { source: "Email di origine", evidence: "Evidenza AI" },
 } as const;
 
+/**
+ * How many stalled companies one pass will look at. Matches the follow-up
+ * panel's own page size closely enough that what the operator sees on the tasks
+ * page is what the pass acted on, and caps the writes a single click can make.
+ */
+const FOLLOW_UP_TASK_BATCH = 20;
+
+/**
+ * Amina's deterministic half: a follow-up task for every company that has gone
+ * quiet, with no model involved.
+ *
+ * Silence is arithmetic — the moment it needs a language model to notice, it
+ * becomes unexplainable and unreproducible, and the pass stops being safe to run
+ * on every click. So this reads the same stalled-conversation query the
+ * follow-up panel renders (`followUpCandidates`) and writes one task per
+ * company, with the create/skip rule living in lib/follow-up.ts where it is
+ * tested without a database.
+ *
+ * Rerunning is the normal case, not the exception: the pass runs on every
+ * trigger of generateAiTasksFromInbox, and the dedupe below is what makes that
+ * harmless. It is company-scoped rather than member-scoped, so whoever clicks
+ * refreshes the follow-ups for the whole team.
+ */
+async function createQuietCompanyFollowUpTasks(user: SessionUser): Promise<Task[]> {
+  // `followUpCandidates` already applies the panel's predicate: a company that
+  // replied at least once, silent in BOTH directions for FOLLOW_UP_AFTER_DAYS,
+  // and not lost/dormant. It reads stored mail, which the hourly Gmail cron
+  // keeps current — the pass deliberately does not sync first, so it still runs
+  // when this member's daily AI slot is spent.
+  const candidates = await followUpCandidates(FOLLOW_UP_TASK_BATCH);
+  if (!candidates.length) return [];
+
+  const companyIds = candidates.map((candidate) => candidate.companyId);
+
+  const [companies, followUps, suppressed] = await Promise.all([
+    prisma.company.findMany({
+      where: { id: { in: companyIds } },
+      select: { id: true, relationshipStage: true, ownerUserId: true },
+    }),
+    // EVERY follow_up task for these companies, whoever created it and whatever
+    // its status — the dedupe must see a task a person typed by hand just as
+    // clearly as one Amina wrote last week.
+    prisma.task.findMany({
+      where: { companyId: { in: companyIds }, type: "follow_up" },
+      select: { companyId: true, status: true, completedAt: true, updatedAt: true },
+    }),
+    Promise.all(
+      companyIds.map(async (id) => [id, await isCompanyDoNotContact(id)] as const),
+    ),
+  ]);
+
+  const companyById = new Map(companies.map((company) => [company.id, company]));
+  const doNotContact = new Map(suppressed);
+
+  const openFollowUp = new Set<string>();
+  const lastClosedFollowUp = new Map<string, Date>();
+  for (const task of followUps) {
+    if (!task.companyId) continue;
+    if (task.status !== "done" && task.status !== "cancelled") {
+      openFollowUp.add(task.companyId);
+      continue;
+    }
+    // A cancelled follow-up counts the same as a completed one: someone looked
+    // at this company and closed the question, so wait out the threshold again
+    // before raising it. `updatedAt` stands in when nothing stamped completedAt.
+    const closedAt = task.completedAt ?? task.updatedAt;
+    const seen = lastClosedFollowUp.get(task.companyId);
+    if (!seen || closedAt > seen) lastClosedFollowUp.set(task.companyId, closedAt);
+  }
+
+  const now = new Date();
+  const created: Task[] = [];
+  for (const candidate of candidates) {
+    const company = companyById.get(candidate.companyId);
+    if (!company) continue;
+
+    const decision = followUpTaskDecision(
+      {
+        relationshipStage: company.relationshipStage,
+        lastContactAt: candidate.lastContactAt,
+        doNotContact: doNotContact.get(candidate.companyId) ?? false,
+        hasOpenFollowUpTask: openFollowUp.has(candidate.companyId),
+        lastFollowUpCompletedAt: lastClosedFollowUp.get(candidate.companyId) ?? null,
+      },
+      now,
+    );
+    if (!decision.create) continue;
+
+    const row = await prisma.task.create({
+      data: {
+        title: followUpTaskTitle(candidate.companyName, decision.quietDays),
+        description: followUpTaskDescription({
+          companyName: candidate.companyName,
+          quietDays: decision.quietDays,
+          lastInboundSubject: candidate.lastInboundSubject,
+        }),
+        type: "follow_up",
+        priority: "medium",
+        // Same attribution as the model-written tasks beside it: `system` is what
+        // the tasks list reads as "not typed by a person".
+        source: "system",
+        status: "open",
+        companyId: candidate.companyId,
+        // The person who owns the relationship, not the person who happened to
+        // click. `user.id` is a fallback for a company left without an owner.
+        ownerUserId: company.ownerUserId || user.id,
+        dueDate: now,
+        reminderDate: now,
+        createdById: user.id,
+        updatedById: user.id,
+      },
+      include: TASK_INCLUDE,
+    });
+    // Written before the loop ends, so a failure halfway through keeps the tasks
+    // already created — the next pass simply skips them.
+    created.push(taskToDTO(row));
+    openFollowUp.add(candidate.companyId);
+  }
+
+  if (created.length) {
+    await prisma.auditEvent
+      .create({
+        data: {
+          actorUserId: user.id,
+          actorRole: user.role,
+          action: "task.follow_up_generated",
+          entityType: "task",
+          summary: `Amina created ${created.length} follow-up task(s) for companies quiet ${FOLLOW_UP_AFTER_DAYS}+ days`,
+        },
+      })
+      .catch(() => undefined);
+  }
+
+  return created;
+}
+
 /** Sync the shared inbox, identify today's unfinished actions, and persist them as tasks. */
 export async function generateAiTasksFromInbox(
   locale: "en" | "it",
 ): Promise<GenerateAiTasksResult> {
   const user = await requireSectionEdit("tasks");
   await requireSection("communications");
+
+  // The deterministic pass runs FIRST and unconditionally: it needs neither an
+  // AI provider nor today's rate-limit slot, and a member whose daily model pass
+  // is spent should still get the stalled conversations flagged. Its failure is
+  // logged, never fatal — a broken follow-up query must not cost the operator
+  // the inbox pass they actually clicked for.
+  const followUpTasks = await createQuietCompanyFollowUpTasks(user).catch((error: unknown) => {
+    console.error(`[ai-tasks] follow-up pass failed for ${user.id}: ${String(error)}`);
+    return [] as Task[];
+  });
+
   if (!isCrmTaskAiConfigured()) return { ok: false, error: "openai_not_configured" };
 
   // Peek only: the daily slot is consumed after a SUCCESSFUL run (below), so a
@@ -140,7 +295,7 @@ export async function generateAiTasksFromInbox(
   const available = latestPerThread
     .filter((email) => !alreadyTracked.has(email.id))
     .slice(0, freeTierMode ? 8 : 60);
-  if (!available.length) return { ok: true, tasks: [], consideredEmails: 0 };
+  if (!available.length) return { ok: true, tasks: followUpTasks, consideredEmails: 0 };
 
   try {
     const today = dateOnly(new Date());
@@ -236,7 +391,9 @@ export async function generateAiTasksFromInbox(
       })
       .catch(() => undefined);
 
-    return { ok: true, tasks: created, consideredEmails: available.length };
+    // Both halves of the pass, in one list: the caller prepends them to the task
+    // table, so the follow-ups appear next to the model's tasks immediately.
+    return { ok: true, tasks: [...followUpTasks, ...created], consideredEmails: available.length };
   } catch (error) {
     // Never swallow this. A spent provider quota, an outage, a rejected key and
     // unusable model output need four different answers from the UI — collapsing

@@ -78,6 +78,7 @@ export async function followUpCandidates(limit = 12): Promise<FollowUpCandidate[
         inboundCount: reply.count,
         lastInboundSubject: reply.subject,
         lastInboundAt: reply.at.toISOString(),
+        lastContactAt: touched.toISOString(),
       };
     })
     .sort((a, b) => b.quietDays - a.quietDays)

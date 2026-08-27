@@ -53,12 +53,16 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
     const data = await response.json();
     setUploading(false);
     if (!response.ok) {
-      toast({ variant: 'danger', title: 'Picture not changed', description: 'Use a JPG, PNG or WebP image under 2 MB.' });
+      toast({
+        variant: 'danger',
+        title: t('pictureNotChanged'),
+        description: t('pictureNotChangedDescription'),
+      });
       return;
     }
     setAvatar(data.image);
     setPictureOpen(false);
-    toast({ variant: 'success', title: 'Profile picture updated' });
+    toast({ variant: 'success', title: t('pictureUpdated') });
   }
 
   if (!account) return null;
@@ -122,7 +126,7 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
         )}
         {isApi && (
           <DropdownMenuItem onSelect={() => setPictureOpen(true)}>
-            <Camera className="mr-2 h-4 w-4" /> Change picture
+            <Camera className="mr-2 h-4 w-4" /> {t('changePicture')}
           </DropdownMenuItem>
         )}
         {/* "Back to home" removed: it navigated to the public marketing site,
@@ -139,8 +143,8 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
       <Dialog open={pictureOpen} onOpenChange={setPictureOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Change profile picture</DialogTitle>
-            <DialogDescription>Choose a JPG, PNG or WebP image up to 2 MB.</DialogDescription>
+            <DialogTitle>{t('changePictureTitle')}</DialogTitle>
+            <DialogDescription>{t('changePictureDescription')}</DialogDescription>
           </DialogHeader>
           <label className="flex cursor-pointer flex-col items-center gap-4 rounded-xl border border-dashed p-8 text-center hover:bg-muted/40">
             <Avatar className="h-20 w-20">
@@ -150,7 +154,7 @@ export function AccountMenu({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
               </AvatarFallback>
             </Avatar>
             <Button type="button" variant="outline" disabled={uploading} asChild>
-              <span>{uploading ? <Loader2 className="animate-spin" /> : <Camera />} {uploading ? 'Uploading…' : 'Choose picture'}</span>
+              <span>{uploading ? <Loader2 className="animate-spin" /> : <Camera />} {uploading ? t('uploadingPicture') : t('choosePicture')}</span>
             </Button>
             <input
               className="hidden"

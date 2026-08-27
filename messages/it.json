@@ -25,7 +25,15 @@
     "noResults": "Nessun risultato",
     "collapse": "Comprimi",
     "expand": "Espandi",
-    "security": "Sicurezza"
+    "security": "Sicurezza",
+    "changePicture": "Cambia foto",
+    "changePictureTitle": "Cambia foto profilo",
+    "changePictureDescription": "Scegli un'immagine JPG, PNG o WebP fino a 2 MB.",
+    "choosePicture": "Scegli foto",
+    "uploadingPicture": "Caricamento…",
+    "pictureUpdated": "Foto profilo aggiornata",
+    "pictureNotChanged": "Foto non cambiata",
+    "pictureNotChangedDescription": "Usa un'immagine JPG, PNG o WebP sotto i 2 MB."
   },
   "Workspace": {
     "internal": "CRM Interno",
