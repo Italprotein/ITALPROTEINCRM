@@ -30,7 +30,8 @@
     }
   },
   "files": [
-    "scripts/reconcile-email-companies.ts"
+    "scripts/reconcile-email-companies.ts",
+    "scripts/import-investors.ts"
   ],
   "include": [
     "next-env.d.ts",

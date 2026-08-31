@@ -250,6 +250,44 @@ export interface DoNotContactEntry {
   updatedAt: ISODate;
 }
 
+/* ────────────────────────────── Investors ────────────────────────────── */
+
+/**
+ * Where an investor-outreach conversation stands. The four states mirror the
+ * campaign workbook (assets/Investitori, Criteri sheet): silence is never a
+ * rejection — it is `first_contact` until a human reads a real signal.
+ */
+export type InvestorStatus = 'in_contact' | 'to_recontact' | 'rejected' | 'first_contact';
+
+/**
+ * An investor-outreach target (fund, angel network, holding). Deliberately NOT
+ * a Company: none of the commercial machinery (samples, shipments, NDAs,
+ * pipeline) applies to an investor, and keeping them out of the companies book
+ * keeps the Gmail sync and reconciliation from ever treating one as a client.
+ */
+export interface Investor {
+  id: ID;
+  name: string;
+  status: InvestorStatus;
+  emails: string[];
+  country?: string;
+  city?: string;
+  domain?: string;
+  firstContactAt?: ISODate;
+  lastContactAt?: ISODate;
+  /** "Tipo di riscontro" — how the current status was determined. */
+  responseType?: string;
+  /** "Dettagli / prossimo passo" — next step noted on the campaign sheet. */
+  nextStep?: string;
+  /** Deep link to the Gmail thread the status was read from. */
+  gmailUrl?: string;
+  notes?: string;
+  /** Set when logo bytes are stored; the client uses it as flag + cache-buster. */
+  logoUpdatedAt?: ISODate;
+  createdAt: ISODate;
+  updatedAt: ISODate;
+}
+
 /* ────────────────────────────── Contacts ────────────────────────────── */
 
 export type DecisionRole = 'decision_maker' | 'influencer' | 'gatekeeper' | 'champion' | 'user' | 'unknown';

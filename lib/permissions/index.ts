@@ -10,7 +10,7 @@ import type { Role, InternalRole, ExternalRole, Workspace } from '@/lib/types';
 
 /* ── Sections ── */
 export type InternalSection =
-  | 'overview' | 'companies' | 'agencies' | 'contacts' | 'pipeline' | 'samples' | 'shipments'
+  | 'overview' | 'companies' | 'agencies' | 'investors' | 'contacts' | 'pipeline' | 'samples' | 'shipments'
   | 'feedback' | 'projects' | 'products' | 'ndas' | 'do_not_contact' | 'finance' | 'activities'
   | 'tasks' | 'calendar' | 'communications' | 'analytics' | 'notifications'
   | 'registrations' | 'users' | 'import_export' | 'settings' | 'audit' | 'integrations';
@@ -46,7 +46,7 @@ export type Action =
   | 'portal.request_meeting' | 'portal.request_docs';
 
 export const INTERNAL_SECTIONS: InternalSection[] = [
-  'overview', 'companies', 'agencies', 'contacts', 'pipeline', 'samples', 'shipments',
+  'overview', 'companies', 'agencies', 'investors', 'contacts', 'pipeline', 'samples', 'shipments',
   'feedback', 'projects', 'products', 'ndas', 'do_not_contact', 'finance', 'activities',
   'tasks', 'calendar', 'communications', 'analytics', 'notifications',
   'registrations', 'users', 'import_export', 'settings', 'audit', 'integrations',
@@ -115,7 +115,7 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
   business_dev: {
     workspace: 'internal',
     sections: sections(INTERNAL_SECTIONS, 'view', { integrations: 'hidden',
-      overview: 'full', companies: 'full', agencies: 'full', contacts: 'full', pipeline: 'full',
+      overview: 'full', companies: 'full', agencies: 'full', investors: 'full', contacts: 'full', pipeline: 'full',
       samples: 'edit', ndas: 'edit', do_not_contact: 'full', projects: 'edit', activities: 'full',
       tasks: 'full', calendar: 'full', communications: 'full',
       finance: 'view', users: 'hidden', settings: 'hidden', audit: 'hidden',

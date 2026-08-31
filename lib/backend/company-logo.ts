@@ -86,7 +86,10 @@ export function domainForCompany(company: {
   return null;
 }
 
-function providerUrls(domain: string): string[] {
+// Exported for lib/backend/investor-logo.ts — the investor register reuses the
+// same providers, allowlist and size window so there is exactly one opinion in
+// the codebase about what a fetched logo may be.
+export function providerUrls(domain: string): string[] {
   return [
     `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`,
     `https://icons.duckduckgo.com/ip3/${encodeURIComponent(domain)}.ico`,
@@ -94,7 +97,7 @@ function providerUrls(domain: string): string[] {
 }
 
 /** Fetches one provider and returns a data URI, or null if the answer is unusable. */
-async function tryProvider(url: string): Promise<string | null> {
+export async function tryProvider(url: string): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {

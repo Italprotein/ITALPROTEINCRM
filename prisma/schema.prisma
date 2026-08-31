@@ -257,6 +257,18 @@ enum DoNotContactReason {
   other
 }
 
+/// How far an investor-outreach conversation has progressed. The four states
+/// come from the campaign workbook (assets/Investitori, Criteri sheet):
+/// in_contact = personal positive reply, call, NDA or internal forward;
+/// to_recontact = out-of-office / auto-reply / dead mailbox; rejected =
+/// explicit no; first_contact = mail sent, no signal yet. See model Investor.
+enum InvestorStatus {
+  in_contact
+  to_recontact
+  rejected
+  first_contact
+}
+
 /// What kind of name a CompanyAlias row records. See model CompanyAlias.
 enum CompanyAliasKind {
   legal_name
@@ -1224,6 +1236,47 @@ model DoNotContactEntry {
   @@index([reason])
   @@index([addedById])
   @@map("do_not_contact_entries")
+}
+
+/// An investor-outreach target: the funds, angel networks and holdings
+/// contacted for the Proamina raise, imported from the campaign workbook and
+/// maintained from /admin/investors.
+///
+/// Deliberately its OWN table, not a Company row: the company machinery
+/// (samples, shipments, NDAs, pipeline stages) must never attach to an
+/// investor, and the Gmail sync / reconciliation must never see one as a
+/// commercial company. `name` is UNIQUE so the importer's upsert makes re-runs
+/// update rows instead of duplicating them.
+model Investor {
+  id             String         @id @default(cuid())
+  name           String         @unique
+  status         InvestorStatus @default(first_contact)
+  emails         String[]       @default([])
+  country        String?
+  city           String?
+  domain         String?
+  firstContactAt DateTime?
+  lastContactAt  DateTime?
+  /// "Tipo di riscontro" — how the current status was determined.
+  responseType   String?
+  /// "Dettagli / prossimo passo" — free-text next step from the campaign sheet.
+  nextStep       String?
+  /// Deep link to the Gmail thread the status was read from.
+  gmailUrl       String?
+  notes          String?
+  /// Favicon logo, same shape as Company: bytes stored as a data URI; the
+  /// timestamp doubles as the client's "there is a logo" flag and cache-buster.
+  logoUrl        String?
+  logoUpdatedAt  DateTime?
+  createdById    String?
+  updatedById    String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([status])
+  @@index([country])
+  @@index([domain])
+  @@map("investors")
 }
 
 /// Every name one company is known by, in a form two strings can be compared in.

@@ -49,10 +49,17 @@ export function CompanyLogo({
   company,
   size = 'md',
   className,
+  endpointBase = '/api/companies',
 }: {
   company: CompanyLogoSubject;
   size?: CompanyLogoSize;
   className?: string;
+  /**
+   * API base the logo bytes are fetched from. Defaults to the companies route;
+   * the investors register passes '/api/investors' so the identical tile
+   * renders investor logos without a second component.
+   */
+  endpointBase?: string;
 }) {
   // Remembers *which* image failed, not merely that one did. A row recycled for
   // a different company (list re-sort, palette re-query) or a logo that has
@@ -63,7 +70,7 @@ export function CompanyLogo({
   // re-imported logo stays stale in the browser cache for an hour. `logoUpdatedAt`
   // changes on exactly the writes that change the bytes, which makes it the
   // cache-busting token — and the same value the error memo above is keyed on.
-  const logoSrc = `/api/companies/${company.id}/logo?v=${encodeURIComponent(
+  const logoSrc = `${endpointBase}/${company.id}/logo?v=${encodeURIComponent(
     String(company.logoUpdatedAt ?? ''),
   )}`;
 

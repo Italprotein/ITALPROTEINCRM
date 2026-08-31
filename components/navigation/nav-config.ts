@@ -3,6 +3,7 @@ import {
   LayoutDashboard, Building2, Users, Workflow, FlaskConical, Truck, MessageSquareText,
   FolderKanban, Boxes, FileSignature, Receipt, Activity, ListChecks, Calendar, Mail,
   BarChart3, UserPlus, UserCog, FileSpreadsheet, Settings, ScrollText, FileText, LifeBuoy, Handshake, Plug, Ban,
+  Landmark,
 } from 'lucide-react';
 import type { InternalSection, PortalSection } from '@/lib/permissions';
 
@@ -59,6 +60,7 @@ export const INTERNAL_NAV: NavGroup[] = [
     labelKey: 'group_partnerships',
     items: [
       { section: 'agencies', href: '/admin/agencies', labelKey: 'agencies', icon: Handshake },
+      { section: 'investors', href: '/admin/investors', labelKey: 'investors', icon: Landmark, tint: 'text-sky-400' },
       { section: 'registrations', href: '/admin/registrations', labelKey: 'registrations', icon: UserPlus },
     ],
   },
