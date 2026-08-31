@@ -430,6 +430,8 @@
     "formNotesLabel": "Notes",
     "toastSavedTitle": "Investor saved",
     "toastSavedDescription": "{name} has been saved.",
+    "toastStatusDescription": "{name} is now \"{status}\".",
+    "changeStatus": "Change status of {name}",
     "toastDuplicateTitle": "Name already registered",
     "toastDuplicateDescription": "An investor named {name} already exists — edit that entry instead.",
     "toastDeletedTitle": "Investor deleted",

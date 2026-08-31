@@ -188,6 +188,45 @@ export default function InvestorsPage() {
     }
   }
 
+  /**
+   * Inline status change from the table. The update action rewrites every
+   * field from its input, so the whole current row travels with the new
+   * status — sending only the status would blank the rest.
+   */
+  async function changeStatus(inv: Investor, status: InvestorStatus) {
+    if (status === inv.status) return;
+    const before = rows;
+    setRows((prev) =>
+      prev ? prev.map((r) => (r.id === inv.id ? { ...r, status } : r)) : prev,
+    );
+    try {
+      const result = await investorService.update(inv.id, {
+        name: inv.name,
+        status,
+        emails: inv.emails,
+        country: inv.country ?? null,
+        city: inv.city ?? null,
+        domain: inv.domain ?? null,
+        firstContactAt: inv.firstContactAt ?? null,
+        lastContactAt: inv.lastContactAt ?? null,
+        responseType: inv.responseType ?? null,
+        nextStep: inv.nextStep ?? null,
+        gmailUrl: inv.gmailUrl ?? null,
+        notes: inv.notes ?? null,
+      });
+      if (!result || !result.ok) throw new Error('update_refused');
+      void investorService.getStatistics().then(setStats);
+      toast({
+        variant: 'success',
+        title: t('toastSavedTitle'),
+        description: t('toastStatusDescription', { name: inv.name, status: statusLabel(status) }),
+      });
+    } catch {
+      setRows(before ?? null);
+      toast({ variant: 'danger', title: t('toastActionFailedTitle'), description: t('toastActionFailedDescription') });
+    }
+  }
+
   async function remove(inv: Investor) {
     const ok = await confirm({
       title: t('deleteConfirmTitle'),
@@ -247,9 +286,35 @@ export default function InvestorsPage() {
       key: 'status',
       header: t('colStatus'),
       sortValue: (r) => r.status,
-      cell: (r) => (
-        <Badge className={cn('border-transparent', STATUS_CLASS[r.status])}>{statusLabel(r.status)}</Badge>
-      ),
+      // Editors change the status right here; the trigger is dressed as the
+      // badge so the table reads the same either way. stopPropagation keeps
+      // the row's quick-view click out of the dropdown interaction.
+      cell: (r) =>
+        canManage ? (
+          <div onClick={(e) => e.stopPropagation()}>
+            <Select value={r.status} onValueChange={(v) => void changeStatus(r, v as InvestorStatus)}>
+              <SelectTrigger
+                aria-label={t('changeStatus', { name: r.name })}
+                className={cn(
+                  // min-w-fit + nowrap + line-clamp-none undo the base
+                  // trigger's w-full/line-clamp-1, which ellipsized the label
+                  // ("Primo…") inside the table's narrow status column.
+                  'h-7 w-auto min-w-fit gap-1 whitespace-nowrap rounded-full border-transparent px-2.5 text-xs font-semibold shadow-none focus:ring-1 [&>span]:line-clamp-none [&>span]:whitespace-nowrap',
+                  STATUS_CLASS[r.status],
+                )}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {INVESTOR_STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>{statusLabel(s)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <Badge className={cn('border-transparent', STATUS_CLASS[r.status])}>{statusLabel(r.status)}</Badge>
+        ),
     },
     {
       key: 'location',

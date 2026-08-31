@@ -430,6 +430,8 @@
     "formNotesLabel": "Note",
     "toastSavedTitle": "Investitore salvato",
     "toastSavedDescription": "{name} è stato salvato.",
+    "toastStatusDescription": "{name} ora è \"{status}\".",
+    "changeStatus": "Cambia stato di {name}",
     "toastDuplicateTitle": "Nome già registrato",
     "toastDuplicateDescription": "Esiste già un investitore chiamato {name} — modifica quella scheda.",
     "toastDeletedTitle": "Investitore eliminato",
