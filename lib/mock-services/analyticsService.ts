@@ -5,11 +5,11 @@ import {
 } from '@/fixtures';
 import { currentNdasOf, ndaFunnelCounts } from '@/lib/nda-stats';
 
+import { windowFor } from '@/lib/services/analytics.mapper';
+
 const ALL_COMPANIES = [...COMPANIES, ...AGENCY_COMPANIES];
 const NOW = new Date('2026-06-17T12:00:00Z');
 
-/** Months Sep 2025 → Jun 2026 (the active demo window). */
-const MONTHS = ['2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06'];
 const monthKey = (iso?: string) => (iso ? iso.slice(0, 7) : '');
 const monthLabel = (k: string) => {
   const [y, m] = k.split('-');
@@ -23,9 +23,12 @@ const daysBetween = (a?: string, b?: string) => {
 const sampleRank = (s: string) => SAMPLE_STATUS_FLOW.indexOf(s as never);
 
 export const analyticsService = {
-  async companiesOverTime() {
-    let cumulative = 0;
-    return MONTHS.map((k) => {
+  async companiesOverTime(months = 12) {
+    // The demo clock is frozen mid-June 2026, so the mock's window is anchored
+    // to NOW (not the wall clock) to keep the fixtures on screen.
+    const window = windowFor(COMPANIES.map((c) => c.createdAt), months, NOW);
+    let cumulative = COMPANIES.filter((c) => monthKey(c.createdAt) < window[0]).length;
+    return window.map((k) => {
       const count = COMPANIES.filter((c) => monthKey(c.createdAt) === k).length;
       cumulative += count;
       return { month: k, label: monthLabel(k), count, cumulative };
@@ -79,16 +82,16 @@ export const analyticsService = {
     ];
   },
 
-  async samplesOverTime() {
-    return MONTHS.map((k) => ({
+  async samplesOverTime(months = 12) {
+    return windowFor(SAMPLES.map((s) => s.requestDate), months, NOW).map((k) => ({
       month: k,
       label: monthLabel(k),
       count: SAMPLES.filter((s) => monthKey(s.requestDate) === k).length,
     }));
   },
 
-  async ndaCompletionTrend() {
-    return MONTHS.map((k) => ({
+  async ndaCompletionTrend(months = 12) {
+    return windowFor(NDAS.map((n) => n.dateSent ?? n.effectiveDate), months, NOW).map((k) => ({
       month: k,
       label: monthLabel(k),
       signed: NDAS.filter((n) => n.status === 'fully_signed' && monthKey(n.effectiveDate ?? n.dateSent) === k).length,

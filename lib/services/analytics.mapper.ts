@@ -7,11 +7,47 @@ import type { FirstContact } from "@/lib/types";
 // spans, sample-status ranking) plus the typed reads of Json columns the
 // aggregates touch (Company.firstContact). Plain server module (NO "use server").
 
-/** The active demo window: months Sep 2025 -> Jun 2026 (matches the mock). */
-export const MONTHS = [
-  "2025-09", "2025-10", "2025-11", "2025-12", "2026-01",
-  "2026-02", "2026-03", "2026-04", "2026-05", "2026-06",
-];
+/**
+ * Charts used to read a hardcoded demo window (Sep 2025 → Jun 2026), which
+ * silently dropped every row created after June — by late August the trends
+ * were missing three months of real activity. The window is now derived from
+ * the clock and the requested range instead.
+ */
+
+/** YYYY-MM key for a Date (UTC). */
+export const monthKeyOf = (d: Date): string =>
+  `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+
+/** The last `count` month keys, ending at the current month. */
+export function monthsWindow(count: number, now = new Date()): string[] {
+  const keys: string[] = [];
+  for (let i = count - 1; i >= 0; i -= 1) {
+    keys.push(monthKeyOf(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1))));
+  }
+  return keys;
+}
+
+/** Hard ceiling for the "all time" window so a stray 1970 date cannot render a 700-bucket chart. */
+const MAX_ALL_TIME_MONTHS = 60;
+
+/**
+ * The month buckets a trend chart should render: the last `months` keys, or —
+ * when `months <= 0` ("all time") — every month from the earliest date in
+ * `dates` through the current month.
+ */
+export function windowFor(
+  dates: (string | null | undefined)[],
+  months: number,
+  now = new Date(),
+): string[] {
+  if (months > 0) return monthsWindow(months, now);
+  const keys = dates.filter((d): d is string => Boolean(d)).map((d) => d.slice(0, 7)).sort();
+  if (keys.length === 0) return monthsWindow(12, now);
+  const [startY, startM] = keys[0].split("-").map(Number);
+  const span =
+    (now.getUTCFullYear() - startY) * 12 + (now.getUTCMonth() + 1 - startM) + 1;
+  return monthsWindow(Math.max(1, Math.min(span, MAX_ALL_TIME_MONTHS)), now);
+}
 
 /** YYYY-MM bucket key from an ISO date string (or "" when absent). */
 export const monthKey = (iso?: string | null): string => (iso ? iso.slice(0, 7) : "");

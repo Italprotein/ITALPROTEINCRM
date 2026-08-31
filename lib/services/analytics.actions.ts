@@ -11,12 +11,12 @@ import type {
   RelationshipStage,
 } from "@/lib/types";
 import {
-  MONTHS,
   daysBetween,
   firstContactOf,
   monthKey,
   monthLabel,
   sampleRank,
+  windowFor,
 } from "./analytics.mapper";
 
 // Cross-module READ-ONLY analytics. Mirrors lib/mock-services/analyticsService.ts
@@ -39,7 +39,7 @@ import {
 // chart; 'analytics' is not a PORTAL_SECTION, so canView() is false for all five
 // external roles and the guard shuts the portal out of internal BI entirely.
 
-export async function companiesOverTime(): Promise<
+export async function companiesOverTime(months = 12): Promise<
   { month: string; label: string; count: number; cumulative: number }[]
 > {
   await requireSection("analytics");
@@ -47,9 +47,13 @@ export async function companiesOverTime(): Promise<
     where: { type: { not: "agency" } },
     select: { createdAt: true },
   });
-  let cumulative = 0;
-  return MONTHS.map((k) => {
-    const count = rows.filter((c) => monthKey(c.createdAt.toISOString()) === k).length;
+  const keys = rows.map((c) => c.createdAt.toISOString());
+  const window = windowFor(keys, months);
+  // Seed with everything created before the window, so on a short range the
+  // cumulative line still reads "companies to date", not "companies this quarter".
+  let cumulative = keys.filter((k) => monthKey(k) < window[0]).length;
+  return window.map((k) => {
+    const count = keys.filter((c) => monthKey(c) === k).length;
     cumulative += count;
     return { month: k, label: monthLabel(k), count, cumulative };
   });
@@ -130,26 +134,31 @@ export async function sampleFunnel(): Promise<{ name: string; value: number }[]>
   ];
 }
 
-export async function samplesOverTime(): Promise<
+export async function samplesOverTime(months = 12): Promise<
   { month: string; label: string; count: number }[]
 > {
   await requireSection("analytics");
   const rows = await prisma.sampleRequest.findMany({ select: { requestDate: true } });
-  return MONTHS.map((k) => ({
+  const keys = rows.map((s) => s.requestDate.toISOString());
+  return windowFor(keys, months).map((k) => ({
     month: k,
     label: monthLabel(k),
-    count: rows.filter((s) => monthKey(s.requestDate.toISOString()) === k).length,
+    count: keys.filter((s) => monthKey(s) === k).length,
   }));
 }
 
-export async function ndaCompletionTrend(): Promise<
+export async function ndaCompletionTrend(months = 12): Promise<
   { month: string; label: string; signed: number; sent: number }[]
 > {
   await requireSection("analytics");
   const rows = await prisma.nDA.findMany({
     select: { status: true, effectiveDate: true, dateSent: true },
   });
-  return MONTHS.map((k) => ({
+  const window = windowFor(
+    rows.map((n) => (n.dateSent ?? n.effectiveDate)?.toISOString()),
+    months,
+  );
+  return window.map((k) => ({
     month: k,
     label: monthLabel(k),
     signed: rows.filter(

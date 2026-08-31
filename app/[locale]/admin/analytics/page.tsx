@@ -76,13 +76,76 @@ const RANGE_OPTIONS = (t: ReturnType<typeof useTranslations>) => [
   { value: 'all', label: t('rangeAllTime') },
 ];
 
+/** Range key → month-bucket count for the trend charts. 0 = all time. */
+function monthsForRange(range: string): number {
+  if (range === '90d') return 3;
+  if (range === '6m') return 6;
+  if (range === 'ytd') return new Date().getMonth() + 1;
+  if (range === 'all') return 0;
+  return 12;
+}
+
+/* ── Real CSV export of everything currently on screen ── */
+
+const csvCell = (v: unknown): string => {
+  const s = String(v ?? '');
+  return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+
+function csvSection(title: string, header: string[], rows: (string | number)[][]): string {
+  return [title, header.map(csvCell).join(','), ...rows.map((r) => r.map(csvCell).join(','))].join('\n');
+}
+
+function buildAnalyticsCsv(data: AnalyticsData): string {
+  const sections = [
+    csvSection('KPIs', ['metric', 'value'], [
+      ['avg_first_contact_to_nda_days', data.avgFirstContactToNda],
+      ['avg_nda_to_shipment_days', data.avgNdaToShipment],
+      ['avg_delivery_days', data.shipmentPerformance.avgDeliveryDays],
+      ['on_time_delivery_pct', data.shipmentPerformance.onTimePct],
+      ['delivered_shipments', data.shipmentPerformance.totalDelivered],
+      ['task_completion_pct', data.taskCompletionRate.rate],
+      ['tasks_done', data.taskCompletionRate.done],
+      ['tasks_total', data.taskCompletionRate.total],
+    ]),
+    csvSection('Companies over time', ['month', 'new', 'cumulative'],
+      data.companiesOverTime.map((d) => [d.month, d.count, d.cumulative])),
+    csvSection('Top markets', ['country', 'companies'],
+      data.topMarkets.map((d) => [d.country, d.count])),
+    csvSection('Companies by category', ['type', 'count'],
+      data.companiesByCategory.map((d) => [d.type, d.count])),
+    csvSection('Pipeline distribution', ['stage', 'count'],
+      data.pipelineDistribution.map((d) => [d.stage, d.count])),
+    csvSection('NDA funnel', ['step', 'count'],
+      data.ndaFunnel.map((d) => [d.name, d.value])),
+    csvSection('Sample funnel', ['step', 'count'],
+      data.sampleFunnel.map((d) => [d.name, d.value])),
+    csvSection('NDA trend', ['month', 'sent', 'signed'],
+      data.ndaCompletionTrend.map((d) => [d.month, d.sent, d.signed])),
+    csvSection('Samples over time', ['month', 'requests'],
+      data.samplesOverTime.map((d) => [d.month, d.count])),
+    csvSection('Shipment status', ['status', 'count'],
+      data.shipmentStatusBreakdown.map((d) => [d.name, d.value])),
+    csvSection('Feedback results', ['result', 'count'],
+      data.feedbackResults.map((d) => [d.name, d.value])),
+    csvSection('Top applications', ['category', 'samples'],
+      data.topApplications.map((d) => [d.category, d.count])),
+    csvSection('Team activity', ['member', 'role', 'activities', 'open_tasks', 'companies'],
+      data.teamActivity.map((m) => [m.name, m.role, m.activities, m.tasks, m.companies])),
+  ];
+  return sections.join('\n\n');
+}
+
 export default function AnalyticsPage() {
   const t = useTranslations('AdminAnalytics');
   const [data, setData] = React.useState<AnalyticsData | null>(null);
   const [range, setRange] = React.useState('12m');
 
+  // The three trend charts follow the range selector; everything else is a
+  // current-state snapshot (funnels, distributions, KPIs) and loads once.
   React.useEffect(() => {
     let active = true;
+    const months = monthsForRange(range);
     (async () => {
       const [
         companiesOverTime,
@@ -102,14 +165,14 @@ export default function AnalyticsPage() {
         taskCompletionRate,
         teamActivity,
       ] = await Promise.all([
-        analyticsService.companiesOverTime(),
+        analyticsService.companiesOverTime(months),
         analyticsService.topMarkets(),
         analyticsService.companiesByCategory(),
         analyticsService.pipelineDistribution(),
         analyticsService.ndaFunnel(),
         analyticsService.sampleFunnel(),
-        analyticsService.ndaCompletionTrend(),
-        analyticsService.samplesOverTime(),
+        analyticsService.ndaCompletionTrend(months),
+        analyticsService.samplesOverTime(months),
         analyticsService.shipmentStatusBreakdown(),
         analyticsService.feedbackResults(),
         analyticsService.topApplications(),
@@ -142,11 +205,22 @@ export default function AnalyticsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [range]);
 
   const loading = data === null;
 
+  /** Downloads everything currently on screen as a sectioned CSV. */
   const handleExport = () => {
+    if (!data) return;
+    const blob = new Blob([`﻿${buildAnalyticsCsv(data)}`], {
+      type: 'text/csv;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
     toast({
       title: t('exportStartedTitle'),
       description: t('exportStartedDescription'),
@@ -225,7 +299,7 @@ export default function AnalyticsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="gold" onClick={handleExport}>
+            <Button variant="gold" onClick={handleExport} disabled={loading}>
               <Download className="h-4 w-4" />
               {t('export')}
             </Button>
