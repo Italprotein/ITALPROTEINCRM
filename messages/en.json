@@ -2003,6 +2003,8 @@
     "quickView": "Quick view",
     "edit": "Edit",
     "delete": "Delete",
+    "deleteConfirmTitle": "Remove from the register?",
+    "deleteConfirmDescription": "{name} will no longer appear in the follow-up list. The company itself is not affected.",
     "cancel": "Cancel",
     "close": "Close",
     "save": "Save",

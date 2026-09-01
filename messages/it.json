@@ -2003,6 +2003,8 @@
     "quickView": "Anteprima",
     "edit": "Modifica",
     "delete": "Elimina",
+    "deleteConfirmTitle": "Rimuovere dal registro?",
+    "deleteConfirmDescription": "{name} non comparirà più nella lista follow-up. L'azienda non viene modificata.",
     "cancel": "Annulla",
     "close": "Chiudi",
     "save": "Salva",
