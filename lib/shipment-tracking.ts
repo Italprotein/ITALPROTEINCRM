@@ -14,8 +14,14 @@
 
 import type { ShipmentStatus } from "@/lib/types";
 
-/** The states `parseCourierEmail` can report. */
+/**
+ * The states a courier source can report.
+ *
+ * `parseCourierEmail` produces a subset of these; `pre_transit` arrives only
+ * from the DHL API, which knows about a label before any email is sent.
+ */
 export type CourierStatus =
+  | "pre_transit"
   | "in_transit"
   | "out_for_delivery"
   | "delivered"
@@ -64,12 +70,16 @@ export function normalizeTracking(value: string | null | undefined): string {
   return (value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
-/** Courier vocabulary -> ShipmentStatus, or null when the email said nothing useful. */
+/** Courier vocabulary -> ShipmentStatus, or null when the source said nothing useful. */
 export function shipmentStatusFromCourier(status: CourierStatus): ShipmentStatusName | null {
   if (status === "delivered") return "delivered";
   // The enum has no out_for_delivery: for our purposes it is still in transit.
   if (status === "in_transit" || status === "out_for_delivery") return "in_transit";
   if (status === "exception") return "exception";
+  // A label exists but the parcel has not been collected. One step above
+  // `pending` on the ladder, so it advances a new shipment without ever
+  // claiming the parcel is moving.
+  if (status === "pre_transit") return "preparing";
   return null;
 }
 

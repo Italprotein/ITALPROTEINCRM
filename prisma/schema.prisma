@@ -1678,6 +1678,10 @@ model Shipment {
   status                  ShipmentStatus @default(pending)
   deliveryIssue           String?
   isDelayed               Boolean        @default(false)
+  /// When the DHL API was last asked about this parcel. The free tracking
+  /// tier has a daily call budget, so the sync polls least-recently-checked
+  /// first and skips anything asked about inside the cooldown window.
+  lastTrackedAt           DateTime?
   confirmedByContactId    String?
   assignedLogisticsUserId String?
   internalNotes           String?
@@ -1701,6 +1705,7 @@ model Shipment {
   @@index([customsStatus])
   @@index([assignedLogisticsUserId])
   @@index([estimatedDelivery])
+  @@index([lastTrackedAt])
   @@map("shipments")
 }
 

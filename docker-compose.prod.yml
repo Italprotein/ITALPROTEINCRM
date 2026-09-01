@@ -81,6 +81,13 @@ services:
       GROQ_MODEL: "${GROQ_MODEL:-openai/gpt-oss-20b}"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
       OPENAI_MODEL: "${OPENAI_MODEL:-gpt-5.6-sol}"
+
+      # DHL Shipment Tracking (Unified). Unset simply disables the poll —
+      # /api/shipments/sync-dhl reports configured:false and the courier-email
+      # sync carries on regardless.
+      DHL_API_KEY: "${DHL_API_KEY:-}"
+      DHL_MAX_CALLS_PER_RUN: "${DHL_MAX_CALLS_PER_RUN:-40}"
+      DHL_COOLDOWN_MINUTES: "${DHL_COOLDOWN_MINUTES:-240}"
     expose:
       - "3000"
 
