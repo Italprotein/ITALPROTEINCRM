@@ -47,8 +47,6 @@ import { financeService as mockFinanceService } from './financeService';
 import { financeService as apiFinanceService } from '@/lib/services/finance';
 import { projectService as mockProjectService } from './projectService';
 import { projectService as apiProjectService } from '@/lib/services/project';
-import { productService as mockProductService } from './productService';
-import { productService as apiProductService } from '@/lib/services/product';
 import { doNotContactService as mockDoNotContactService } from './doNotContactService';
 import { doNotContactService as apiDoNotContactService } from '@/lib/services/do-not-contact';
 import { userService as mockUserService } from './userService';
@@ -62,7 +60,9 @@ import { emailService as apiEmailService } from '@/lib/services/email';
 import { leadService as mockLeadService } from './leadService';
 import { leadService as apiLeadService } from '@/lib/services/lead';
 import { investorService as mockInvestorService } from './investorService';
+import { followUpRegisterService as mockFollowUpRegisterService } from './followUpRegisterService';
 import { investorService as apiInvestorService } from '@/lib/services/investor';
+import { followUpRegisterService as apiFollowUpRegisterService } from '@/lib/services/follow-up-register';
 import { isApiMode } from '@/lib/data-mode';
 export const companyService = isApiMode ? apiCompanyService : mockCompanyService;
 export const sampleService = isApiMode ? apiSampleService : mockSampleService;
@@ -85,7 +85,6 @@ export const registrationService = isApiMode ? apiRegistrationService : mockRegi
 export const supportService = isApiMode ? apiSupportService : mockSupportService;
 export const financeService = isApiMode ? apiFinanceService : mockFinanceService;
 export const projectService = isApiMode ? apiProjectService : mockProjectService;
-export const productService = isApiMode ? apiProductService : mockProductService;
 export const doNotContactService = isApiMode ? apiDoNotContactService : mockDoNotContactService;
 export const userService = isApiMode ? apiUserService : mockUserService;
 export const agencyService = isApiMode ? apiAgencyService : mockAgencyService;
@@ -94,3 +93,6 @@ export const analyticsService = isApiMode ? apiAnalyticsService : mockAnalyticsS
 export const emailService = isApiMode ? apiEmailService : mockEmailService;
 export const leadService = isApiMode ? apiLeadService : mockLeadService;
 export const investorService = isApiMode ? apiInvestorService : mockInvestorService;
+export const followUpRegisterService = isApiMode
+  ? apiFollowUpRegisterService
+  : mockFollowUpRegisterService;

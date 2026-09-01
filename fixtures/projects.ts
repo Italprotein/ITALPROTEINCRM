@@ -9,7 +9,7 @@ export const PROJECTS: ApplicationProject[] = [
   /* ───────── The Protein Works (2) ───────── */
   {
     id: 'prj_pw_1', companyId: 'c_proteinworks', name: 'Reduced-sugar protein bar range', clientProjectCode: 'TPW-RSB-01',
-    productName: 'PW Protein Bar (reduced sugar)', brandName: 'The Protein Works', category: 'protein_bars',
+    brandName: 'The Protein Works', category: 'protein_bars',
     market: 'UK & Ireland', objective: 'Replace sugar with Proamina at parity taste in the bar range.',
     developmentStage: 'pilot', testStage: 'pilot_line', sampleRequestId: 'sr_pw_1', lotBatch: 'PRO-2025-A14',
     testRounds: 2, currentResult: 'positive', estimatedLaunch: '2026-11-01', estimatedAnnualVolume: 6000, commercialPotential: 95000,
@@ -19,7 +19,7 @@ export const PROJECTS: ApplicationProject[] = [
   },
   {
     id: 'prj_pw_2', companyId: 'c_proteinworks', name: 'RTD protein shake (clear format)', clientProjectCode: 'TPW-RTD-02',
-    productName: 'PW Clear Protein Shake', brandName: 'The Protein Works', category: 'beverages',
+    brandName: 'The Protein Works', category: 'beverages',
     market: 'UK & Ireland', objective: 'Sugar-free sweetening for clear RTD without haze.',
     developmentStage: 'feasibility', testStage: 'bench', sampleRequestId: 'sr_pw_2', lotBatch: 'PRO-2026-B03',
     testRounds: 1, currentResult: 'mixed', estimatedLaunch: '2027-02-01', estimatedAnnualVolume: 2500, commercialPotential: 40000,
@@ -31,7 +31,7 @@ export const PROJECTS: ApplicationProject[] = [
   /* ───────── Others ───────── */
   {
     id: 'prj_venchi_1', companyId: 'c_venchi', name: 'Reduced-sugar pralines & gianduia', clientProjectCode: 'VE-RSP-01',
-    productName: 'Venchi Reduced-Sugar Praline', brandName: 'Venchi', category: 'chocolate',
+    brandName: 'Venchi', category: 'chocolate',
     market: 'Italy / Export', objective: 'Premium praline with reduced sugar, parity taste.',
     developmentStage: 'prototype', testStage: 'sensory_panel', sampleRequestId: 'sr_venchi_1',
     testRounds: 2, currentResult: 'positive', estimatedLaunch: '2027-01-01', estimatedAnnualVolume: 4000, commercialPotential: 60000,
@@ -41,7 +41,7 @@ export const PROJECTS: ApplicationProject[] = [
   },
   {
     id: 'prj_barilla_1', companyId: 'c_barilla', name: 'Protein breakfast biscuits', clientProjectCode: 'BA-PBB-01',
-    productName: 'Protein Breakfast Biscuit', brandName: 'Barilla', category: 'biscuits',
+    brandName: 'Barilla', category: 'biscuits',
     market: 'EU', objective: 'High-protein, reduced-sugar breakfast biscuit.',
     developmentStage: 'feasibility', testStage: 'lab', sampleRequestId: 'sr_barilla_1',
     testRounds: 1, estimatedLaunch: '2027-03-01', estimatedAnnualVolume: 12000, commercialPotential: 120000,
@@ -51,7 +51,7 @@ export const PROJECTS: ApplicationProject[] = [
   },
   {
     id: 'prj_fabbri_1', companyId: 'c_fabbri', name: 'Protein dessert toppings', clientProjectCode: 'FA-PDT-01',
-    productName: 'Fabbri Protein Topping', brandName: 'Fabbri 1905', category: 'desserts',
+    brandName: 'Fabbri 1905', category: 'desserts',
     market: 'Italy / HoReCa', objective: 'Reduced-sugar protein dessert topping/syrup.',
     developmentStage: 'concept', testStage: 'not_started', sampleRequestId: 'sr_fabbri_1',
     estimatedLaunch: '2027-04-01', estimatedAnnualVolume: 3000, commercialPotential: 30000,
@@ -61,7 +61,7 @@ export const PROJECTS: ApplicationProject[] = [
   },
   {
     id: 'prj_casillo_1', companyId: 'c_casillo', name: 'High-protein flour blends', clientProjectCode: 'CA-HPF-01',
-    productName: 'NextGen Protein Flour', brandName: 'Casillo', category: 'bakery',
+    brandName: 'Casillo', category: 'bakery',
     market: 'Italy / B2B', objective: 'Protein-enriched flour blends for bakery customers.',
     developmentStage: 'feasibility', testStage: 'bench', sampleRequestId: 'sr_casillo_1',
     testRounds: 2, currentResult: 'positive', estimatedLaunch: '2027-02-01', estimatedAnnualVolume: 20000, commercialPotential: 45000,
@@ -71,7 +71,7 @@ export const PROJECTS: ApplicationProject[] = [
   },
   {
     id: 'prj_eurosup_1', companyId: 'c_eurosup', name: 'Protein bar & RTD shaker range', clientProjectCode: 'EU-PBR-01',
-    productName: 'Eurosup Pro Bar / Shaker', brandName: 'Eurosup', category: 'protein_bars',
+    brandName: 'Eurosup', category: 'protein_bars',
     market: 'Italy / EU', objective: 'Commercial reduced-sugar bars and RTD shakers.',
     developmentStage: 'industrial', testStage: 'completed', sampleRequestId: 'sr_eurosup_1',
     testRounds: 3, currentResult: 'positive', estimatedLaunch: '2026-07-01', estimatedAnnualVolume: 50000, commercialPotential: 150000,
@@ -81,7 +81,7 @@ export const PROJECTS: ApplicationProject[] = [
   },
   {
     id: 'prj_vegamore_1', companyId: 'c_vegamore', name: 'Vegan protein latte base', clientProjectCode: 'VG-VPL-01',
-    productName: 'Vegamore Protein Latte', brandName: 'Vegamore', category: 'plant_based',
+    brandName: 'Vegamore', category: 'plant_based',
     market: 'Italy / HoReCa', objective: 'Plant-based protein latte sweetened with Proamina.',
     developmentStage: 'prototype', testStage: 'bench', sampleRequestId: 'sr_vegamore_1',
     testRounds: 1, currentResult: 'positive', estimatedLaunch: '2026-10-01', estimatedAnnualVolume: 800, commercialPotential: 5000,
@@ -91,7 +91,7 @@ export const PROJECTS: ApplicationProject[] = [
   },
   {
     id: 'prj_icedog_1', companyId: 'c_icedog', name: 'Protein gelato base', clientProjectCode: 'IC-PGB-01',
-    productName: 'Icedog Protein Gelato', brandName: 'Icedog', category: 'ice_cream',
+    brandName: 'Icedog', category: 'ice_cream',
     market: 'Italy', objective: 'Low-sugar high-protein gelato base with good texture.',
     developmentStage: 'prototype', testStage: 'pilot_line', sampleRequestId: 'sr_icedog_1',
     testRounds: 2, currentResult: 'mixed', estimatedLaunch: '2027-03-01', estimatedAnnualVolume: 2000, commercialPotential: 22000,
@@ -101,7 +101,7 @@ export const PROJECTS: ApplicationProject[] = [
   },
   {
     id: 'prj_sudzucker_1', companyId: 'c_sudzucker', name: 'Sugar-reduction co-development', clientProjectCode: 'SZ-SRC-01',
-    productName: 'Joint sugar-reduction system', brandName: 'Südzucker', category: 'other',
+    brandName: 'Südzucker', category: 'other',
     market: 'EU', objective: 'Co-developed sugar-reduction ingredient system.',
     developmentStage: 'feasibility', testStage: 'pilot_line', sampleRequestId: 'sr_sudzucker_1',
     testRounds: 2, currentResult: 'positive', estimatedLaunch: '2027-06-01', estimatedAnnualVolume: 30000, commercialPotential: 130000,
@@ -111,7 +111,7 @@ export const PROJECTS: ApplicationProject[] = [
   },
   {
     id: 'prj_emmi_1', companyId: 'c_emmi', name: 'Protein coffee drinks', clientProjectCode: 'EM-PCD-01',
-    productName: 'Emmi Protein Coffee', brandName: 'Emmi', category: 'coffee',
+    brandName: 'Emmi', category: 'coffee',
     market: 'Switzerland / EU', objective: 'Reduced-sugar protein coffee RTD.',
     developmentStage: 'pilot', testStage: 'shelf_life', sampleRequestId: 'sr_emmi_1',
     testRounds: 2, currentResult: 'positive', estimatedLaunch: '2027-01-01', estimatedAnnualVolume: 8000, commercialPotential: 90000,
@@ -121,7 +121,7 @@ export const PROJECTS: ApplicationProject[] = [
   },
   {
     id: 'prj_bel_1', companyId: 'c_bel', name: 'Fruit-dairy protein snacks', clientProjectCode: 'BL-FDS-01',
-    productName: 'Materne Protein Snack', brandName: 'Materne by Bel', category: 'dairy',
+    brandName: 'Materne by Bel', category: 'dairy',
     market: 'France / EU', objective: 'Fruit-dairy protein snack with optimised sweetness.',
     developmentStage: 'feasibility', testStage: 'bench', sampleRequestId: 'sr_bel_1',
     testRounds: 2, currentResult: 'mixed', estimatedLaunch: '2027-04-01', estimatedAnnualVolume: 15000, commercialPotential: 110000,
@@ -131,7 +131,7 @@ export const PROJECTS: ApplicationProject[] = [
   },
   {
     id: 'prj_nicks_1', companyId: 'c_nicks', name: 'Low-sugar protein ice cream', clientProjectCode: 'NK-LSI-01',
-    productName: "Nick's Protein Ice Cream", brandName: "Nick's", category: 'ice_cream',
+    brandName: "Nick's", category: 'ice_cream',
     market: 'Nordics / EU', objective: 'Low-sugar protein ice cream + chocolate coating.',
     developmentStage: 'prototype', testStage: 'bench', sampleRequestId: 'sr_nicks_1',
     testRounds: 2, currentResult: 'positive', estimatedLaunch: '2027-02-01', estimatedAnnualVolume: 9000, commercialPotential: 40000,
@@ -141,7 +141,7 @@ export const PROJECTS: ApplicationProject[] = [
   },
   {
     id: 'prj_disproquima_1', companyId: 'c_disproquima', name: 'Iberian distribution programme', clientProjectCode: 'DQ-IDP-01',
-    productName: 'Proamina (Iberia)', brandName: 'Disproquima', category: 'other',
+    brandName: 'Disproquima', category: 'other',
     market: 'Spain / Portugal', objective: 'Establish Iberian distribution of Proamina.',
     developmentStage: 'pre_industrial', testStage: 'completed', sampleRequestId: 'sr_disproquima_1',
     testRounds: 1, currentResult: 'positive', estimatedLaunch: '2026-09-01', estimatedAnnualVolume: 25000, commercialPotential: 85000,
@@ -151,7 +151,7 @@ export const PROJECTS: ApplicationProject[] = [
   },
   {
     id: 'prj_almarai_1', companyId: 'c_almarai', name: 'GCC protein dairy & bakery', clientProjectCode: 'AL-GPD-01',
-    productName: 'Almarai Protein Dairy', brandName: 'Almarai', category: 'dairy',
+    brandName: 'Almarai', category: 'dairy',
     market: 'GCC', objective: 'Protein dairy & bakery for the Gulf market (halal).',
     developmentStage: 'concept', testStage: 'not_started', sampleRequestId: 'sr_almarai_1',
     estimatedLaunch: '2027-09-01', estimatedAnnualVolume: 40000, commercialPotential: 200000,

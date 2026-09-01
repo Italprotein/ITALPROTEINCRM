@@ -250,6 +250,42 @@ export interface DoNotContactEntry {
   updatedAt: ISODate;
 }
 
+/** What should happen next on a conversation. Mirrors the Prisma enum. */
+export type FollowUpStatus = 'pending' | 'scheduled' | 'waiting' | 'contacted' | 'closed';
+
+/** Where a follow-up row came from, and so how much authority it carries. */
+export type FollowUpSource = 'quiet_detection' | 'suppression_list' | 'manual';
+
+/**
+ * A row of the follow-up register (/admin/follow-ups).
+ *
+ * `companyId` is optional because the outreach freeze names counterparties that
+ * have no company record yet — the instruction still has to be visible, so the
+ * name lives on the row. See model FollowUp in schema.prisma.
+ */
+export interface FollowUp {
+  id: ID;
+  companyId?: ID;
+  companyName: string;
+  domain?: string;
+  status: FollowUpStatus;
+  source: FollowUpSource;
+  /** Plain `YYYY-MM-DD`, never an instant — see lib/follow-ups.ts. */
+  followUpOn?: string;
+  reason?: string;
+  notes?: string;
+  /** Last message in either direction, as the sync last saw it. */
+  lastContactAt?: ISODate;
+  quietDays?: number;
+  /** Country of the linked company, for the flag in the table. */
+  countryCode?: string;
+  /** True when the linked company has a logo the tile can fetch. */
+  logoUpdatedAt?: ISODate;
+  statusChangedAt?: ISODate;
+  createdAt: ISODate;
+  updatedAt: ISODate;
+}
+
 /**
  * Stored shipment state, mirroring the ShipmentStatus enum in schema.prisma.
  *
@@ -607,7 +643,7 @@ export interface Feedback {
   createdAt: ISODate;
 }
 
-/* ────────────────────────────── Application Projects & Products ────────────────────────────── */
+/* ────────────────────────────── Application Projects ────────────────────────────── */
 
 export type ApplicationCategory =
   | 'dairy'
@@ -647,7 +683,6 @@ export interface ApplicationProject {
   companyId: ID;
   name: string;
   clientProjectCode?: string;
-  productName?: string;
   brandName?: string;
   category: ApplicationCategory;
   subcategory?: string;
@@ -671,20 +706,6 @@ export interface ApplicationProject {
   updatedAt: ISODate;
 }
 
-export interface Product {
-  id: ID;
-  name: string;
-  category: ApplicationCategory;
-  companyId?: ID; // client product developed with Proamina
-  brandName?: string;
-  market?: string;
-  proaminaDosage?: string;
-  status: 'in_development' | 'tested' | 'launched' | 'archived';
-  description?: string;
-  imageUrl?: string;
-  relatedProjectId?: ID;
-  createdAt: ISODate;
-}
 
 /* ────────────────────────────── NDAs & Documents ────────────────────────────── */
 

@@ -60,9 +60,10 @@ export type LabelKind =
   | 'supportStatus'
   | 'notificationType'
   | 'registrationStatus'
-  | 'productStatus'
   | 'agreementStatus'
   | 'doNotContactReason'
+  | 'followUpStatus'
+  | 'followUpSource'
   | 'priority'
   | 'role'
   | 'workspace';
@@ -511,13 +512,6 @@ const registrationStatusLabels: LabelMap = {
   rejected: 'Rejected',
 };
 
-const productStatusLabels: LabelMap = {
-  in_development: 'In development',
-  tested: 'Tested',
-  launched: 'Launched',
-  archived: 'Archived',
-};
-
 const agreementStatusLabels: LabelMap = {
   none: 'No agreement',
   draft: 'Draft',
@@ -534,6 +528,20 @@ const doNotContactReasonLabels: LabelMap = {
   complaint: 'Complaint',
   not_relevant: 'Not relevant',
   other: 'Other',
+};
+
+const followUpStatusLabels: LabelMap = {
+  pending: 'Needs follow-up',
+  scheduled: 'Scheduled',
+  waiting: 'Do not contact yet',
+  contacted: 'Contacted',
+  closed: 'Closed',
+};
+
+const followUpSourceLabels: LabelMap = {
+  quiet_detection: 'Gone quiet',
+  suppression_list: 'Outreach freeze',
+  manual: 'Added by hand',
 };
 
 const priorityLabels: LabelMap = {
@@ -918,18 +926,28 @@ const registrationStatusTones: ToneMap = {
   rejected: 'danger',
 };
 
-const productStatusTones: ToneMap = {
-  in_development: 'info',
-  tested: 'gold',
-  launched: 'success',
-  archived: 'muted',
-};
-
 const agreementStatusTones: ToneMap = {
   none: 'muted',
   draft: 'warning',
   active: 'success',
   expired: 'danger',
+};
+
+/* Follow-up tones. Only `pending` asks for something today, so it is the only
+   one that raises its voice; `waiting` is an instruction to do nothing, which
+   reads as information rather than a warning. */
+const followUpStatusTones: ToneMap = {
+  pending: 'warning',
+  scheduled: 'info',
+  waiting: 'muted',
+  contacted: 'success',
+  closed: 'secondary',
+};
+
+const followUpSourceTones: ToneMap = {
+  quiet_detection: 'muted',
+  suppression_list: 'info',
+  manual: 'outline',
 };
 
 /* Every reason here blocks outreach, so none of them is a 'success'. The split
@@ -1010,9 +1028,10 @@ const LABELS: Record<LabelKind, LabelMap> = {
   supportStatus: supportStatusLabels,
   notificationType: notificationTypeLabels,
   registrationStatus: registrationStatusLabels,
-  productStatus: productStatusLabels,
   agreementStatus: agreementStatusLabels,
   doNotContactReason: doNotContactReasonLabels,
+  followUpStatus: followUpStatusLabels,
+  followUpSource: followUpSourceLabels,
   priority: priorityLabels,
   role: roleLabels,
   workspace: workspaceLabels,
@@ -1048,9 +1067,10 @@ const TONES: Partial<Record<LabelKind, ToneMap>> = {
   supportStatus: supportStatusTones,
   notificationType: notificationTypeTones,
   registrationStatus: registrationStatusTones,
-  productStatus: productStatusTones,
   agreementStatus: agreementStatusTones,
   doNotContactReason: doNotContactReasonTones,
+  followUpStatus: followUpStatusTones,
+  followUpSource: followUpSourceTones,
   priority: priorityTones,
   role: roleTones,
   workspace: workspaceTones,
@@ -1201,12 +1221,18 @@ const LABELS_IT: Record<LabelKind, LabelMap> = {
     submitted: 'Inviata', email_verification: 'Verifica email', pending_approval: 'In attesa di approvazione',
     more_info_requested: 'Info aggiuntive richieste', approved: 'Approvata', rejected: 'Rifiutata',
   },
-  productStatus: { in_development: 'In sviluppo', tested: 'Testato', launched: 'Lanciato', archived: 'Archiviato' },
   agreementStatus: { none: 'Nessun accordo', draft: 'Bozza', active: 'Attivo', expired: 'Scaduto' },
   doNotContactReason: {
     opt_out: 'Disiscrizione', not_interested: 'Non interessato', gdpr_request: 'Richiesta GDPR',
     competitor: 'Concorrente', bounced: 'Email non recapitate', complaint: 'Reclamo',
     not_relevant: 'Non pertinente', other: 'Altro',
+  },
+  followUpStatus: {
+    pending: 'Da ricontattare', scheduled: 'Programmato', waiting: 'Non contattare ancora',
+    contacted: 'Ricontattato', closed: 'Chiuso',
+  },
+  followUpSource: {
+    quiet_detection: 'Silenzio rilevato', suppression_list: 'Blocco campagna', manual: 'Aggiunto a mano',
   },
   priority: { low: 'Bassa', medium: 'Media', high: 'Alta', urgent: 'Urgente' },
   role: {

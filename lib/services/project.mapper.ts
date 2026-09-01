@@ -6,7 +6,7 @@ import type { ApplicationProject, AttachmentRef } from "@/lib/types";
 // (estimatedAnnualVolume), FK renames (internalOwnerUserId<->internalOwnerId,
 // technicalOwnerUserId<->technicalOwnerId), typed Json columns (nextAction,
 // attachments), DateTime<->ISO string. sampleRequestId is a 1-to-many relation
-// in the schema, so it is not denormalized on read. productId has no DTO field
+// in the schema, so it is not denormalized on read.
 // and is therefore left untouched on write.
 
 const undef = <T,>(v: T | null): T | undefined => (v == null ? undefined : v);
@@ -18,7 +18,6 @@ export function projectToDTO(p: PrismaApplicationProject): ApplicationProject {
     companyId: p.companyId,
     name: p.name,
     clientProjectCode: undef(p.clientProjectCode),
-    productName: undef(p.productName),
     brandName: undef(p.brandName),
     category: p.category,
     subcategory: undef(p.subcategory),
@@ -49,7 +48,6 @@ export function projectWriteData(input: ApplicationProject, actorId: string | nu
     companyId: input.companyId,
     name: input.name,
     clientProjectCode: input.clientProjectCode ?? null,
-    productName: input.productName ?? null,
     brandName: input.brandName ?? null,
     category: input.category,
     subcategory: input.subcategory ?? null,

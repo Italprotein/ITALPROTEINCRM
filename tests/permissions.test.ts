@@ -28,7 +28,7 @@ const EXTERNAL_ROLES = ROLES.filter(isExternal);
 /** Sections that only ever make sense inside the staff CRM. */
 const STAFF_ONLY_SECTIONS: InternalSection[] = [
   'overview', 'companies', 'agencies', 'contacts', 'pipeline', 'shipments',
-  'products', 'ndas', 'finance', 'activities', 'tasks', 'calendar',
+  'ndas', 'finance', 'activities', 'tasks', 'calendar',
   'communications', 'analytics', 'registrations', 'users', 'import_export',
   'settings', 'audit',
 ];

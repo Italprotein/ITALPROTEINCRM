@@ -11,7 +11,7 @@ import type { Role, InternalRole, ExternalRole, Workspace } from '@/lib/types';
 /* ── Sections ── */
 export type InternalSection =
   | 'overview' | 'companies' | 'agencies' | 'investors' | 'contacts' | 'pipeline' | 'samples' | 'shipments'
-  | 'feedback' | 'projects' | 'products' | 'ndas' | 'do_not_contact' | 'finance' | 'activities'
+  | 'feedback' | 'projects' | 'ndas' | 'do_not_contact' | 'follow_ups' | 'finance' | 'activities'
   | 'tasks' | 'calendar' | 'communications' | 'analytics' | 'notifications'
   | 'registrations' | 'users' | 'import_export' | 'settings' | 'audit' | 'integrations';
 
@@ -47,7 +47,7 @@ export type Action =
 
 export const INTERNAL_SECTIONS: InternalSection[] = [
   'overview', 'companies', 'agencies', 'investors', 'contacts', 'pipeline', 'samples', 'shipments',
-  'feedback', 'projects', 'products', 'ndas', 'do_not_contact', 'finance', 'activities',
+  'feedback', 'projects', 'ndas', 'do_not_contact', 'follow_ups', 'finance', 'activities',
   'tasks', 'calendar', 'communications', 'analytics', 'notifications',
   'registrations', 'users', 'import_export', 'settings', 'audit', 'integrations',
 ];
@@ -116,7 +116,7 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
     workspace: 'internal',
     sections: sections(INTERNAL_SECTIONS, 'view', { integrations: 'hidden',
       overview: 'full', companies: 'full', agencies: 'full', investors: 'full', contacts: 'full', pipeline: 'full',
-      samples: 'edit', ndas: 'edit', do_not_contact: 'full', projects: 'edit', activities: 'full',
+      samples: 'edit', ndas: 'edit', do_not_contact: 'full', follow_ups: 'full', projects: 'edit', activities: 'full',
       tasks: 'full', calendar: 'full', communications: 'full',
       finance: 'view', users: 'hidden', settings: 'hidden', audit: 'hidden',
     }),
@@ -130,10 +130,10 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
   rnd_technical: {
     workspace: 'internal',
     sections: sections(INTERNAL_SECTIONS, 'view', { integrations: 'hidden',
-      overview: 'full', feedback: 'full', projects: 'full', products: 'full',
+      overview: 'full', feedback: 'full', projects: 'full',
       samples: 'edit', activities: 'edit', tasks: 'full', calendar: 'full',
       finance: 'hidden', users: 'hidden', settings: 'hidden', audit: 'hidden',
-      registrations: 'hidden', import_export: 'hidden',
+      registrations: 'hidden', import_export: 'hidden', follow_ups: 'hidden',
     }),
     // R&D owns the technical data sheets in practice, so they publish them.
     actions: ['feedback.reply', 'sample.status_update', 'data.export', 'technical_docs.manage'],
@@ -152,7 +152,7 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
     workspace: 'internal',
     sections: sections(INTERNAL_SECTIONS, 'view', { integrations: 'hidden',
       overview: 'full', finance: 'full', analytics: 'full', tasks: 'full',
-      ndas: 'hidden', feedback: 'hidden', projects: 'hidden', products: 'hidden',
+      ndas: 'hidden', feedback: 'hidden', projects: 'hidden', follow_ups: 'hidden',
       users: 'hidden', settings: 'hidden', audit: 'hidden', registrations: 'hidden',
       import_export: 'hidden', communications: 'hidden',
     }),

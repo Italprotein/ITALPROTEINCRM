@@ -57,7 +57,6 @@ export interface CompanyRelationHandling {
 export const COMPANY_MERGE_RELATIONS: readonly CompanyRelationHandling[] = [
   { relation: 'contacts', delegate: 'contact', foreignKey: 'companyId', strategy: 'repoint' },
   { relation: 'opportunities', delegate: 'opportunity', foreignKey: 'companyId', strategy: 'repoint' },
-  { relation: 'clientProducts', delegate: 'product', foreignKey: 'companyId', strategy: 'repoint' },
   {
     relation: 'externalUsers',
     delegate: 'user',
@@ -115,6 +114,16 @@ export const COMPANY_MERGE_RELATIONS: readonly CompanyRelationHandling[] = [
     foreignKey: 'companyId',
     strategy: 'repoint_unique_company',
     note: 'companyId is UNIQUE — the target keeps its own entry if it has one.',
+  },
+  {
+    relation: 'followUp',
+    delegate: 'followUp',
+    foreignKey: 'companyId',
+    strategy: 'repoint_unique_company',
+    note:
+      'companyId is UNIQUE, same shape as the do-not-contact entry above. The ' +
+      'target keeps its own row: whichever status and date a person set on the ' +
+      'surviving company outrank the duplicate being merged away.',
   },
   {
     relation: 'aliasEntries',

@@ -21,7 +21,6 @@ export { MEETINGS, getMeetings } from './meetings';
 export { SUPPORT_REQUESTS, getSupportRequests } from './support';
 export { FINANCE_DOCS, getFinanceDocs } from './finance';
 export { PROJECTS, getProjects } from './projects';
-export { PRODUCTS, getProducts } from './products';
 export { DO_NOT_CONTACT_ENTRIES, getDoNotContactEntries } from './do-not-contact';
 export { AGENCY_COMPANIES, AGENCY_META, getAgencyCompanies } from './agencies';
 export { STAFF, getStaff } from './staff';

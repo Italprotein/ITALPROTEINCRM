@@ -257,6 +257,32 @@ enum DoNotContactReason {
   other
 }
 
+/// Where a follow-up row came from — which is also how much authority it has.
+/// `quiet_detection` rows are written by the sync pass and may be refreshed by
+/// it; `suppression_list` rows come from the outreach freeze and encode a human
+/// decision; `manual` rows were typed in by hand. The sync only ever touches
+/// its own `quiet_detection` rows, so neither of the other two can be
+/// overwritten by arithmetic.
+enum FollowUpSource {
+  quiet_detection
+  suppression_list
+  manual
+}
+
+/// What should happen next on a conversation. See model FollowUp.
+///
+/// `waiting` is the one that carries a date forward: it means the ball is in
+/// their court, or a campaign freeze applies, and nobody should chase until
+/// `followUpOn`. `pending` is the opposite — the wait is over and it is our
+/// move. `contacted` records that we reached out, which restarts the clock.
+enum FollowUpStatus {
+  pending
+  scheduled
+  waiting
+  contacted
+  closed
+}
+
 /// How far an investor-outreach conversation has progressed. The four states
 /// come from the campaign workbook (assets/Investitori, Criteri sheet):
 /// in_contact = personal positive reply, call, NDA or internal forward;
@@ -326,13 +352,6 @@ enum PipelineStage {
   inactive
   lost
   disqualified
-}
-
-enum ProductStatus {
-  in_development
-  tested
-  launched
-  archived
 }
 
 enum ApplicationCategory {
@@ -827,6 +846,8 @@ model User {
   passwordResetCodes   PasswordResetCode[]      @relation("UserPasswordResetCodes")
   activationTokens     AccountActivationToken[] @relation("UserAccountActivationTokens")
   doNotContactEntries  DoNotContactEntry[]      @relation("DoNotContactAddedBy")
+  followUpsCreated     FollowUp[]               @relation("FollowUpCreatedBy")
+  followUpsStatusSet   FollowUp[]               @relation("FollowUpStatusChangedBy")
 
   // Email-reconciliation registers this user seeded by hand. All SetNull:
   // deleting a staff account must never delete a domain mapping or a
@@ -1163,7 +1184,6 @@ model Company {
 
   contacts               Contact[]
   opportunities          Opportunity[]
-  clientProducts         Product[]
   externalUsers          User[]                 @relation("CompanyExternalUsers")
   linkedRegistrations    Registration[]         @relation("RegistrationLinkedCompany")
   provisionedByDecisions RegistrationDecision[] @relation("RegistrationDecisionCompany")
@@ -1197,6 +1217,9 @@ model Company {
 
   // Do-not-contact register (at most one entry per company — companyId is unique).
   doNotContact DoNotContactEntry? @relation("CompanyDoNotContact")
+
+  // Follow-up register (at most one open row per company).
+  followUp FollowUp? @relation("CompanyFollowUp")
 
   // Email reconciliation registers. `aliasEntries` is the normalized, matchable
   // form of the free-text `aliases` array above; `domains` is what the Gmail
@@ -1237,6 +1260,66 @@ model DoNotContactEntry {
   @@index([addedById])
   @@map("do_not_contact_entries")
 }
+
+/// The follow-up register: who we owe a reply to, and when.
+///
+/// Two very different things share this table on purpose, distinguished by
+/// `source`:
+///
+///  1. Companies that have simply gone quiet. The sync pass
+///     (lib/backend/follow-up-register.ts) writes one `quiet_detection` row per
+///     company that has been silent longer than FOLLOW_UP_AFTER_DAYS.
+///  2. Dated decisions — the October 2026 outreach freeze, and anything a
+///     person adds by hand with a date.
+///
+/// They belong together because the question the page answers is the same for
+/// both: *who may I contact today, and who must I leave alone until when.*
+/// Splitting them would mean reading two lists to answer it.
+///
+/// `companyId` is nullable because the suppression list names counterparties
+/// that have no company record yet (Pathway International, Verve, Biota
+/// Ingredients …). Losing that row would lose the instruction, so the name is
+/// stored on the row itself and the link is optional. It is UNIQUE where set:
+/// one open follow-up per company, so the page can never show a company twice
+/// with contradictory dates. `normalizedName` is indexed but deliberately NOT
+/// unique — production already holds two companies that normalize to
+/// "charles alice", and a constraint here would reject the second one.
+model FollowUp {
+  id             String         @id @default(cuid())
+  companyId      String?        @unique
+  /// Display name, snapshotted. Authoritative for rows with no companyId.
+  companyName    String
+  /// Matchable form of companyName, for de-duplicating imports.
+  normalizedName String
+  domain         String?
+  status         FollowUpStatus @default(pending)
+  source         FollowUpSource @default(manual)
+  /// The date the freeze lifts, or the day someone chose to pick this back up.
+  /// A plain date, not an instant: "11 October" must not shift by timezone.
+  followUpOn        DateTime?  @db.Date
+  /// Why this row exists, in the words of whoever decided it.
+  reason            String?
+  notes             String?
+  /// Snapshot from the last sync — what the arithmetic saw.
+  lastContactAt     DateTime?
+  quietDays         Int?
+  statusChangedAt   DateTime?
+  statusChangedById String?
+  createdById       String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  company         Company? @relation("CompanyFollowUp", fields: [companyId], references: [id], onDelete: Cascade)
+  statusChangedBy User?    @relation("FollowUpStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
+  createdBy       User?    @relation("FollowUpCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([source])
+  @@index([followUpOn])
+  @@index([normalizedName])
+  @@map("follow_ups")
+}
+
 
 /// An investor-outreach target: the funds, angel networks and holdings
 /// contacted for the Proamina raise, imported from the campaign workbook and
@@ -1498,48 +1581,6 @@ model OpportunityStageHistory {
   @@map("opportunity_stage_history")
 }
 
-model Product {
-  id                   String              @id @default(cuid())
-  name                 String
-  category             ApplicationCategory
-  sku                  String?
-  format               String?
-  segment              CommercialSegment?
-  companyId            String?
-  brandName            String?
-  market               String?
-  proaminaDosage       String?
-  attributes           Json?
-  specs                Json?
-  indicativePriceMinor Int?
-  currency             Currency?
-  status               ProductStatus       @default(in_development)
-  description          String?
-  imageUrl             String?
-  relatedProjectId     String?
-  createdById          String?
-  updatedById          String?
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
-
-  company        Company?            @relation(fields: [companyId], references: [id])
-  relatedProject ApplicationProject? @relation("ProductRelatedProject", fields: [relatedProjectId], references: [id])
-
-  sampleRequests      SampleRequest[]
-  applicationProjects ApplicationProject[] @relation("ApplicationProjectProduct")
-
-  // Finance line item back-relations
-  quoteLineItems   QuoteLineItem[]   @relation("ProductQuoteLineItems")
-  orderLineItems   OrderLineItem[]   @relation("ProductOrderLineItems")
-  invoiceLineItems InvoiceLineItem[] @relation("ProductInvoiceLineItems")
-
-  @@index([category])
-  @@index([companyId])
-  @@index([status])
-  @@index([segment])
-  @@map("products")
-}
-
 /**
  * ══════════════════════════════ Operational models ══════════════════════════════
  */
@@ -1551,7 +1592,6 @@ model SampleRequest {
   contactId               String?
   opportunityId           String?
   projectId               String?
-  productId               String?
   applicationCategory     ApplicationCategory
   requestedProduct        String
   testObjective           String?
@@ -1587,7 +1627,6 @@ model SampleRequest {
   contact           Contact?            @relation(fields: [contactId], references: [id])
   opportunity       Opportunity?        @relation(fields: [opportunityId], references: [id])
   project           ApplicationProject? @relation("ProjectSampleRequests", fields: [projectId], references: [id])
-  product           Product?            @relation(fields: [productId], references: [id])
   assignedLogistics User?               @relation("SampleRequestLogistics", fields: [assignedLogisticsUserId], references: [id])
   accountOwner      User?               @relation("SampleRequestAccountOwner", fields: [accountOwnerUserId], references: [id])
   approvedBy        User?               @relation("SampleRequestApprovedBy", fields: [approvedByUserId], references: [id])
@@ -1781,7 +1820,6 @@ model ApplicationProject {
   companyId             String
   name                  String
   clientProjectCode     String?
-  productName           String?
   brandName             String?
   category              ApplicationCategory
   subcategory           String?
@@ -1798,7 +1836,6 @@ model ApplicationProject {
   contactIds            String[]
   internalOwnerUserId   String?
   technicalOwnerUserId  String?
-  productId             String?
   nextAction            Json?
   attachments           Json?
   createdById           String?
@@ -1809,9 +1846,7 @@ model ApplicationProject {
   company        Company  @relation(fields: [companyId], references: [id])
   internalOwner  User?    @relation("ProjectInternalOwner", fields: [internalOwnerUserId], references: [id])
   technicalOwner User?    @relation("ProjectTechnicalOwner", fields: [technicalOwnerUserId], references: [id])
-  product        Product? @relation("ApplicationProjectProduct", fields: [productId], references: [id])
 
-  relatedProducts Product[]       @relation("ProductRelatedProject")
   sampleRequests  SampleRequest[] @relation("ProjectSampleRequests")
   feedbacks       Feedback[]      @relation("ProjectFeedbacks")
 
@@ -2092,7 +2127,6 @@ model Quote {
 model QuoteLineItem {
   id           String       @id @default(cuid())
   quoteId      String
-  productId    String?
   productName  String
   quantity     Decimal
   unit         QuantityUnit
@@ -2104,10 +2138,8 @@ model QuoteLineItem {
   updatedAt    DateTime     @updatedAt
 
   quote   Quote    @relation("QuoteLineItems", fields: [quoteId], references: [id], onDelete: Cascade)
-  product Product? @relation("ProductQuoteLineItems", fields: [productId], references: [id])
 
   @@index([quoteId])
-  @@index([productId])
   @@map("quote_line_items")
 }
 
@@ -2152,7 +2184,6 @@ model Order {
 model OrderLineItem {
   id           String       @id @default(cuid())
   orderId      String
-  productId    String?
   productName  String
   quantity     Decimal
   unit         QuantityUnit
@@ -2164,10 +2195,8 @@ model OrderLineItem {
   updatedAt    DateTime     @updatedAt
 
   order   Order    @relation("OrderLineItems", fields: [orderId], references: [id], onDelete: Cascade)
-  product Product? @relation("ProductOrderLineItems", fields: [productId], references: [id])
 
   @@index([orderId])
-  @@index([productId])
   @@map("order_line_items")
 }
 
@@ -2218,7 +2247,6 @@ model Invoice {
 model InvoiceLineItem {
   id           String       @id @default(cuid())
   invoiceId    String
-  productId    String?
   productName  String
   quantity     Decimal
   unit         QuantityUnit
@@ -2230,10 +2258,8 @@ model InvoiceLineItem {
   updatedAt    DateTime     @updatedAt
 
   invoice Invoice  @relation("InvoiceLineItems", fields: [invoiceId], references: [id], onDelete: Cascade)
-  product Product? @relation("ProductInvoiceLineItems", fields: [productId], references: [id])
 
   @@index([invoiceId])
-  @@index([productId])
   @@map("invoice_line_items")
 }
 

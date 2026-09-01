@@ -182,9 +182,17 @@ describe('mergeCompanies relation coverage', () => {
     const uniqueCompanyId = COMPANY_MERGE_RELATIONS.filter(
       (r) => r.strategy === 'repoint_unique_company',
     ).map((r) => r.relation);
-    expect(uniqueCompanyId).toEqual(['doNotContact']);
-    // …and the schema must still declare that uniqueness.
-    expect(/companyId\s+String\s+@unique/.test(SCHEMA.slice(SCHEMA.indexOf('model DoNotContactEntry')))).toBe(true);
+    expect(uniqueCompanyId).toEqual(['doNotContact', 'followUp']);
+    // …and the schema must still declare that uniqueness. FollowUp's companyId
+    // is nullable (the outreach freeze lists counterparties with no company
+    // record), so `String?` is the shape to expect there — the unique index
+    // still holds for every row that does name a company.
+    expect(
+      /companyId\s+String\s+@unique/.test(SCHEMA.slice(SCHEMA.indexOf('model DoNotContactEntry'))),
+    ).toBe(true);
+    expect(
+      /companyId\s+String\?\s+@unique/.test(SCHEMA.slice(SCHEMA.indexOf('model FollowUp'))),
+    ).toBe(true);
 
     const uniqueAlias = COMPANY_MERGE_RELATIONS.filter(
       (r) => r.strategy === 'repoint_unique_alias',

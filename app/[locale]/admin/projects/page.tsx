@@ -460,7 +460,7 @@ export default function ProjectsPage() {
         searchable
         searchPlaceholder={t('searchPlaceholder')}
         searchValue={(p) =>
-          [p.name, p.brandName, p.productName, companyName(p.companyId), p.market, p.clientProjectCode]
+          [p.name, p.brandName, companyName(p.companyId), p.market, p.clientProjectCode]
             .filter(Boolean)
             .join(' ')
         }
