@@ -12,6 +12,7 @@ import {
   shipmentsByCompany,
   shipmentsBySample,
   shipmentStatistics,
+  shipmentEvents,
 } from "./shipment.actions";
 
 // Real (Prisma-backed) shipmentService — contract-identical to the mock service.
@@ -30,6 +31,7 @@ export const shipmentService: ShipmentService = {
   byCompany: (companyId: string) => shipmentsByCompany(companyId),
   bySample: (sampleRequestId: string) => shipmentsBySample(sampleRequestId),
   getStatistics: () => shipmentStatistics(),
+  events: (shipmentId: string) => shipmentEvents(shipmentId),
   get _now() {
     return new Date();
   },

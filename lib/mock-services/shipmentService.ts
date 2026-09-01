@@ -1,4 +1,4 @@
-import type { Shipment } from '@/lib/types';
+import type { Shipment, ShipmentEvent } from '@/lib/types';
 import { SHIPMENTS } from '@/fixtures';
 import { countUniqueShippedCompanies } from '@/lib/data/shipped-company-evidence';
 import { createRepository } from './repository';
@@ -33,6 +33,11 @@ export const shipmentService = {
   reset: () => repo.reset(),
 
   deriveStatus: deriveShipmentStatus,
+
+  /** Courier checkpoints. Mock mode has no mailbox to read, so: none. */
+  async events(_shipmentId: string): Promise<ShipmentEvent[]> {
+    return [];
+  },
 
   async byCompany(companyId: string): Promise<Shipment[]> {
     return (await repo.list()).filter((s) => s.companyId === companyId);

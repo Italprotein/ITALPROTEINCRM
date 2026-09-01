@@ -250,6 +250,42 @@ export interface DoNotContactEntry {
   updatedAt: ISODate;
 }
 
+/**
+ * Stored shipment state, mirroring the ShipmentStatus enum in schema.prisma.
+ *
+ * Distinct from `DerivedShipmentStatus` in the shipment service, which is the
+ * coarser four-state view the UI paints from dates and customs; this is the
+ * column the tracking sync writes.
+ */
+export type ShipmentStatus =
+  | 'pending'
+  | 'preparing'
+  | 'in_transit'
+  | 'delayed'
+  | 'customs_hold'
+  | 'delivered'
+  | 'delivery_confirmed'
+  | 'exception';
+
+/**
+ * One checkpoint on a shipment's journey, as reported by a courier.
+ *
+ * Written by the tracking sync (from courier email today, a carrier API later)
+ * and read-only in the UI — the shipment's own fields stay the editable record,
+ * this is the evidence behind them.
+ */
+export interface ShipmentEvent {
+  id: ID;
+  shipmentId: ID;
+  status: ShipmentStatus;
+  description?: string;
+  location?: string;
+  occurredAt: ISODate;
+  /** Which pipeline filed it: 'gmail' today. Absent on hand-entered rows. */
+  source?: string;
+  createdAt: ISODate;
+}
+
 /* ────────────────────────────── Investors ────────────────────────────── */
 
 /**

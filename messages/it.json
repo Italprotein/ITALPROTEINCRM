@@ -1121,7 +1121,9 @@
     "update": "Aggiornamento",
     "trackingPlaceholder": "Arrivato all'hub di smistamento, Paris CDG…",
     "posting": "Pubblicazione…",
-    "postUpdate": "Pubblica aggiornamento"
+    "postUpdate": "Pubblica aggiornamento",
+    "courierEvents": "Aggiornamenti del corriere",
+    "eventSourceGmail": "Letto dalle email del corriere"
   },
   "AdminShipments": {
     "delayed": "In ritardo",

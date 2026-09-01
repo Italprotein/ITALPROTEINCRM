@@ -30,7 +30,7 @@ import {
 import { shipmentService, companyService, sampleService } from '@/lib/mock-services';
 import { useSession } from '@/components/providers/session-provider';
 import { can } from '@/lib/permissions';
-import type { Shipment, Company, SampleRequest, Locale } from '@/lib/types';
+import type { Shipment, Company, SampleRequest, ShipmentEvent, Locale } from '@/lib/types';
 import type { DerivedShipmentStatus } from '@/lib/mock-services';
 import { getLabel } from '@/lib/labels';
 import { formatDate, formatQuantity, flagEmoji } from '@/lib/formatting';
@@ -129,6 +129,7 @@ export default function ShipmentDetailPage() {
   const [shipment, setShipment] = React.useState<Shipment | null>(null);
   const [company, setCompany] = React.useState<Company | null>(null);
   const [sample, setSample] = React.useState<SampleRequest | null>(null);
+  const [events, setEvents] = React.useState<ShipmentEvent[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [notFound, setNotFound] = React.useState(false);
 
@@ -147,12 +148,14 @@ export default function ShipmentDetailPage() {
       return;
     }
     setShipment(s);
-    const [c, sr] = await Promise.all([
+    const [c, sr, ev] = await Promise.all([
       companyService.getById(s.companyId),
       sampleService.getById(s.sampleRequestId),
+      shipmentService.events(s.id),
     ]);
     setCompany(c ?? null);
     setSample(sr ?? null);
+    setEvents(ev);
     // pre-tick checklist items based on available data
     setChecked({
       commercial_invoice: true,
@@ -402,6 +405,53 @@ export default function ShipmentDetailPage() {
               />
             </CardContent>
           </Card>
+
+          {/* Courier checkpoints — written by the tracking sync from courier
+              email. Read-only: the fields above stay the editable record, this
+              is the evidence behind them. Hidden entirely when empty, so a
+              shipment nobody has emailed about shows no empty furniture. */}
+          {events.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Truck className="h-4 w-4 text-muted-foreground" />
+                  {t('courierEvents')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ol className="space-y-0">
+                  {events.map((event, index) => (
+                    <li key={event.id} className="flex gap-3">
+                      {/* rail: dot + connector, the connector omitted on the last row */}
+                      <div className="flex flex-col items-center">
+                        <span
+                          className={cn(
+                            'mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full',
+                            index === 0 ? 'bg-brand-teal' : 'bg-border',
+                          )}
+                        />
+                        {index < events.length - 1 && <span className="w-px flex-1 bg-border" />}
+                      </div>
+                      <div className="min-w-0 flex-1 pb-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <StatusBadge kind="shipmentStatus" value={event.status} />
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(event.occurredAt, locale)}
+                          </span>
+                        </div>
+                        {event.description && (
+                          <p className="mt-1 text-sm text-foreground">{event.description}</p>
+                        )}
+                        <p className="mt-0.5 text-2xs text-muted-foreground">
+                          {t('eventSourceGmail')}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Package details */}
           <Card>

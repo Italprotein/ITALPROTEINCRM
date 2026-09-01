@@ -1673,6 +1673,13 @@ model ShipmentEvent {
   location    String?
   occurredAt  DateTime
   source      String?
+  /// The source's own id for this event — the Gmail message id today, a
+  /// carrier checkpoint id if a courier API is added. Paired with `source` in
+  /// the unique key below, it makes filing an event idempotent, which matters
+  /// because the tracking sync re-reads the whole mailbox on every run.
+  /// Null for events created by a human; Postgres treats NULLs as distinct, so
+  /// those never collide with each other.
+  externalId  String?
   rawPayload  Json?
   actorUserId String?
   createdById String?
@@ -1683,6 +1690,7 @@ model ShipmentEvent {
   shipment Shipment @relation("ShipmentEvents", fields: [shipmentId], references: [id], onDelete: Cascade)
   actor    User?    @relation("ShipmentEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
+  @@unique([shipmentId, source, externalId])
   @@index([shipmentId])
   @@index([status])
   @@index([occurredAt])

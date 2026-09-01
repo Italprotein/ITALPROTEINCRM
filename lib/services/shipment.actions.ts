@@ -3,7 +3,7 @@
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/backend/prisma";
 import { getCurrentUser, requireUser, requireAction } from "@/lib/backend/session";
-import type { Shipment } from "@/lib/types";
+import type { Shipment, ShipmentEvent } from "@/lib/types";
 import { deriveShipmentStatus } from "@/lib/mock-services/shipmentService";
 import { shipmentToDTO, shipmentWriteData } from "./shipment.mapper";
 import { countUniqueShippedCompanies } from "@/lib/data/shipped-company-evidence";
@@ -46,6 +46,37 @@ export async function getShipment(id: string): Promise<Shipment | undefined> {
 
 // Shipment writes are internal logistics work — the portal only ever reads
 // shipments, so `shipment.update` (super_admin, crm_admin, logistics) is safe.
+/**
+ * The courier checkpoints filed against one shipment, newest first.
+ *
+ * Same `requireUser()` + scope treatment as the other reads, so an external
+ * portal user can see the timeline of their own shipment and nobody else's —
+ * the scope check runs against the parent shipment, never the id supplied.
+ */
+export async function shipmentEvents(shipmentId: string): Promise<ShipmentEvent[]> {
+  await requireUser();
+  const owned = await prisma.shipment.findMany({
+    where: { AND: [await scopeWhere(), { id: shipmentId }] },
+    select: { id: true },
+    take: 1,
+  });
+  if (!owned[0]) return [];
+  const rows = await prisma.shipmentEvent.findMany({
+    where: { shipmentId },
+    orderBy: { occurredAt: "desc" },
+  });
+  return rows.map((e) => ({
+    id: e.id,
+    shipmentId: e.shipmentId,
+    status: e.status as ShipmentEvent["status"],
+    description: e.description ?? undefined,
+    location: e.location ?? undefined,
+    occurredAt: e.occurredAt.toISOString(),
+    source: e.source ?? undefined,
+    createdAt: e.createdAt.toISOString(),
+  }));
+}
+
 export async function createShipment(input: Shipment): Promise<Shipment> {
   const user = await requireAction("shipment.update");
   const row = await prisma.shipment.create({

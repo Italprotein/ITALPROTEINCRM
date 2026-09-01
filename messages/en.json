@@ -1121,7 +1121,9 @@
     "update": "Update",
     "trackingPlaceholder": "Arrived at sorting hub, Paris CDG…",
     "posting": "Posting…",
-    "postUpdate": "Post update"
+    "postUpdate": "Post update",
+    "courierEvents": "Courier updates",
+    "eventSourceGmail": "Read from courier email"
   },
   "AdminShipments": {
     "delayed": "Delayed",

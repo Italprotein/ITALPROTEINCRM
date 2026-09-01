@@ -38,6 +38,7 @@ export type LabelKind =
   | 'sampleStatus'
   | 'quantityUnit'
   | 'customsStatus'
+  | 'shipmentStatus'
   | 'incoterm'
   | 'feedbackStatus'
   | 'feedbackResult'
@@ -253,6 +254,19 @@ const customsStatusLabels: LabelMap = {
   in_clearance: 'In clearance',
   hold: 'Hold',
   cleared: 'Cleared',
+};
+
+/* The stored Shipment.status column, written by the courier tracking sync.
+   Distinct from the coarser derived status the list view paints from dates. */
+const shipmentStatusLabels: LabelMap = {
+  pending: 'Pending',
+  preparing: 'Preparing',
+  in_transit: 'In transit',
+  delayed: 'Delayed',
+  customs_hold: 'Customs hold',
+  delivered: 'Delivered',
+  delivery_confirmed: 'Delivery confirmed',
+  exception: 'Exception',
 };
 
 const incotermLabels: LabelMap = {
@@ -683,6 +697,17 @@ const customsStatusTones: ToneMap = {
   cleared: 'success',
 };
 
+const shipmentStatusTones: ToneMap = {
+  pending: 'muted',
+  preparing: 'muted',
+  in_transit: 'info',
+  delayed: 'warning',
+  customs_hold: 'warning',
+  delivered: 'success',
+  delivery_confirmed: 'success',
+  exception: 'danger',
+};
+
 const feedbackStatusTones: ToneMap = {
   received: 'info',
   under_review: 'info',
@@ -963,6 +988,7 @@ const LABELS: Record<LabelKind, LabelMap> = {
   sampleStatus: sampleStatusLabels,
   quantityUnit: quantityUnitLabels,
   customsStatus: customsStatusLabels,
+  shipmentStatus: shipmentStatusLabels,
   incoterm: incotermLabels,
   feedbackStatus: feedbackStatusLabels,
   feedbackResult: feedbackResultLabels,
@@ -1002,6 +1028,7 @@ const TONES: Partial<Record<LabelKind, ToneMap>> = {
   decisionRole: decisionRoleTones,
   sampleStatus: sampleStatusTones,
   customsStatus: customsStatusTones,
+  shipmentStatus: shipmentStatusTones,
   feedbackStatus: feedbackStatusTones,
   feedbackResult: feedbackResultTones,
   nextStep: nextStepTones,
@@ -1088,6 +1115,11 @@ const LABELS_IT: Record<LabelKind, LabelMap> = {
   quantityUnit: { g: 'g', kg: 'kg', units: 'unità', sachets: 'bustine', boxes: 'scatole', l: 'L', ml: 'mL' },
   customsStatus: {
     not_required: 'Non richiesta', pending: 'In attesa', in_clearance: 'In sdoganamento', hold: 'Bloccata', cleared: 'Sdoganata',
+  },
+  shipmentStatus: {
+    pending: 'In attesa', preparing: 'In preparazione', in_transit: 'In transito',
+    delayed: 'In ritardo', customs_hold: 'Bloccata in dogana', delivered: 'Consegnata',
+    delivery_confirmed: 'Consegna confermata', exception: 'Anomalia',
   },
   incoterm: { DAP: 'DAP', DDP: 'DDP', EXW: 'EXW', CPT: 'CPT', FCA: 'FCA', CIP: 'CIP' },
   feedbackStatus: {
