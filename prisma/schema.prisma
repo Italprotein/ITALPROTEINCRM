@@ -1172,6 +1172,10 @@ model Company {
   paymentTerms                  String?
   tags                          String[]
   lastActivityAt                DateTime?
+  /// When Apollo last enriched this row. The pass orders by it (nulls first)
+  /// and skips anything inside the cooldown, so a metered plan is spent on
+  /// companies nobody has looked up rather than on the same few repeatedly.
+  enrichedAt                    DateTime?
   nextAction                    Json?
   ownerUserId                   String
   supportingTeamUserIds         String[]
@@ -1233,6 +1237,7 @@ model Company {
   @@index([relationshipStage])
   @@index([ownerUserId])
   @@index([priority])
+  @@index([enrichedAt])
   @@map("companies")
 }
 
