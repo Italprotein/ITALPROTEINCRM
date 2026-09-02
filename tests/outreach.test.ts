@@ -6,6 +6,7 @@ import {
   companyNameFromDomain,
   countryFromDomain,
   initialsFromName,
+  organisationLabelOf,
   type OutreachInput,
 } from '@/lib/outreach';
 
@@ -131,9 +132,17 @@ describe('companyNameFromDomain', () => {
     expect(companyNameFromDomain('arabianmills.com')).toBe('Arabian Mills');
   });
 
-  it('capitalises the Mc/Mac prefix the way the real name does', () => {
+  it('capitalises the Mc prefix the way the real name does', () => {
     expect(companyNameFromDomain('mccain.com')).toBe('McCain');
     expect(companyNameFromDomain('mccain.co.uk')).toBe('McCain');
+  });
+
+  it('leaves lookalike prefixes alone', () => {
+    // "mac" and "de" as surname prefixes did more harm than good on the real
+    // list: they turned macromike.com into "MacRomike" and delmonte.com into
+    // "DeLmonte".
+    expect(companyNameFromDomain('macromike.com.au')).toBe('Macromike');
+    expect(companyNameFromDomain('delmonte.com')).toBe('Delmonte');
   });
 
   it('reads past a second-level suffix to the organisation label', () => {
@@ -178,5 +187,25 @@ describe('initialsFromName', () => {
     expect(initialsFromName('Dawn Foods')).toBe('DF');
     expect(initialsFromName('McCain')).toBe('MC');
     expect(initialsFromName('')).toBe('??');
+  });
+});
+
+describe('organisationLabelOf', () => {
+  it('collapses a regional domain family onto one label', () => {
+    // The reason McCain is one company with three domains rather than three
+    // companies that happen to render with the same name.
+    for (const domain of ['mccain.com', 'mccain.ca', 'mccain.co.uk']) {
+      expect(organisationLabelOf(domain)).toBe('mccain');
+    }
+    expect(organisationLabelOf('orkla.no')).toBe(organisationLabelOf('orkla.se'));
+    expect(organisationLabelOf('sanitarium.com')).toBe(organisationLabelOf('sanitarium.com.au'));
+  });
+
+  it('keeps unrelated organisations apart', () => {
+    expect(organisationLabelOf('chobani.com')).not.toBe(organisationLabelOf('fonterra.com'));
+  });
+
+  it('reads a subdomain back to its registrable organisation', () => {
+    expect(organisationLabelOf('fr.froneri.com')).toBe('froneri');
   });
 });

@@ -18,6 +18,7 @@ import {
   companyNameFromDomain,
   countryFromDomain,
   initialsFromName,
+  organisationLabelOf,
   type OutreachIgnoreReason,
 } from "@/lib/outreach";
 import { deriveContactName, normalizeEmail } from "@/lib/contact-harvest";
@@ -37,7 +38,14 @@ const DEFAULT_TYPE = "other";
 export const OUTREACH_TAG = "outreach-import";
 
 export interface OutreachCandidate {
+  /** Primary domain — the one with the most messages. */
   domain: string;
+  /**
+   * Every domain that resolved to this organisation. A group's regional
+   * sites (mccain.com, mccain.ca, mccain.co.uk) are one company with three
+   * domains, not three companies with the same name.
+   */
+  domains: string[];
   /** The addresses we wrote to at this domain. */
   recipients: string[];
   messageCount: number;
@@ -161,10 +169,14 @@ export async function planOutreachImport(): Promise<OutreachPlan> {
         continue;
       }
 
-      const existing = byDomain.get(verdict.domain);
+      // Grouped by organisation label so a group's regional domains land on
+      // one company; see organisationLabelOf.
+      const label = organisationLabelOf(verdict.domain) || verdict.domain;
+      const existing = byDomain.get(label);
       if (!existing) {
-        byDomain.set(verdict.domain, {
+        byDomain.set(label, {
           domain: verdict.domain,
+          domains: [verdict.domain],
           recipients: [email],
           messageCount: 1,
           firstContactAt: message.internalDate,
@@ -177,6 +189,7 @@ export async function planOutreachImport(): Promise<OutreachPlan> {
 
       existing.messageCount += 1;
       if (!existing.recipients.includes(email)) existing.recipients.push(email);
+      if (!existing.domains.includes(verdict.domain)) existing.domains.push(verdict.domain);
       if (message.internalDate > existing.lastContactAt) {
         existing.lastContactAt = message.internalDate;
       }
@@ -291,13 +304,16 @@ export async function runOutreachImport(options: {
             `Tipo e sede da verificare.`,
           ownerUserId,
           domains: {
-            create: { domain: candidate.domain, source: "gmail_sync" },
+            create: candidate.domains.map((domain) => ({
+              domain,
+              source: "gmail_sync" as const,
+            })),
           },
         },
         select: { id: true },
       });
       result.companiesCreated += 1;
-      result.domainsRegistered += 1;
+      result.domainsRegistered += candidate.domains.length;
 
       // One contact per address we actually wrote to.
       for (const recipient of candidate.recipients) {

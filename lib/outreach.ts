@@ -193,8 +193,15 @@ const NAME_SUFFIXES = [
   .slice()
   .sort((a, b) => b.length - a.length);
 
-/** Prefixes whose following letter is capitalised in the real name. */
-const NAME_PREFIXES = ["mc", "mac", "de", "van"] as const;
+/**
+ * Prefixes whose following letter is capitalised in the real name.
+ *
+ * Only "mc". The obvious companions each do more harm than good on real data:
+ * "mac" turns macromike.com into "MacRomike", and "de" turns delmonte.com into
+ * "DeLmonte". A surname prefix is only safe when almost nothing else starts
+ * with it.
+ */
+const NAME_PREFIXES = ["mc"] as const;
 
 const titleCase = (word: string): string =>
   word.length === 0 ? word : word[0].toUpperCase() + word.slice(1).toLowerCase();
@@ -303,6 +310,26 @@ export function countryFromDomain(
   if (!registrable) return null;
   const tld = registrable.slice(registrable.lastIndexOf(".") + 1);
   return CCTLD_COUNTRIES[tld] ?? null;
+}
+
+/**
+ * The organisation label of a domain — everything before the public suffix.
+ *
+ * `mccain.com`, `mccain.ca` and `mccain.co.uk` all yield "mccain", which is
+ * what lets the importer treat a group's regional domains as one company with
+ * three domains rather than three companies with the same name. The alternative
+ * — grouping on the prettified name — would also merge unrelated companies that
+ * happen to render alike, which this cannot.
+ */
+export function organisationLabelOf(domain: string | null | undefined): string {
+  const registrable = registrableDomainOf(domain);
+  if (!registrable) return "";
+  const labels = registrable.split(".");
+  let label = labels[labels.length - 2] ?? "";
+  if (labels.length >= 3 && (label === "co" || label === "com" || label === "org")) {
+    label = labels[labels.length - 3] ?? label;
+  }
+  return label;
 }
 
 /** Two-letter monogram for the avatar tile, matching the existing rows. */
