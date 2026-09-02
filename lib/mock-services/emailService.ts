@@ -18,6 +18,11 @@ export const emailService = {
     return [];
   },
 
+  async listSent(limit = 100): Promise<EmailMessageRecord[]> {
+    void limit;
+    return [];
+  },
+
   async list(): Promise<EmailMessageRecord[]> {
     return [];
   },

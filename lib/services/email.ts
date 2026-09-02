@@ -11,6 +11,7 @@ import {
 // Real (Gmail + Prisma-backed) emailService — contract-identical to the mock.
 export const emailService: EmailService = {
   listInbox: (limit?: number) => listEmailMessages("inbound", limit),
+  listSent: (limit?: number) => listEmailMessages("outbound", limit),
   list: () => listEmailMessages(),
   sync: () => syncGmailInbox(),
   send: (input: OutboundEmailInput) => sendAdminEmail(input),

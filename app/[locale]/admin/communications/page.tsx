@@ -64,6 +64,7 @@ export default function CommunicationsPage() {
   const [companyMap, setCompanyMap] = React.useState<Map<string, Company>>(new Map());
   const [emails, setEmails] = React.useState<Activity[]>([]);
   const [inbox, setInbox] = React.useState<EmailMessageRecord[] | null>(null);
+  const [sent, setSent] = React.useState<EmailMessageRecord[] | null>(null);
   const [gmail, setGmail] = React.useState<GmailConnectionStatus | null>(null);
   const [syncing, setSyncing] = React.useState(false);
   const [activeId, setActiveId] = React.useState<string | null>(null);
@@ -74,6 +75,9 @@ export default function CommunicationsPage() {
 
   const loadInbox = React.useCallback(() => {
     emailService.listInbox().then(setInbox);
+    // Sent mail comes from the same sync and the same table — only the
+    // direction differs, so there is nothing extra to connect.
+    emailService.listSent().then(setSent);
     emailService.status().then(setGmail);
   }, []);
 
@@ -150,6 +154,7 @@ export default function CommunicationsPage() {
           {/* Mailbox total when the connection reports one; the loaded page length
               is only a lower bound (the fetch is capped server-side). */}
           <TabsTrigger value="inbox">{t('inboxTab', { count: gmail?.inboxCount ?? inbox?.length ?? 0 })}</TabsTrigger>
+          <TabsTrigger value="sent">{t('sentTab', { count: sent?.length ?? 0 })}</TabsTrigger>
           {/* Leads live here rather than on the agencies page: they are made by
               the Gmail sync out of the very mail the inbox tab beside this one
               shows, and reviewing one needs the company picker this page
@@ -158,6 +163,51 @@ export default function CommunicationsPage() {
           <TabsTrigger value="requests">{t('requestsTab', { count: stats.total })}</TabsTrigger>
           <TabsTrigger value="email">{t('emailLogTab', { count: emails.length })}</TabsTrigger>
         </TabsList>
+
+        {/* ── Sent ─────────────────────────────────────────────────
+            Everything we have written, newest first. The column that
+            matters here is To, not From: every message says
+            ad@italprotein.com, which is exactly why the outreach
+            importer has to read the signature to know who sent it. */}
+        <TabsContent value="sent">
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('colTo')}</TableHead>
+                    <TableHead>{t('colSubject')}</TableHead>
+                    <TableHead>{t('colDate')}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sent === null ? (
+                    <TableRow><TableCell colSpan={3}><div className="space-y-2 p-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-10 w-full" />)}</div></TableCell></TableRow>
+                  ) : sent.length === 0 ? (
+                    <TableRow><TableCell colSpan={3}><EmptyState icon={Send} title={t('sentEmpty')} description={t('sentEmptyDescription')} /></TableCell></TableRow>
+                  ) : sent.map((m) => (
+                    <TableRow key={m.id} className="cursor-pointer" onClick={() => setOpenMessage(m)}>
+                      <TableCell className="max-w-[260px]">
+                        <p className="truncate text-sm font-medium text-foreground">{m.toAddresses[0] ?? '—'}</p>
+                        {m.toAddresses.length > 1 && (
+                          <p className="truncate text-xs text-muted-foreground">{t('plusRecipients', { count: m.toAddresses.length - 1 })}</p>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="max-w-[360px] truncate text-sm text-foreground">{m.subject ?? '—'}</span>
+                          {m.hasAttachments && <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                        </div>
+                        <p className="max-w-[420px] truncate text-xs text-muted-foreground">{m.snippet}</p>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">{formatRelative(m.internalDate)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* ── Gmail inbox ─────────────────────────────────────────── */}
         <TabsContent value="inbox">
