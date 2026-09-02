@@ -154,6 +154,89 @@ describe('parseDhlResponse', () => {
   });
 });
 
+/**
+ * Shapes taken from live /track/shipments responses (three real Italprotein
+ * consignments, Aug 2026), reduced to the fields the parser reads. The
+ * consignee, shipper and proofOfDelivery blocks DHL also returns are omitted
+ * here for the same reason the event writer never stores them.
+ */
+const LIVE_EVENTS = {
+  shipments: [
+    {
+      id: '9928289405',
+      service: 'express',
+      status: {
+        timestamp: '2026-08-31T20:59:00+01:00',
+        statusCode: 'delivered',
+        status: '101',
+        description: 'Delivered',
+        location: { address: { addressLocality: 'BOLTON - UK', countryCode: 'GB' } },
+      },
+      events: [
+        {
+          timestamp: '2026-08-31T20:59:00+01:00',
+          statusCode: 'delivered',
+          status: 'OK',
+          description: 'Delivered',
+          location: { address: { addressLocality: 'BOLTON - UK', countryCode: 'GB' } },
+        },
+        {
+          // DHL really does send "unknown" as a statusCode of its own.
+          timestamp: '2026-08-30T09:12:00+01:00',
+          statusCode: 'unknown',
+          status: 'OK',
+          description: 'Shipment on hold',
+          location: { address: { addressLocality: 'EAST MIDLANDS - UK' } },
+        },
+        {
+          timestamp: '2026-08-28T11:03:00+02:00',
+          statusCode: 'transit',
+          status: 'OK',
+          description: 'Processed at MILAN - ITALY',
+          location: { address: { addressLocality: 'MILAN - ITALY' } },
+        },
+      ],
+    },
+  ],
+};
+
+describe('a live DHL response', () => {
+  it('honours the offset DHL actually sends, rather than reading it as UTC', () => {
+    // Every timestamp in the real payloads carries an offset. 20:59+01:00 is
+    // 19:59Z — an hour out if the zone were ignored, which is the whole reason
+    // parseDhlTimestamp only assumes UTC when no offset is present.
+    const [shipment] = parseDhlResponse(LIVE_EVENTS);
+    expect(shipment.latest?.occurredAt.toISOString()).toBe('2026-08-31T19:59:00.000Z');
+  });
+
+  it('walks the real checkpoints up the ladder and stamps the delivery', () => {
+    const [shipment] = parseDhlResponse(LIVE_EVENTS);
+    let status = 'pending' as string;
+    let actualDelivery: string | null = null;
+    for (const event of [...shipment.events].reverse()) {
+      const plan = planShipmentUpdate(
+        { status: status as never, actualDelivery },
+        { status: event.status, occurredAt: event.occurredAt.toISOString() },
+      );
+      if (plan?.status) status = plan.status;
+      if (plan?.actualDelivery) actualDelivery = plan.actualDelivery;
+    }
+    expect(status).toBe('delivered');
+    expect(actualDelivery).toBe('2026-08-31T19:59:00.000Z');
+  });
+
+  it('files a statusCode it cannot map without letting it move the shipment', () => {
+    const [shipment] = parseDhlResponse(LIVE_EVENTS);
+    const held = shipment.events.find((e) => e.description === 'Shipment on hold');
+    // Still a checkpoint worth keeping...
+    expect(held).toBeDefined();
+    expect(held!.externalId).toBe('unknown:2026-08-30T08:12:00.000Z');
+    // ...but it changes nothing about where the parcel is.
+    expect(held!.status).toBe('unknown');
+    expect(shipmentStatusFromCourier('unknown')).toBeNull();
+  });
+});
+
 describe('failure classification', () => {
   it('treats an unknown tracking number as ordinary, not as an outage', () => {
     expect(dhlFailureFor(404)).toBe('not_found');
