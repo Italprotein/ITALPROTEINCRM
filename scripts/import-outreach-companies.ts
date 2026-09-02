@@ -62,7 +62,8 @@ async function main() {
     console.log(`\ncompanies created  : ${applied.companiesCreated}`);
     console.log(`contacts created   : ${applied.contactsCreated}`);
     console.log(`domains registered : ${applied.domainsRegistered}`);
-    console.log(`outbound mail newly linked to a company : ${applied.messagesLinked}`);
+    console.log(`outbound mail newly linked  : ${applied.messagesLinked}`);
+    console.log(`replies newly linked        : ${applied.repliesLinked}`);
     console.log(`\ncompany type used  : ${companyType ?? "other (unverified — see --type)"}`);
   }
 

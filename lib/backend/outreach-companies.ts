@@ -235,7 +235,53 @@ export interface OutreachImportResult extends OutreachPlan {
   companiesCreated: number;
   contactsCreated: number;
   domainsRegistered: number;
+  /** Outbound mail attached to the company it was addressed to. */
   messagesLinked: number;
+  /** Replies attached to the company they came from. */
+  repliesLinked: number;
+}
+
+/**
+ * Attach replies to the companies they came from.
+ *
+ * A reply that arrived before its company existed stayed unattributed, and
+ * nothing went back for it: the Gmail sync only resolves a company at the
+ * moment a message is first stored. So Givaudan could be created from our
+ * outreach and still read "never replied" while their answer sat in the
+ * mailbox unlinked.
+ *
+ * Safe to do by domain alone because `CompanyDomain.domain` is unique — a
+ * domain resolves to one company or to none, never to a choice.
+ */
+async function linkRepliesByDomain(): Promise<number> {
+  const [orphans, domains] = await Promise.all([
+    prisma.emailMessage.findMany({
+      where: { direction: "inbound", companyId: null },
+      select: { id: true, fromAddress: true },
+    }),
+    prisma.companyDomain.findMany({ select: { domain: true, companyId: true } }),
+  ]);
+
+  const owner = new Map(
+    domains.map((row) => [registrableDomainOf(row.domain), row.companyId] as const),
+  );
+
+  const byCompany = new Map<string, string[]>();
+  for (const message of orphans) {
+    const companyId = owner.get(registrableDomainOf(message.fromAddress));
+    if (!companyId) continue;
+    byCompany.set(companyId, [...(byCompany.get(companyId) ?? []), message.id]);
+  }
+
+  let linked = 0;
+  for (const [companyId, ids] of byCompany) {
+    const done = await prisma.emailMessage.updateMany({
+      where: { id: { in: ids } },
+      data: { companyId },
+    });
+    linked += done.count;
+  }
+  return linked;
 }
 
 /**
@@ -256,6 +302,7 @@ export async function runOutreachImport(options: {
     contactsCreated: 0,
     domainsRegistered: 0,
     messagesLinked: 0,
+    repliesLinked: 0,
   };
 
   // Resolve the signing agents to real users once, up front.
@@ -367,6 +414,9 @@ export async function runOutreachImport(options: {
       // A concurrent import, or a company created between planning and writing.
     }
   }
+
+  // Last, so it also picks up replies from the companies just created.
+  result.repliesLinked = await linkRepliesByDomain();
 
   return result;
 }

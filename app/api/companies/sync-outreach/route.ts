@@ -49,6 +49,7 @@ async function handle(request: Request) {
     companiesCreated: result.companiesCreated,
     contactsCreated: result.contactsCreated,
     messagesLinked: result.messagesLinked,
+    repliesLinked: result.repliesLinked,
     ignored: result.ignored,
     unattributed: result.unattributed,
   });
