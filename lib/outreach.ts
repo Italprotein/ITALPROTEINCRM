@@ -4,9 +4,9 @@
  * The CRM only ever learned about a company when somebody wrote *to us*, or
  * when an NDA arrived as an attachment (see the comment in
  * lib/backend/gmail-sync.ts). Cold outreach that never got a reply left no
- * trace at all: on production, 519 outbound messages reached 272 domains, and
- * 157 of those domains had no company row — McCain with 30 messages, Fonterra
- * with 15, Chobani with 9.
+ * trace at all: on production, 519 outbound messages reached 269 domains, and 135
+ * organisations among them had no company row — McCain, Fonterra, Chobani and
+ * Monster among them, none of whom ever replied.
  *
  * That gap is the point of this module. It also answers a question the mailbox
  * cannot: everything is sent from the shared `ad@italprotein.com`, so `From`

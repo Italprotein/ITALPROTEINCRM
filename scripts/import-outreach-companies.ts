@@ -3,8 +3,9 @@
  *
  * The CRM only ever learned about a company when somebody wrote to us, or when
  * an NDA arrived attached. Cold outreach that got no answer left no trace: on
- * production, 519 outbound messages reached 272 domains and 157 of those had no
- * company row at all — McCain with 30 messages, Fonterra with 15.
+ * production, 519 outbound messages reached 269 domains and 135 organisations had
+ * no company row at all — McCain, addressed twice across 18 people, and
+ * Fonterra, Chobani and Monster who never replied at all.
  *
  * Each new company is attributed to the Italprotein agent who signed the
  * outreach. That has to come from the signature: everything is sent from the
@@ -75,7 +76,7 @@ async function main() {
       const name = companyNameFromDomain(candidate.domain) ?? "?";
       const country = countryFromDomain(candidate.domain)?.code ?? "--";
       console.log(
-        `  ${candidate.domain.padEnd(32)} ${String(candidate.messageCount).padStart(3)} msg  ` +
+        `  ${candidate.domain.padEnd(32)} ${String(candidate.messageCount).padStart(3)} msg ${String(candidate.recipientCount).padStart(3)} rcpt  ` +
           `${country}  ${candidate.replied ? "replied" : "silent "}  ` +
           `${(candidate.agentEmail ?? "unattributed").padEnd(32)} ${name}`,
       );

@@ -48,7 +48,14 @@ export interface OutreachCandidate {
   domains: string[];
   /** The addresses we wrote to at this domain. */
   recipients: string[];
+  /**
+   * Distinct messages, not recipient slots. One mail addressed to eighteen
+   * people at McCain is one message — counting the slots reported 36 and
+   * made a single campaign look like a correspondence.
+   */
   messageCount: number;
+  /** Addresses written to at this organisation. */
+  recipientCount: number;
   firstContactAt: Date;
   lastContactAt: Date;
   /** Email of the Italprotein agent who signed the outreach, if identifiable. */
@@ -95,7 +102,7 @@ export async function planOutreachImport(): Promise<OutreachPlan> {
   const [outbound, inbound, companyDomains, investors, suppressed] = await Promise.all([
     prisma.emailMessage.findMany({
       where: { direction: "outbound" },
-      select: { toAddresses: true, bodyText: true, internalDate: true },
+      select: { id: true, toAddresses: true, bodyText: true, internalDate: true },
       orderBy: { internalDate: "asc" },
     }),
     prisma.emailMessage.findMany({
@@ -127,6 +134,9 @@ export async function planOutreachImport(): Promise<OutreachPlan> {
   );
 
   const byDomain = new Map<string, OutreachCandidate>();
+  // Message ids per organisation, so the same mail addressed to twenty
+  // people at one company is counted once.
+  const messageIds = new Map<string, Set<string>>();
   const plan: OutreachPlan = {
     domains: 0,
     creates: [],
@@ -178,16 +188,19 @@ export async function planOutreachImport(): Promise<OutreachPlan> {
           domain: verdict.domain,
           domains: [verdict.domain],
           recipients: [email],
-          messageCount: 1,
+          messageCount: 0,
+          recipientCount: 0,
           firstContactAt: message.internalDate,
           lastContactAt: message.internalDate,
           agentEmail,
           replied: repliedDomains.has(verdict.domain),
         });
+        messageIds.set(label, new Set([message.id]));
         continue;
       }
 
-      existing.messageCount += 1;
+      messageIds.get(label)?.add(message.id);
+
       if (!existing.recipients.includes(email)) existing.recipients.push(email);
       if (!existing.domains.includes(verdict.domain)) existing.domains.push(verdict.domain);
       if (message.internalDate > existing.lastContactAt) {
@@ -199,6 +212,10 @@ export async function planOutreachImport(): Promise<OutreachPlan> {
     }
   }
 
+  for (const [label, candidate] of byDomain) {
+    candidate.messageCount = messageIds.get(label)?.size ?? 0;
+    candidate.recipientCount = candidate.recipients.length;
+  }
   plan.creates = [...byDomain.values()].sort((a, b) => b.messageCount - a.messageCount);
   plan.linked = seenLinked.size;
   plan.domains = byDomain.size + seenLinked.size + seenIgnored.size;
@@ -299,7 +316,8 @@ export async function runOutreachImport(options: {
           lastActivityAt: candidate.lastContactAt,
           tags: [OUTREACH_TAG],
           commercialNotes:
-            `Importata dalle email in uscita: ${candidate.messageCount} messaggi, ` +
+            `Importata dalle email in uscita: ${candidate.messageCount} messaggi a ` +
+            `${candidate.recipientCount} indirizzi, ` +
             `${candidate.replied ? "ha risposto" : "nessuna risposta"}. ` +
             `Tipo e sede da verificare.`,
           ownerUserId,
