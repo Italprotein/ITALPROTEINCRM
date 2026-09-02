@@ -332,6 +332,35 @@ export function organisationLabelOf(domain: string | null | undefined): string {
   return label;
 }
 
+/**
+ * The website to show for a company, from the domains we have proved it owns.
+ *
+ * The domains come from mail we actually exchanged, so this asserts nothing new
+ * — it just stops 363 companies rendering a blank field when the answer is
+ * already on the record.
+ *
+ * A generic TLD beats a country one, then the shortest, then alphabetically.
+ * The TLD rule comes first because length alone gets it backwards: mccain.ca
+ * is shorter than mccain.com, but the .com is the group's corporate site and
+ * the .ca is one region of it.
+ */
+const GENERIC_TLDS = new Set(["com", "net", "org", "co", "io", "group"]);
+
+export function websiteFromDomains(domains: readonly string[]): string | null {
+  const usable = domains
+    .map((domain) => registrableDomainOf(domain))
+    .filter((domain): domain is string => Boolean(domain));
+  if (usable.length === 0) return null;
+
+  const rank = (domain: string): number =>
+    GENERIC_TLDS.has(domain.slice(domain.lastIndexOf(".") + 1)) ? 0 : 1;
+
+  const best = [...new Set(usable)].sort(
+    (a, b) => rank(a) - rank(b) || a.length - b.length || a.localeCompare(b),
+  )[0];
+  return `https://${best}`;
+}
+
 /** Two-letter monogram for the avatar tile, matching the existing rows. */
 export function initialsFromName(name: string): string {
   const words = name.split(/\s+/).filter(Boolean);

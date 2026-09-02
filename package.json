@@ -29,6 +29,8 @@
     "contacts:apply": "tsx scripts/import-gmail-contacts.ts --apply",
     "outreach:dry": "tsx scripts/import-outreach-companies.ts",
     "outreach:apply": "tsx scripts/import-outreach-companies.ts --apply",
+    "websites:dry": "tsx scripts/backfill-company-websites.ts",
+    "websites:apply": "tsx scripts/backfill-company-websites.ts --apply",
     "verify": "tsx scripts/verify-backend.ts",
     "verify:auth": "tsx scripts/verify-auth-runtime.ts",
     "test": "vitest run",

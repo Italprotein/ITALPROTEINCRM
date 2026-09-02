@@ -34,7 +34,8 @@
     "scripts/import-investors.ts",
     "scripts/import-suppression-list.ts",
     "scripts/import-gmail-contacts.ts",
-    "scripts/import-outreach-companies.ts"
+    "scripts/import-outreach-companies.ts",
+    "scripts/backfill-company-websites.ts"
   ],
   "include": [
     "next-env.d.ts",

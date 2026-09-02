@@ -7,6 +7,7 @@ import {
   countryFromDomain,
   initialsFromName,
   organisationLabelOf,
+  websiteFromDomains,
   type OutreachInput,
 } from '@/lib/outreach';
 
@@ -207,5 +208,32 @@ describe('organisationLabelOf', () => {
 
   it('reads a subdomain back to its registrable organisation', () => {
     expect(organisationLabelOf('fr.froneri.com')).toBe('froneri');
+  });
+});
+
+describe('websiteFromDomains', () => {
+  it('picks the apex when a group has several regional sites', () => {
+    expect(websiteFromDomains(['mccain.co.uk', 'mccain.com', 'mccain.ca']))
+      .toBe('https://mccain.com');
+  });
+
+  it('prefers a generic TLD over a shorter country one', () => {
+    // The trap: mccain.ca is one character shorter than mccain.com, so a
+    // length-only rule would make Canada the group's corporate site.
+    expect(websiteFromDomains(['mccain.ca', 'mccain.com'])).toBe('https://mccain.com');
+  });
+
+  it('falls back to length then alphabet, so the result is stable', () => {
+    expect(websiteFromDomains(['orkla.se', 'orkla.no'])).toBe('https://orkla.no');
+    expect(websiteFromDomains(['orkla.no', 'orkla.se'])).toBe('https://orkla.no');
+  });
+
+  it('reads a subdomain back to the registrable domain', () => {
+    expect(websiteFromDomains(['fr.froneri.com'])).toBe('https://froneri.com');
+  });
+
+  it('returns null when there is nothing usable, rather than a bare https://', () => {
+    expect(websiteFromDomains([])).toBeNull();
+    expect(websiteFromDomains(['not-a-domain'])).toBeNull();
   });
 });
