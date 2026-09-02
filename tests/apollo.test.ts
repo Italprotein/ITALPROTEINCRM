@@ -257,10 +257,21 @@ describe('failure classification', () => {
     expect(apolloFailureFor(503)).toBe('unavailable');
   });
 
+  it('reads 422 as exhausted credits, not as a bad request', () => {
+    // Apollo answers "You have insufficient credits!" with 422. Reading it as
+    // a transient fault is what let a run push 200 doomed calls through the
+    // hourly budget before anyone noticed.
+    expect(apolloFailureFor(422)).toBe('insufficient_credits');
+  });
+
   it('stops the run on anything the next call would hit too', () => {
     expect(isFatalApolloFailure('unauthorized')).toBe(true);
     expect(isFatalApolloFailure('forbidden')).toBe(true);
+    expect(isFatalApolloFailure('insufficient_credits')).toBe(true);
     expect(isFatalApolloFailure('rate_limited')).toBe(true);
+  });
+
+  it('keeps going through a fault the next call might not hit', () => {
     expect(isFatalApolloFailure('unavailable')).toBe(false);
     expect(isFatalApolloFailure('network')).toBe(false);
   });

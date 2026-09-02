@@ -34,16 +34,21 @@ const ENDPOINT = "https://api.apollo.io/api/v1/organizations/bulk_enrich";
 /**
  * Batch and budget.
  *
- * `bulk_enrich` takes at most 10 domains. The observed plan allows 50/minute,
- * 200/hour and 600/day, so 20 calls is 200 companies a run and a fifth of the
- * daily ceiling — enough to cover the whole book in three runs without ever
- * approaching a limit.
+ * `bulk_enrich` takes at most 10 domains. The plan advertises its own ceilings
+ * in x-rate-limit-* headers and they are NOT what a first read suggested —
+ * bulk_enrich reports 20/minute and 100/hour where the single-record endpoint
+ * reported 50 and 200. So the throttle below is sized for the tighter pair,
+ * and the run stops on the first 429 rather than trusting any constant here.
+ *
+ * None of it is the real ceiling anyway. The free plan runs out of enrichment
+ * CREDITS long before it runs out of requests, and says so with a 422 — see
+ * apolloFailureFor.
  */
 const BATCH_SIZE = Math.min(Number(process.env.APOLLO_BATCH_SIZE ?? 10), 10);
 const MAX_CALLS = Number(process.env.APOLLO_MAX_CALLS_PER_RUN ?? 20);
 const COOLDOWN_DAYS = Number(process.env.APOLLO_COOLDOWN_DAYS ?? 90);
-/** Apollo's per-minute ceiling is 50; one call per 1.3s stays well inside it. */
-const THROTTLE_MS = Number(process.env.APOLLO_THROTTLE_MS ?? 1300);
+/** bulk_enrich allows 20/minute; one call per 3.2s stays inside it. */
+const THROTTLE_MS = Number(process.env.APOLLO_THROTTLE_MS ?? 3200);
 
 export interface ApolloEnrichResult {
   ok: boolean;
@@ -62,6 +67,8 @@ export interface ApolloEnrichResult {
   /** Fields written, by column — what the run actually improved. */
   fieldsFilled: Record<string, number>;
   stoppedBy?: ApolloFailure;
+  /** Apollo's own view of what is left, read from the last response. */
+  quota?: { minute?: string; hourly?: string; daily?: string };
   error?: string;
 }
 
@@ -70,7 +77,11 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 async function fetchBatch(
   domains: string[],
   apiKey: string,
-): Promise<{ orgs: ReturnType<typeof parseApolloBulk>; failure: ApolloFailure | null }> {
+): Promise<{
+  orgs: ReturnType<typeof parseApolloBulk>;
+  failure: ApolloFailure | null;
+  quota?: { minute?: string; hourly?: string; daily?: string };
+}> {
   let response: Response;
   try {
     response = await fetch(ENDPOINT, {
@@ -81,11 +92,18 @@ async function fetchBatch(
   } catch {
     return { orgs: [], failure: "network" };
   }
-  if (!response.ok) return { orgs: [], failure: apolloFailureFor(response.status) };
+  const quota = {
+    minute: response.headers.get("x-minute-requests-left") ?? undefined,
+    hourly: response.headers.get("x-hourly-requests-left") ?? undefined,
+    daily: response.headers.get("x-24-hour-requests-left") ?? undefined,
+  };
+  if (!response.ok) {
+    return { orgs: [], failure: apolloFailureFor(response.status), quota };
+  }
   try {
-    return { orgs: parseApolloBulk(await response.json()), failure: null };
+    return { orgs: parseApolloBulk(await response.json()), failure: null, quota };
   } catch {
-    return { orgs: [], failure: "unavailable" };
+    return { orgs: [], failure: "unavailable", quota };
   }
 }
 
@@ -178,13 +196,17 @@ export async function runApolloEnrichment(
     for (const [index, batch] of batches.slice(0, MAX_CALLS).entries()) {
       if (index > 0 && THROTTLE_MS > 0) await sleep(THROTTLE_MS);
 
-      const { orgs, failure } = await fetchBatch(batch, apiKey);
+      const { orgs, failure, quota } = await fetchBatch(batch, apiKey);
       result.requested += batch.length;
+      if (quota) result.quota = quota;
 
       if (failure) {
         if (isFatalApolloFailure(failure)) {
           result.stoppedBy = failure;
-          result.ok = failure === "rate_limited";
+          // Running out of credits or hitting a rate limit is an expected
+          // end to a run on a metered plan, not a server fault. A bad key or
+          // an endpoint outside the plan is.
+          result.ok = failure === "rate_limited" || failure === "insufficient_credits";
           break;
         }
         continue;

@@ -288,23 +288,41 @@ export function parseApolloBulk(payload: unknown): ApolloOrganization[] {
   );
 }
 
-export type ApolloFailure = "unauthorized" | "forbidden" | "rate_limited" | "unavailable" | "network";
+export type ApolloFailure =
+  | "unauthorized"
+  | "forbidden"
+  | "insufficient_credits"
+  | "rate_limited"
+  | "unavailable"
+  | "network";
 
 /**
  * What an HTTP status means for the caller.
  *
- * 403 is its own case rather than folded into unauthorized: on the free plan it
- * is what an endpoint outside the tier returns (`people/match` does exactly
- * this), and that is a permanent fact about the plan, not a bad key.
+ * Three of these are distinct on purpose, because Apollo uses three codes for
+ * three different permanent conditions and only one of them is obvious:
+ *
+ *  - 403 is an endpoint outside the plan (`people/match` on the free tier).
+ *  - 422 is "insufficient credits". Not a rate limit and not a bad request:
+ *    the plan's enrichment allowance is spent, and every further call will
+ *    return the same thing. Reading it as a transient fault cost a full hour's
+ *    request budget on 200 calls that could never have succeeded.
+ *  - 429 is an actual rate limit, which recovers on its own.
  */
 export function apolloFailureFor(httpStatus: number): ApolloFailure {
   if (httpStatus === 401) return "unauthorized";
   if (httpStatus === 403) return "forbidden";
+  if (httpStatus === 422) return "insufficient_credits";
   if (httpStatus === 429) return "rate_limited";
   return "unavailable";
 }
 
 /** A failure that means: stop the run, the next call will fail the same way. */
 export function isFatalApolloFailure(failure: ApolloFailure): boolean {
-  return failure === "unauthorized" || failure === "forbidden" || failure === "rate_limited";
+  return (
+    failure === "unauthorized" ||
+    failure === "forbidden" ||
+    failure === "insufficient_credits" ||
+    failure === "rate_limited"
+  );
 }
