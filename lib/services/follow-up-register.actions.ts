@@ -214,5 +214,17 @@ export async function syncFollowUps(): Promise<FollowUpSyncReport> {
   return runFollowUpSync({ actorId: user.id });
 }
 
-/** Re-exported so the page can name the type without importing the backend. */
-export type { FollowUpSyncReport };
+/*
+ * No `export type { FollowUpSyncReport }` here, however convenient it looks.
+ *
+ * A "use server" file may only export async functions, and the server-action
+ * transform enforces that by emitting a runtime binding for every export it
+ * sees — including a type-only re-export, whose binding TypeScript has already
+ * erased. The result is `ReferenceError: FollowUpSyncReport is not defined`
+ * thrown at *module evaluation*, which takes down every page that reaches this
+ * module through lib/mock-services — the companies list included. It is a
+ * runtime-only failure, so typecheck, lint and the build all pass.
+ *
+ * Consumers import the type straight from @/lib/backend/follow-up-register.
+ * A type-only import is erased, so that costs a client bundle nothing.
+ */

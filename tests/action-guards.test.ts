@@ -230,3 +230,51 @@ describe('company scoping on writes (IDOR regression)', () => {
     expect(fn!.body).toContain('actor.companyId');
   });
 });
+
+/*
+ * A "use server" file may export ONLY async functions.
+ *
+ * The server-action transform emits a runtime binding for every export it
+ * finds. A type-only re-export — `export type { Foo }` — has already been
+ * erased by TypeScript, so the emitted binding points at nothing and the module
+ * throws `ReferenceError: Foo is not defined` the moment it is evaluated. That
+ * takes down every page reaching the module through lib/mock-services.
+ *
+ * It happened, on the companies list, and nothing caught it: the failure is
+ * runtime-only, so typecheck, lint and `next build` are all silent. Hence a
+ * source-level assertion.
+ *
+ * `export type Foo = ...` (a declaration, not a re-export of a binding) is
+ * fine and is used widely for the discriminated result types.
+ */
+describe('server-action files export only async functions', () => {
+  const files = fs
+    .readdirSync(SERVICES_DIR)
+    .filter((f) => f.endsWith('.actions.ts'));
+
+  it('has action files to check', () => {
+    expect(files.length).toBeGreaterThan(0);
+  });
+
+  for (const file of files) {
+    it(`${file} re-exports no type bindings`, () => {
+      const source = fs.readFileSync(path.join(SERVICES_DIR, file), 'utf8');
+      if (!/^\s*['"]use server['"]/m.test(source)) return;
+
+      // `export type { X }` and `export { type X }` both re-export a binding
+      // the transform will try to emit at runtime.
+      const reexports = [
+        ...source.matchAll(/^\s*export\s+type\s*\{[^}]*\}/gm),
+        ...source.matchAll(/^\s*export\s*\{\s*type\s[^}]*\}/gm),
+      ].map((m) => m[0].trim());
+
+      expect(
+        reexports,
+        `${file} re-exports a type from a "use server" file. TypeScript erases ` +
+          `the binding but the server-action transform still emits it, so the ` +
+          `module throws ReferenceError at evaluation. Import the type straight ` +
+          `from the module that declares it instead.`,
+      ).toEqual([]);
+    });
+  }
+});
