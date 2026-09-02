@@ -88,6 +88,13 @@ services:
       DHL_API_KEY: "${DHL_API_KEY:-}"
       DHL_MAX_CALLS_PER_RUN: "${DHL_MAX_CALLS_PER_RUN:-40}"
       DHL_COOLDOWN_MINUTES: "${DHL_COOLDOWN_MINUTES:-240}"
+
+      # Apollo.io enrichment. Unset simply disables it — the CRM works
+      # exactly as it does today, just with the gaps it has today.
+      APOLLO_API_KEY: "${APOLLO_API_KEY:-}"
+      APOLLO_BATCH_SIZE: "${APOLLO_BATCH_SIZE:-10}"
+      APOLLO_MAX_CALLS_PER_RUN: "${APOLLO_MAX_CALLS_PER_RUN:-20}"
+      APOLLO_COOLDOWN_DAYS: "${APOLLO_COOLDOWN_DAYS:-90}"
     expose:
       - "3000"
 
