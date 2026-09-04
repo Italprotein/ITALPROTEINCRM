@@ -4,6 +4,7 @@ import {
   createFollowUp,
   followUpCompanyOptions,
   followUpStats,
+  reconcileFollowUps,
   getFollowUp,
   listFollowUps,
   removeFollowUp,
@@ -23,4 +24,5 @@ export const followUpRegisterService: FollowUpRegisterService = {
   setStatus: (id, status, followUpOn) => setFollowUpStatus(id, status, followUpOn),
   remove: (id) => removeFollowUp(id),
   sync: () => syncFollowUps(),
+  reconcile: () => reconcileFollowUps(),
 };

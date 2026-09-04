@@ -166,9 +166,29 @@ export default function FollowUpsPage() {
   }
 
   useEffect(() => {
-    refresh();
-    // Only editors are offered the picker, so only they need to pay for it.
-    if (canManage) void followUpRegisterService.companyOptions().then(setCompanies);
+    // Opening the page is the moment to drop what no longer needs chasing:
+    // a company we answered last week should not still be on the list when
+    // somebody comes to work it. Editors only — the action deletes rows and
+    // refuses a viewer, so calling it for one would only fail.
+    if (canManage) {
+      void followUpRegisterService
+        .reconcile()
+        .then((report) => {
+          if (report.removed > 0) {
+            toast({
+              variant: 'success',
+              title: t('reconciledTitle'),
+              description: t('reconciledDescription', { count: report.removed }),
+            });
+          }
+        })
+        // A failed cleanup must not leave the page empty; show the list either way.
+        .catch(() => undefined)
+        .finally(refresh);
+      void followUpRegisterService.companyOptions().then(setCompanies);
+    } else {
+      refresh();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canManage]);
 
@@ -280,16 +300,27 @@ export default function FollowUpsPage() {
     }
   }
 
-  /** Re-scan the mailbox for companies that have gone quiet since last time. */
+  /**
+   * Bring the list up to date in both directions.
+   *
+   * Reconcile first, then scan: a company answered yesterday should come off
+   * before the scan decides whether anything new goes on, so the counts the
+   * toast reports describe one consistent state rather than two.
+   */
   async function sync() {
     setSyncing(true);
     try {
+      const cleaned = await followUpRegisterService.reconcile().catch(() => null);
       const report = await followUpRegisterService.sync();
       refresh();
       toast({
         variant: 'success',
         title: t('syncDoneTitle'),
-        description: t('syncDoneDescription', { created: report.created, refreshed: report.refreshed }),
+        description: t('syncDoneDescription', {
+          created: report.created,
+          refreshed: report.refreshed,
+          removed: cleaned?.removed ?? 0,
+        }),
       });
     } catch {
       toast({ variant: 'danger', title: t('toastActionFailedTitle'), description: t('toastActionFailedDescription') });

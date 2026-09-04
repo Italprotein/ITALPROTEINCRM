@@ -15,7 +15,9 @@ import { prisma } from "@/lib/backend/prisma";
 import { FOLLOW_UP_AFTER_DAYS } from "@/lib/follow-up";
 import {
   normalizeFollowUpName,
+  planFollowUpReconcile,
   planQuietSync,
+  type FollowUpResolveReason,
   type QuietCompany,
   type QuietSyncSkipReason,
 } from "@/lib/follow-ups";
@@ -49,10 +51,10 @@ const emptySkips = (): Record<QuietSyncSkipReason, number> => ({
  * is exactly the follow-up worth surfacing, and requiring an outbound message
  * would hide it.
  *
- * The pass only ever creates or refreshes its own `quiet_detection` rows. It
- * has no delete path at all: a company that answers stops being quiet, but its
- * row stays so the history of "we chased this one" survives, and the status a
- * person set on it is never contradicted by arithmetic.
+ * The pass only ever creates or refreshes its own `quiet_detection` rows, and
+ * never deletes: taking a row off the list is `runFollowUpReconcile` below,
+ * which is a separate question with separate rules. The status a person set is
+ * never contradicted by arithmetic in either direction.
  */
 export async function runFollowUpSync(
   options: { actorId?: string | null; now?: Date } = {},
@@ -162,6 +164,104 @@ export async function runFollowUpSync(
     report.refreshed += 1;
   }
 
+  return report;
+}
+
+/* ────────────────────────────── Reconcile ────────────────────────────── */
+
+export interface FollowUpReconcileReport {
+  ok: true;
+  /** Quiet-detection rows examined. */
+  checked: number;
+  /** Rows taken off the list, by why. */
+  resolved: Record<FollowUpResolveReason, number>;
+  /** Total removed. */
+  removed: number;
+}
+
+const emptyResolved = (): Record<FollowUpResolveReason, number> => ({
+  recontacted: 0,
+  stage_closed: 0,
+  do_not_contact: 0,
+});
+
+/**
+ * Take off the list everything that no longer needs to be on it.
+ *
+ * Rows are deleted rather than parked in a `contacted` state. They are
+ * generated, not authored: the mailbox is the record of what happened, and the
+ * row was only ever a reminder pointing at it. Keeping resolved reminders
+ * around is what turns a working list into one people stop reading — and if the
+ * company goes quiet again, the sync raises a fresh row on its next pass, with
+ * a correct day count rather than a stale one.
+ *
+ * Nothing outside `quiet_detection` is touched. The outreach freeze and
+ * hand-typed rows carry decisions, and "they replied" is not grounds to discard
+ * a decision that said leave them alone until October.
+ */
+export async function runFollowUpReconcile(
+  options: { now?: Date } = {},
+): Promise<FollowUpReconcileReport> {
+  const now = options.now ?? new Date();
+  const report: FollowUpReconcileReport = {
+    ok: true,
+    checked: 0,
+    resolved: emptyResolved(),
+    removed: 0,
+  };
+
+  const rows = await prisma.followUp.findMany({
+    where: { source: "quiet_detection", companyId: { not: null } },
+    select: {
+      id: true,
+      companyId: true,
+      source: true,
+      status: true,
+      lastContactAt: true,
+      company: {
+        select: {
+          relationshipStage: true,
+          doNotContact: { select: { id: true } },
+        },
+      },
+    },
+  });
+  report.checked = rows.length;
+  if (rows.length === 0) return report;
+
+  // One grouped query rather than one per row: the mailbox is the expensive
+  // side of this, and the list is short enough to hold in memory.
+  const latest = await prisma.emailMessage.groupBy({
+    by: ["companyId"],
+    where: { companyId: { in: rows.map((row) => row.companyId!) } },
+    _max: { internalDate: true },
+  });
+  const lastContact = new Map(
+    latest.map((row) => [row.companyId!, row._max.internalDate] as const),
+  );
+
+  const doomed: string[] = [];
+  for (const row of rows) {
+    if (!row.company) continue;
+    const action = planFollowUpReconcile(
+      { source: row.source, status: row.status, lastContactAt: row.lastContactAt },
+      {
+        relationshipStage: row.company.relationshipStage,
+        doNotContact: row.company.doNotContact != null,
+        lastContactAt: lastContact.get(row.companyId!) ?? null,
+      },
+      now,
+    );
+    if (action.kind === "resolve") {
+      doomed.push(row.id);
+      report.resolved[action.reason] += 1;
+    }
+  }
+
+  if (doomed.length > 0) {
+    const deleted = await prisma.followUp.deleteMany({ where: { id: { in: doomed } } });
+    report.removed = deleted.count;
+  }
   return report;
 }
 

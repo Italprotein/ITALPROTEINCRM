@@ -195,6 +195,87 @@ export function planQuietSync(company: QuietCompany, now: Date = new Date()): Qu
   return { kind: "refresh", companyId, quietDays };
 }
 
+/* ────────────────────────────── The reconcile pass ──────────────────────────────
+ *
+ * The sync pass answers "who has gone quiet". This one answers the opposite
+ * question, which nothing asked before: who is on the list who should not be.
+ *
+ * A follow-up row is a reminder, and a reminder that outlives its reason is
+ * worse than no reminder — it trains people to ignore the list. Three things
+ * end a quiet-detection row's reason for existing:
+ *
+ *   1. We wrote to them. That is the whole point of the reminder, and the
+ *      mailbox already records it; nobody should have to tick it off by hand.
+ *   2. The company was marked lost or dormant. `planQuietSync` already refuses
+ *      to CREATE a row for one, but a company can be closed after its row
+ *      exists and nothing went back for it.
+ *   3. The company went onto the permanent do-not-contact register.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export type FollowUpResolveReason = "recontacted" | "stage_closed" | "do_not_contact";
+
+export interface FollowUpRowState {
+  source: FollowUpSource;
+  status: FollowUpStatus;
+  /** What the row recorded as the last contact when it was raised. */
+  lastContactAt?: Date | string | null;
+}
+
+export interface FollowUpCompanyState {
+  relationshipStage: string;
+  doNotContact: boolean;
+  /** Last message in EITHER direction, as the mailbox stands now. */
+  lastContactAt?: Date | string | null;
+}
+
+export type FollowUpReconcileAction =
+  | { kind: "resolve"; reason: FollowUpResolveReason }
+  | { kind: "keep" };
+
+/**
+ * Should this row come off the list?
+ *
+ * Only `quiet_detection` rows are ever resolved. A suppression-list entry or a
+ * hand-typed one carries a date somebody chose, and "they answered" is not a
+ * reason to discard a decision that said "leave them alone until October".
+ * That is the same ownership rule the sync pass follows, from the other side.
+ *
+ * "We wrote to them" is measured against the row's own snapshot rather than a
+ * fresh silence count, because the two answer different questions: a company
+ * can be contacted today and still show ten quiet days if the reply came
+ * later. Movement since the row was raised is the honest test.
+ */
+export function planFollowUpReconcile(
+  row: FollowUpRowState,
+  company: FollowUpCompanyState,
+  now: Date = new Date(),
+): FollowUpReconcileAction {
+  if (row.source !== "quiet_detection") return { kind: "keep" };
+
+  // A human decision on one of our own rows still outranks the arithmetic;
+  // `closed` and `contacted` are already off the actionable list anyway.
+  if (row.status === "closed") return { kind: "keep" };
+
+  if (QUIET_CLOSED_STAGES.includes(company.relationshipStage)) {
+    return { kind: "resolve", reason: "stage_closed" };
+  }
+  if (company.doNotContact) return { kind: "resolve", reason: "do_not_contact" };
+
+  const before = row.lastContactAt ? new Date(row.lastContactAt).getTime() : null;
+  const after = company.lastContactAt ? new Date(company.lastContactAt).getTime() : null;
+  if (before !== null && after !== null && Number.isFinite(before) && Number.isFinite(after)) {
+    // Any movement at all means the conversation resumed after we flagged it.
+    if (after > before) return { kind: "resolve", reason: "recontacted" };
+    // Belt and braces: a row whose company is warm again, even if the snapshot
+    // was never written, has no reminder left to give.
+    if (quietDaysSince(new Date(after), now) < FOLLOW_UP_AFTER_DAYS) {
+      return { kind: "resolve", reason: "recontacted" };
+    }
+  }
+
+  return { kind: "keep" };
+}
+
 /* ────────────────────────────── Statistics ────────────────────────────── */
 
 export interface FollowUpStats {

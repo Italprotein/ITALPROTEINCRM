@@ -9,7 +9,11 @@ import {
   type FollowUpStats,
   type FollowUpStatus,
 } from "@/lib/follow-ups";
-import { runFollowUpSync, type FollowUpSyncReport } from "@/lib/backend/follow-up-register";
+import {
+  runFollowUpReconcile,
+  runFollowUpSync,
+  type FollowUpReconcileReport,
+} from "@/lib/backend/follow-up-register";
 import type { FollowUp } from "@/lib/types";
 import {
   followUpToDTO,
@@ -209,9 +213,21 @@ export async function followUpCompanyOptions(): Promise<
 }
 
 /** Re-scan the mailbox for newly quiet companies. Safe to run repeatedly. */
-export async function syncFollowUps(): Promise<FollowUpSyncReport> {
+export async function syncFollowUps() {
   const user = await requireSectionEdit("follow_ups");
   return runFollowUpSync({ actorId: user.id });
+}
+
+/**
+ * Drop the rows that no longer need chasing.
+ *
+ * Gated on section *edit* rather than read, even though the page calls it on
+ * open: it deletes rows, and a viewer who may only read the register must not
+ * be able to change it by navigating to it.
+ */
+export async function reconcileFollowUps(): Promise<FollowUpReconcileReport> {
+  await requireSectionEdit("follow_ups");
+  return runFollowUpReconcile();
 }
 
 /*

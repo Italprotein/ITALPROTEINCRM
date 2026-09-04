@@ -2,7 +2,10 @@ import { followUpStatistics, type FollowUpStatus } from '@/lib/follow-ups';
 import type { FollowUp } from '@/lib/types';
 import type { FollowUpFormInput } from '@/lib/services/follow-up-register.mapper';
 import type { FollowUpSaveResult as SaveResult } from '@/lib/services/follow-up-register.actions';
-import type { FollowUpSyncReport } from '@/lib/backend/follow-up-register';
+import type {
+  FollowUpReconcileReport,
+  FollowUpSyncReport,
+} from '@/lib/backend/follow-up-register';
 
 // Small in-memory register so the UI works in mock mode. Production data lives
 // in Postgres — the outreach freeze via scripts/import-suppression-list.ts and
@@ -127,6 +130,16 @@ export const followUpRegisterService = {
   async remove(id: string): Promise<void> {
     rows = rows.filter((r) => r.id !== id);
   },
+  async reconcile(): Promise<FollowUpReconcileReport> {
+    // No mailbox to compare against, so nothing can be shown to be resolved.
+    return {
+      ok: true,
+      checked: rows.filter((r) => r.source === 'quiet_detection').length,
+      resolved: { recontacted: 0, stage_closed: 0, do_not_contact: 0 },
+      removed: 0,
+    };
+  },
+
   async sync(): Promise<FollowUpSyncReport> {
     // Nothing to scan without a mailbox — the mock reports an honest no-op.
     return {

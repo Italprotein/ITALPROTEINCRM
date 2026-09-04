@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { checkRateLimit } from "@/lib/backend/rate-limit";
-import { runFollowUpSync } from "@/lib/backend/follow-up-register";
+import { runFollowUpReconcile, runFollowUpSync } from "@/lib/backend/follow-up-register";
 import { getCurrentUser } from "@/lib/backend/session";
 import { canEdit } from "@/lib/permissions";
 
@@ -34,8 +34,14 @@ async function handle(request: Request) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   }
 
+  // Reconcile first: a company we answered yesterday should come off the list
+  // before the scan decides whether to put anything new on it.
+  const reconciled = await runFollowUpReconcile();
   const result = await runFollowUpSync();
-  return NextResponse.json(result, { status: result.ok ? 200 : 503 });
+  return NextResponse.json(
+    { ...result, reconciled },
+    { status: result.ok ? 200 : 503 },
+  );
 }
 
 export async function GET(request: Request) {

@@ -8,10 +8,13 @@ import {
   isDue,
   normalizeFollowUpName,
   parseDateKey,
+  planFollowUpReconcile,
   planQuietSync,
   planSuppressionRows,
   toDateKey,
   type QuietCompany,
+  type FollowUpRowState,
+  type FollowUpCompanyState,
 } from '@/lib/follow-ups';
 import { FOLLOW_UP_AFTER_DAYS } from '@/lib/follow-up';
 
@@ -232,5 +235,95 @@ describe('normalizeFollowUpName', () => {
   it('matches the same organisation written two ways', () => {
     expect(normalizeFollowUpName('Charles & Alice')).toBe(normalizeFollowUpName('charles alice'));
     expect(normalizeFollowUpName('EcorNaturaSì')).toBe('ecornaturasi');
+  });
+});
+
+
+describe('planFollowUpReconcile', () => {
+  const RAISED = daysAgo(30).toISOString();
+
+  const row = (over: Partial<FollowUpRowState> = {}): FollowUpRowState => ({
+    source: 'quiet_detection',
+    status: 'pending',
+    lastContactAt: RAISED,
+    ...over,
+  });
+
+  const company = (over: Partial<FollowUpCompanyState> = {}): FollowUpCompanyState => ({
+    relationshipStage: 'contacted',
+    doNotContact: false,
+    lastContactAt: RAISED,
+    ...over,
+  });
+
+  it('keeps a row nothing has happened on', () => {
+    expect(planFollowUpReconcile(row(), company(), NOW)).toEqual({ kind: 'keep' });
+  });
+
+  it('drops a row once we have written to them again', () => {
+    // The reminder's whole purpose, discharged. The mailbox already knows;
+    // nobody should have to tick it off by hand.
+    expect(
+      planFollowUpReconcile(row(), company({ lastContactAt: daysAgo(2).toISOString() }), NOW),
+    ).toEqual({ kind: 'resolve', reason: 'recontacted' });
+  });
+
+  it('drops a row whose company has since been marked lost or dormant', () => {
+    // planQuietSync already refuses to CREATE one of these. Nothing went back
+    // for the rows that existed before the stage changed.
+    for (const relationshipStage of ['lost', 'dormant']) {
+      expect(planFollowUpReconcile(row(), company({ relationshipStage }), NOW)).toEqual({
+        kind: 'resolve',
+        reason: 'stage_closed',
+      });
+    }
+  });
+
+  it('drops a row whose company went onto the do-not-contact register', () => {
+    expect(planFollowUpReconcile(row(), company({ doNotContact: true }), NOW)).toEqual({
+      kind: 'resolve',
+      reason: 'do_not_contact',
+    });
+  });
+
+  it('measures contact against the row, not against a fresh silence count', () => {
+    // Contacted 20 days ago is still "quiet" by the 10-day threshold, but it is
+    // movement since the row was raised 30 days ago, so the reminder is spent.
+    expect(
+      planFollowUpReconcile(row(), company({ lastContactAt: daysAgo(20).toISOString() }), NOW),
+    ).toEqual({ kind: 'resolve', reason: 'recontacted' });
+  });
+
+  it('never touches a row it does not own', () => {
+    // A freeze entry saying "leave them alone until October" is not undone by
+    // them happening to reply.
+    for (const source of ['suppression_list', 'manual'] as const) {
+      expect(
+        planFollowUpReconcile(
+          row({ source }),
+          company({ relationshipStage: 'lost', doNotContact: true, lastContactAt: NOW.toISOString() }),
+          NOW,
+        ),
+      ).toEqual({ kind: 'keep' });
+    }
+  });
+
+  it('leaves a row somebody deliberately closed alone', () => {
+    expect(
+      planFollowUpReconcile(
+        row({ status: 'closed' }),
+        company({ lastContactAt: daysAgo(1).toISOString() }),
+        NOW,
+      ),
+    ).toEqual({ kind: 'keep' });
+  });
+
+  it('keeps a row it cannot judge rather than guessing', () => {
+    expect(planFollowUpReconcile(row({ lastContactAt: null }), company(), NOW)).toEqual({
+      kind: 'keep',
+    });
+    expect(planFollowUpReconcile(row(), company({ lastContactAt: null }), NOW)).toEqual({
+      kind: 'keep',
+    });
   });
 });
