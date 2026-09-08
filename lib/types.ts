@@ -256,6 +256,9 @@ export type FollowUpStatus = 'pending' | 'scheduled' | 'waiting' | 'contacted' |
 /** Where a follow-up row came from, and so how much authority it carries. */
 export type FollowUpSource = 'quiet_detection' | 'suppression_list' | 'manual';
 
+/** Which side of the conversation owes the next message. */
+export type FollowUpWaitingOn = 'us' | 'them' | 'unknown';
+
 /**
  * A row of the follow-up register (/admin/follow-ups).
  *
@@ -277,6 +280,12 @@ export interface FollowUp {
   /** Last message in either direction, as the sync last saw it. */
   lastContactAt?: ISODate;
   quietDays?: number;
+  /** Days since we last wrote; absent when we never have. */
+  ourQuietDays?: number;
+  /** Days since they last wrote; absent when they never have. */
+  theirQuietDays?: number;
+  /** Whose move it is, from whoever spoke last. */
+  waitingOn?: FollowUpWaitingOn;
   /** Country of the linked company, for the flag in the table. */
   countryCode?: string;
   /** True when the linked company has a logo the tile can fetch. */

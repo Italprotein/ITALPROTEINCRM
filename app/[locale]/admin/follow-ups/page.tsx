@@ -16,7 +16,13 @@ import {
   StickyNote,
 } from 'lucide-react';
 
-import type { FollowUp, FollowUpSource, FollowUpStatus, Locale } from '@/lib/types';
+import type {
+  FollowUp,
+  FollowUpSource,
+  FollowUpStatus,
+  FollowUpWaitingOn,
+  Locale,
+} from '@/lib/types';
 import {
   FOLLOW_UP_STATUSES,
   FOLLOW_UP_SOURCES,
@@ -152,6 +158,7 @@ export default function FollowUpsPage() {
   const [companies, setCompanies] = useState<{ id: string; name: string; countryCode: string }[]>([]);
   const [fStatus, setFStatus] = useState<string>(ALL);
   const [fSource, setFSource] = useState<string>(ALL);
+  const [fWaiting, setFWaiting] = useState<string>(ALL);
   const [preview, setPreview] = useState<FollowUp | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
@@ -159,6 +166,7 @@ export default function FollowUpsPage() {
 
   const statusLabel = (s: FollowUpStatus) => getLabel('followUpStatus', s);
   const sourceLabel = (s: FollowUpSource) => getLabel('followUpSource', s);
+  const waitingLabel = (w: FollowUpWaitingOn) => getLabel('followUpWaitingOn', w);
 
   function refresh() {
     void followUpRegisterService.list().then(setRows);
@@ -196,8 +204,9 @@ export default function FollowUpsPage() {
     let list = rows ?? [];
     if (fStatus !== ALL) list = list.filter((r) => r.status === fStatus);
     if (fSource !== ALL) list = list.filter((r) => r.source === fSource);
+    if (fWaiting !== ALL) list = list.filter((r) => (r.waitingOn ?? 'unknown') === fWaiting);
     return list;
-  }, [rows, fStatus, fSource]);
+  }, [rows, fStatus, fSource, fWaiting]);
 
   /**
    * Inline status change.
@@ -421,6 +430,32 @@ export default function FollowUpsPage() {
         ),
     },
     {
+      key: 'waitingOn',
+      header: t('colWaitingOn'),
+      sortValue: (r) => r.waitingOn ?? 'unknown',
+      // Whose move it is, from whoever spoke last. The per-side day counts sit
+      // underneath because "quiet for 90 days" reads very differently when it
+      // is us who stopped writing.
+      cell: (r) => {
+        const w = r.waitingOn ?? 'unknown';
+        return (
+          <div className="min-w-0">
+            <Badge variant={w === 'us' ? 'warning' : w === 'them' ? 'info' : 'muted'}>
+              {waitingLabel(w)}
+            </Badge>
+            {(r.ourQuietDays != null || r.theirQuietDays != null) && (
+              <p className="mt-1 truncate text-xs text-muted-foreground">
+                {t('sidesSummary', {
+                  ours: r.ourQuietDays != null ? String(r.ourQuietDays) : '—',
+                  theirs: r.theirQuietDays != null ? String(r.theirQuietDays) : '—',
+                })}
+              </p>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       key: 'lastContact',
       header: t('colLastContact'),
       hideable: true,
@@ -517,6 +552,17 @@ export default function FollowUpsPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={fWaiting} onValueChange={setFWaiting}>
+          <SelectTrigger className="h-9 w-full sm:w-[220px]" aria-label={t('waitingFilterLabel')}>
+            <SelectValue placeholder={t('waitingFilterLabel')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>{t('allWaiting')}</SelectItem>
+            {(['us', 'them', 'unknown'] as const).map((w) => (
+              <SelectItem key={w} value={w}>{waitingLabel(w)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={fSource} onValueChange={setFSource}>
           <SelectTrigger className="h-9 w-full sm:w-[220px]" aria-label={t('sourceFilterLabel')}>
             <SelectValue placeholder={t('sourceFilterLabel')} />
@@ -537,7 +583,11 @@ export default function FollowUpsPage() {
         loading={rows === null}
         searchable
         searchPlaceholder={t('searchPlaceholder')}
-        searchValue={(r) => [r.companyName, r.domain, r.reason, r.notes].filter(Boolean).join(' ')}
+        searchValue={(r) =>
+          [r.companyName, r.domain, r.reason, r.notes, r.waitingOn && waitingLabel(r.waitingOn)]
+            .filter(Boolean)
+            .join(' ')
+        }
         onRowClick={(r) => setPreview(r)}
         rowActions={(r) => (
           <div className="flex items-center gap-1">

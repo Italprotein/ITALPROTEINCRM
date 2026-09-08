@@ -269,6 +269,15 @@ enum FollowUpSource {
   manual
 }
 
+/// Who the conversation is waiting on, from whoever spoke last. `unknown` is
+/// for a company with no linked mail — the CRM activity date carries no
+/// direction of its own. See model FollowUp.
+enum FollowUpWaitingOn {
+  us
+  them
+  unknown
+}
+
 /// What should happen next on a conversation. See model FollowUp.
 ///
 /// `waiting` is the one that carries a date forward: it means the ball is in
@@ -1316,6 +1325,11 @@ model FollowUp {
   /// Snapshot from the last sync — what the arithmetic saw.
   lastContactAt     DateTime?
   quietDays         Int?
+  /// The two sides separately: a conversation can be quiet because we stopped
+  /// writing or because they did, and those call for different actions.
+  ourQuietDays      Int?
+  theirQuietDays    Int?
+  waitingOn         FollowUpWaitingOn?
   statusChangedAt   DateTime?
   statusChangedById String?
   createdById       String?

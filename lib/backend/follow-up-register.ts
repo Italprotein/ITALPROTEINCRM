@@ -14,12 +14,15 @@
 import { prisma } from "@/lib/backend/prisma";
 import { FOLLOW_UP_AFTER_DAYS } from "@/lib/follow-up";
 import {
+  evaluateSilence,
   normalizeFollowUpName,
   planFollowUpReconcile,
   planQuietSync,
   type FollowUpResolveReason,
   type QuietCompany,
   type QuietSyncSkipReason,
+  type Silence,
+  type SilenceInput,
 } from "@/lib/follow-ups";
 import { registrableDomainOf } from "@/lib/email-entity";
 
@@ -32,6 +35,24 @@ export interface FollowUpSyncReport {
   created: number;
   refreshed: number;
   skipped: Record<QuietSyncSkipReason, number>;
+}
+
+/**
+ * The stored reason, in Italian, naming the side that went quiet.
+ *
+ * Written once at creation and read later by whoever opens the row, in
+ * whatever locale their browser is in — it cannot follow the viewer, so it
+ * follows the team. Same rule the follow-up task titles already apply.
+ */
+function reasonFor(silence: Silence): string {
+  if (silence.waitingOn === "unknown") {
+    return `Nessuna attività da ${silence.quietDays} giorni`;
+  }
+  if (silence.theirQuietDays === null) return "Mai risposto";
+  if (silence.waitingOn === "us") {
+    return `Non rispondiamo da ${silence.ourQuietDays ?? silence.quietDays} giorni`;
+  }
+  return `Non rispondono da ${silence.theirQuietDays} giorni`;
 }
 
 const emptySkips = (): Record<QuietSyncSkipReason, number> => ({
@@ -63,19 +84,21 @@ export async function runFollowUpSync(
   const now = options.now ?? new Date();
   const actorId = options.actorId ?? null;
 
-  // Last message in EITHER direction, per company — a reply of ours restarts
-  // the clock, so counting only inbound would resurface companies we answered
-  // yesterday.
-  const latest = await prisma.emailMessage.groupBy({
-    by: ["companyId"],
+  // Each side separately. A conversation can be quiet because we stopped
+  // writing or because they did, and the rule treats those as independent
+  // reasons to appear — so a single "last message" figure cannot answer it.
+  const sides = await prisma.emailMessage.groupBy({
+    by: ["companyId", "direction"],
     where: { companyId: { not: null } },
     _max: { internalDate: true },
   });
 
-  const lastMail = new Map<string, Date>();
-  for (const row of latest) {
+  const lastOutbound = new Map<string, Date>();
+  const lastInbound = new Map<string, Date>();
+  for (const row of sides) {
     const at = row._max.internalDate;
-    if (row.companyId && at) lastMail.set(row.companyId, at);
+    if (!row.companyId || !at) continue;
+    (row.direction === "outbound" ? lastOutbound : lastInbound).set(row.companyId, at);
   }
 
   // Every company, not just the ones with mail.
@@ -101,12 +124,12 @@ export async function runFollowUpSync(
     },
   });
 
-  /** The later of the two signals, or null when neither knows anything. */
-  const lastTouchOf = (companyId: string, lastActivityAt: Date | null): Date | null => {
-    const mail = lastMail.get(companyId) ?? null;
-    if (mail && lastActivityAt) return mail > lastActivityAt ? mail : lastActivityAt;
-    return mail ?? lastActivityAt;
-  };
+  /** Everything evaluateSilence needs about one company. */
+  const silenceOf = (companyId: string, lastActivityAt: Date | null): SilenceInput => ({
+    lastOutboundAt: lastOutbound.get(companyId) ?? null,
+    lastInboundAt: lastInbound.get(companyId) ?? null,
+    lastActivityAt,
+  });
 
   const report: FollowUpSyncReport = {
     ok: true,
@@ -118,11 +141,6 @@ export async function runFollowUpSync(
   };
 
   for (const company of companies) {
-    // A company nobody has ever touched is a prospecting problem, not a
-    // follow-up. 46 bare leads on production have neither signal.
-    const at = lastTouchOf(company.id, company.lastActivityAt);
-    if (!at) continue;
-
     const name = company.tradingName || company.legalName;
     const input: QuietCompany = {
       companyId: company.id,
@@ -130,7 +148,7 @@ export async function runFollowUpSync(
       // The website column is empty for almost every row, so a contact address
       // is the practical source of a domain. Same finding as the logo importer.
       domain: registrableDomainOf(company.website || company.contacts[0]?.email) || null,
-      lastContactAt: at,
+      silence: silenceOf(company.id, company.lastActivityAt),
       clearedThrough: company.followUpClearedThrough,
       relationshipStage: company.relationshipStage,
       doNotContact: company.doNotContact != null,
@@ -161,9 +179,12 @@ export async function runFollowUpSync(
           domain: input.domain,
           status: "pending",
           source: "quiet_detection",
-          reason: `Nessun contatto da ${action.quietDays} giorni`,
-          lastContactAt: at,
+          reason: reasonFor(action.silence),
+          lastContactAt: action.silence.lastTouchAt,
           quietDays: action.quietDays,
+          ourQuietDays: action.silence.ourQuietDays,
+          theirQuietDays: action.silence.theirQuietDays,
+          waitingOn: action.silence.waitingOn,
           createdById: actorId,
         },
       });
@@ -175,7 +196,13 @@ export async function runFollowUpSync(
     // the last person to look at this row decided they should be.
     await prisma.followUp.update({
       where: { companyId: company.id },
-      data: { lastContactAt: at, quietDays: action.quietDays },
+      data: {
+        lastContactAt: action.silence.lastTouchAt,
+        quietDays: action.quietDays,
+        ourQuietDays: action.silence.ourQuietDays,
+        theirQuietDays: action.silence.theirQuietDays,
+        waitingOn: action.silence.waitingOn,
+      },
     });
     report.refreshed += 1;
   }
@@ -233,10 +260,10 @@ export async function runFollowUpReconcile(
       companyId: true,
       source: true,
       status: true,
-      lastContactAt: true,
       company: {
         select: {
           relationshipStage: true,
+          lastActivityAt: true,
           doNotContact: { select: { id: true } },
         },
       },
@@ -245,34 +272,43 @@ export async function runFollowUpReconcile(
   report.checked = rows.length;
   if (rows.length === 0) return report;
 
-  // One grouped query rather than one per row: the mailbox is the expensive
-  // side of this, and the list is short enough to hold in memory.
-  const latest = await prisma.emailMessage.groupBy({
-    by: ["companyId"],
+  // One grouped query rather than one per row, split by direction because the
+  // rule this reverses needs each side separately.
+  const sides = await prisma.emailMessage.groupBy({
+    by: ["companyId", "direction"],
     where: { companyId: { in: rows.map((row) => row.companyId!) } },
     _max: { internalDate: true },
   });
-  const lastContact = new Map(
-    latest.map((row) => [row.companyId!, row._max.internalDate] as const),
-  );
+  const lastOutbound = new Map<string, Date>();
+  const lastInbound = new Map<string, Date>();
+  for (const row of sides) {
+    const at = row._max.internalDate;
+    if (!row.companyId || !at) continue;
+    (row.direction === "outbound" ? lastOutbound : lastInbound).set(row.companyId, at);
+  }
 
   const doomed: string[] = [];
   const clearedThrough = new Map<string, Date>();
   for (const row of rows) {
     if (!row.company) continue;
+    const silence: SilenceInput = {
+      lastOutboundAt: lastOutbound.get(row.companyId!) ?? null,
+      lastInboundAt: lastInbound.get(row.companyId!) ?? null,
+      lastActivityAt: row.company.lastActivityAt,
+    };
     const action = planFollowUpReconcile(
-      { source: row.source, status: row.status, lastContactAt: row.lastContactAt },
+      { source: row.source, status: row.status },
       {
         relationshipStage: row.company.relationshipStage,
         doNotContact: row.company.doNotContact != null,
-        lastContactAt: lastContact.get(row.companyId!) ?? null,
+        silence,
       },
       now,
     );
     if (action.kind === "resolve") {
       doomed.push(row.id);
       report.resolved[action.reason] += 1;
-      const at = lastContact.get(row.companyId!) ?? row.lastContactAt;
+      const at = evaluateSilence(silence, now).lastTouchAt;
       if (at) clearedThrough.set(row.companyId!, at);
     }
   }

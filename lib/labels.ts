@@ -64,6 +64,7 @@ export type LabelKind =
   | 'doNotContactReason'
   | 'followUpStatus'
   | 'followUpSource'
+  | 'followUpWaitingOn'
   | 'priority'
   | 'role'
   | 'workspace';
@@ -538,6 +539,12 @@ const followUpStatusLabels: LabelMap = {
   closed: 'Closed',
 };
 
+const followUpWaitingOnLabels: LabelMap = {
+  us: 'Our move',
+  them: 'Waiting on them',
+  unknown: 'No mail on record',
+};
+
 const followUpSourceLabels: LabelMap = {
   quiet_detection: 'Gone quiet',
   suppression_list: 'Outreach freeze',
@@ -944,6 +951,14 @@ const followUpStatusTones: ToneMap = {
   closed: 'secondary',
 };
 
+/* Our move is the one that is actionable today, so it is the only one that
+   raises its voice; waiting on them is a fact, not a task. */
+const followUpWaitingOnTones: ToneMap = {
+  us: 'warning',
+  them: 'info',
+  unknown: 'muted',
+};
+
 const followUpSourceTones: ToneMap = {
   quiet_detection: 'muted',
   suppression_list: 'info',
@@ -1032,6 +1047,7 @@ const LABELS: Record<LabelKind, LabelMap> = {
   doNotContactReason: doNotContactReasonLabels,
   followUpStatus: followUpStatusLabels,
   followUpSource: followUpSourceLabels,
+  followUpWaitingOn: followUpWaitingOnLabels,
   priority: priorityLabels,
   role: roleLabels,
   workspace: workspaceLabels,
@@ -1071,6 +1087,7 @@ const TONES: Partial<Record<LabelKind, ToneMap>> = {
   doNotContactReason: doNotContactReasonTones,
   followUpStatus: followUpStatusTones,
   followUpSource: followUpSourceTones,
+  followUpWaitingOn: followUpWaitingOnTones,
   priority: priorityTones,
   role: roleTones,
   workspace: workspaceTones,
@@ -1233,6 +1250,9 @@ const LABELS_IT: Record<LabelKind, LabelMap> = {
   },
   followUpSource: {
     quiet_detection: 'Silenzio rilevato', suppression_list: 'Blocco campagna', manual: 'Aggiunto a mano',
+  },
+  followUpWaitingOn: {
+    us: 'Tocca a noi', them: 'In attesa di loro', unknown: 'Nessuna email registrata',
   },
   priority: { low: 'Bassa', medium: 'Media', high: 'Alta', urgent: 'Urgente' },
   role: {

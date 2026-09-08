@@ -119,22 +119,141 @@ export function isDue(row: FollowUpRowLike, now: Date = new Date()): boolean {
   return remaining <= 0;
 }
 
+/* ────────────────────────────── Silence ──────────────────────────────
+ *
+ * The single definition of "quiet", shared by both passes.
+ *
+ * It lives here, once, because the scan and the reconcile ask the same
+ * question from opposite ends — "should this appear" and "should this still
+ * appear" — and two implementations of that would drift into a loop where one
+ * raises what the other retires.
+ *
+ * A conversation has two sides and either can go quiet:
+ *
+ *   · WE are silent when our last message is older than the threshold, or when
+ *     we have never written at all.
+ *   · THEY are silent when their last message is, or when they never replied.
+ *
+ * A company appears when EITHER is true, and is invisible only when both sides
+ * have spoken inside the window. That means cold outreach shows from the day it
+ * is sent — they have never written, so they are silent — and stays until they
+ * answer. On production that is 515 of 526 touched companies, which is the
+ * intended reading: the list is "who is not talking to us", not "who did we
+ * forget".
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** Who the conversation is waiting on, from who spoke last. */
+export type WaitingOn = "us" | "them" | "unknown";
+
+export interface SilenceInput {
+  /** Our most recent message to them. */
+  lastOutboundAt?: Date | string | null;
+  /** Their most recent message to us. */
+  lastInboundAt?: Date | string | null;
+  /**
+   * The CRM's own record of a touch, used only when there is no mail at all.
+   *
+   * 318 of 602 production companies have no linked message — their
+   * correspondence predates the sync window or was never attributed — and
+   * without this they could never be evaluated. It carries no direction, so it
+   * counts for both sides equally.
+   */
+  lastActivityAt?: Date | string | null;
+}
+
+export interface Silence {
+  /** False when nothing is known about this company at all. */
+  known: boolean;
+  weSilent: boolean;
+  theySilent: boolean;
+  waitingOn: WaitingOn;
+  /** Days since our last message; null when we have never written. */
+  ourQuietDays: number | null;
+  /** Days since theirs; null when they have never written. */
+  theirQuietDays: number | null;
+  /** Days since the last message in either direction — the headline number. */
+  quietDays: number;
+  /** The instant `quietDays` was measured from. */
+  lastTouchAt: Date | null;
+}
+
+const asTime = (value: Date | string | null | undefined): number | null => {
+  if (!value) return null;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : null;
+};
+
+export function evaluateSilence(input: SilenceInput, now: Date = new Date()): Silence {
+  const ours = asTime(input.lastOutboundAt);
+  const theirs = asTime(input.lastInboundAt);
+  const activity = asTime(input.lastActivityAt);
+
+  const nothing: Silence = {
+    known: false,
+    weSilent: false,
+    theySilent: false,
+    waitingOn: "unknown",
+    ourQuietDays: null,
+    theirQuietDays: null,
+    quietDays: 0,
+    lastTouchAt: null,
+  };
+
+  // No mail either way: the activity date is all there is, and it says nothing
+  // about direction, so it applies to both sides identically.
+  if (ours === null && theirs === null) {
+    if (activity === null) return nothing;
+    const days = quietDaysSince(new Date(activity), now);
+    const silent = days >= FOLLOW_UP_AFTER_DAYS;
+    return {
+      known: true,
+      weSilent: silent,
+      theySilent: silent,
+      waitingOn: "unknown",
+      ourQuietDays: null,
+      theirQuietDays: null,
+      quietDays: days,
+      lastTouchAt: new Date(activity),
+    };
+  }
+
+  const ourQuietDays = ours === null ? null : quietDaysSince(new Date(ours), now);
+  const theirQuietDays = theirs === null ? null : quietDaysSince(new Date(theirs), now);
+
+  // Never having written is the strongest form of silence, not an absence of
+  // evidence: a prospect who has never replied is exactly who the list is for.
+  const weSilent = ourQuietDays === null || ourQuietDays >= FOLLOW_UP_AFTER_DAYS;
+  const theySilent = theirQuietDays === null || theirQuietDays >= FOLLOW_UP_AFTER_DAYS;
+
+  const lastTouch = Math.max(ours ?? -Infinity, theirs ?? -Infinity, activity ?? -Infinity);
+  const lastTouchAt = Number.isFinite(lastTouch) ? new Date(lastTouch) : null;
+
+  return {
+    known: true,
+    weSilent,
+    theySilent,
+    // Whoever spoke last hands the turn to the other side.
+    waitingOn: (theirs ?? -Infinity) > (ours ?? -Infinity) ? "us" : "them",
+    ourQuietDays,
+    theirQuietDays,
+    quietDays: lastTouchAt ? quietDaysSince(lastTouchAt, now) : 0,
+    lastTouchAt,
+  };
+}
+
+/** The rule itself: either side quiet puts the company on the list. */
+export function needsFollowUp(silence: Silence): boolean {
+  return silence.known && (silence.weSilent || silence.theySilent);
+}
+
 /* ────────────────────────────── The sync pass ────────────────────────────── */
 
 export interface QuietCompany {
   companyId: string;
   companyName: string;
   domain?: string | null;
-  /**
-   * The most recent touch, from whichever source knows about one.
-   *
-   * Usually the last message in either direction — a reply of ours restarts
-   * the clock. But on production 318 of 602 companies have no linked mail at
-   * all (Nestlé, Ferrero, a fully-signed NDA at Grezzo Raw Chocolate), and a
-   * pass that only reads the mailbox cannot see any of them. For those the
-   * CRM's own `lastActivityAt` is the only record of a touch there is.
-   */
-  lastContactAt: Date | string;
+  /** The two sides of the conversation, and the fallback. See evaluateSilence. */
+  silence: SilenceInput;
   /**
    * How far follow-ups are already settled for this company — a contact
    * instant, not a clock reading. See Company.followUpClearedThrough.
@@ -161,8 +280,8 @@ export type QuietSyncSkipReason =
   | "unchanged";
 
 export type QuietSyncAction =
-  | { kind: "create"; companyId: string; quietDays: number }
-  | { kind: "refresh"; companyId: string; quietDays: number }
+  | { kind: "create"; companyId: string; quietDays: number; silence: Silence }
+  | { kind: "refresh"; companyId: string; quietDays: number; silence: Silence }
   | { kind: "skip"; companyId: string; reason: QuietSyncSkipReason };
 
 /**
@@ -187,9 +306,11 @@ export const QUIET_CLOSED_STAGES: readonly string[] = ["lost", "dormant"];
  */
 export function planQuietSync(company: QuietCompany, now: Date = new Date()): QuietSyncAction {
   const { companyId } = company;
-  const quietDays = quietDaysSince(company.lastContactAt, now);
+  const silence = evaluateSilence(company.silence, now);
+  const quietDays = silence.quietDays;
 
-  if (quietDays < FOLLOW_UP_AFTER_DAYS) return { kind: "skip", companyId, reason: "still_warm" };
+  // Both sides spoke inside the window — nobody is waiting on anybody.
+  if (!needsFollowUp(silence)) return { kind: "skip", companyId, reason: "still_warm" };
   if (QUIET_CLOSED_STAGES.includes(company.relationshipStage)) {
     return { kind: "skip", companyId, reason: "stage_closed" };
   }
@@ -201,16 +322,15 @@ export function planQuietSync(company: QuietCompany, now: Date = new Date()): Qu
   // because we answered them 20 days ago, and the scan puts it straight back
   // because 20 days is still longer than the threshold. The company would
   // reappear on the list every single run, having been explicitly cleared.
-  if (company.clearedThrough) {
-    const cleared = new Date(company.clearedThrough).getTime();
-    const touched = new Date(company.lastContactAt).getTime();
-    if (Number.isFinite(cleared) && Number.isFinite(touched) && touched <= cleared) {
+  if (company.clearedThrough && silence.lastTouchAt) {
+    const cleared = asTime(company.clearedThrough);
+    if (cleared !== null && silence.lastTouchAt.getTime() <= cleared) {
       return { kind: "skip", companyId, reason: "already_cleared" };
     }
   }
 
   const existing = company.existing;
-  if (!existing) return { kind: "create", companyId, quietDays };
+  if (!existing) return { kind: "create", companyId, quietDays, silence };
 
   if (existing.source !== "quiet_detection") {
     return { kind: "skip", companyId, reason: "not_ours_to_touch" };
@@ -220,7 +340,7 @@ export function planQuietSync(company: QuietCompany, now: Date = new Date()): Qu
   }
   if (existing.quietDays === quietDays) return { kind: "skip", companyId, reason: "unchanged" };
 
-  return { kind: "refresh", companyId, quietDays };
+  return { kind: "refresh", companyId, quietDays, silence };
 }
 
 /* ────────────────────────────── The reconcile pass ──────────────────────────────
@@ -245,15 +365,13 @@ export type FollowUpResolveReason = "recontacted" | "stage_closed" | "do_not_con
 export interface FollowUpRowState {
   source: FollowUpSource;
   status: FollowUpStatus;
-  /** What the row recorded as the last contact when it was raised. */
-  lastContactAt?: Date | string | null;
 }
 
 export interface FollowUpCompanyState {
   relationshipStage: string;
   doNotContact: boolean;
-  /** Last message in EITHER direction, as the mailbox stands now. */
-  lastContactAt?: Date | string | null;
+  /** The two sides of the conversation as they stand now. */
+  silence: SilenceInput;
 }
 
 export type FollowUpReconcileAction =
@@ -263,15 +381,19 @@ export type FollowUpReconcileAction =
 /**
  * Should this row come off the list?
  *
+ * The exact inverse of the scan, by construction: a row is retired when
+ * `needsFollowUp` would no longer raise it. Sharing `evaluateSilence` is what
+ * guarantees that — two hand-written versions of "quiet" would drift, and the
+ * drift shows up as a row the reconcile deletes and the scan immediately
+ * recreates, every run, forever.
+ *
+ * Under the either-side rule that means both sides must have spoken inside the
+ * window. Us answering is not enough on its own: if they still have not
+ * replied, the conversation is still one-sided and still worth chasing.
+ *
  * Only `quiet_detection` rows are ever resolved. A suppression-list entry or a
  * hand-typed one carries a date somebody chose, and "they answered" is not a
- * reason to discard a decision that said "leave them alone until October".
- * That is the same ownership rule the sync pass follows, from the other side.
- *
- * "We wrote to them" is measured against the row's own snapshot rather than a
- * fresh silence count, because the two answer different questions: a company
- * can be contacted today and still show ten quiet days if the reply came
- * later. Movement since the row was raised is the honest test.
+ * reason to discard a decision that said leave them alone until October.
  */
 export function planFollowUpReconcile(
   row: FollowUpRowState,
@@ -280,8 +402,7 @@ export function planFollowUpReconcile(
 ): FollowUpReconcileAction {
   if (row.source !== "quiet_detection") return { kind: "keep" };
 
-  // A human decision on one of our own rows still outranks the arithmetic;
-  // `closed` and `contacted` are already off the actionable list anyway.
+  // A human decision on one of our own rows still outranks the arithmetic.
   if (row.status === "closed") return { kind: "keep" };
 
   if (QUIET_CLOSED_STAGES.includes(company.relationshipStage)) {
@@ -289,17 +410,11 @@ export function planFollowUpReconcile(
   }
   if (company.doNotContact) return { kind: "resolve", reason: "do_not_contact" };
 
-  const before = row.lastContactAt ? new Date(row.lastContactAt).getTime() : null;
-  const after = company.lastContactAt ? new Date(company.lastContactAt).getTime() : null;
-  if (before !== null && after !== null && Number.isFinite(before) && Number.isFinite(after)) {
-    // Any movement at all means the conversation resumed after we flagged it.
-    if (after > before) return { kind: "resolve", reason: "recontacted" };
-    // Belt and braces: a row whose company is warm again, even if the snapshot
-    // was never written, has no reminder left to give.
-    if (quietDaysSince(new Date(after), now) < FOLLOW_UP_AFTER_DAYS) {
-      return { kind: "resolve", reason: "recontacted" };
-    }
-  }
+  const silence = evaluateSilence(company.silence, now);
+  // Nothing is known any more (mail unlinked, activity cleared) — keep the row
+  // rather than deleting on an absence of evidence.
+  if (!silence.known) return { kind: "keep" };
+  if (!needsFollowUp(silence)) return { kind: "resolve", reason: "recontacted" };
 
   return { kind: "keep" };
 }

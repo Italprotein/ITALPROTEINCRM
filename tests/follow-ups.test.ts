@@ -8,6 +8,8 @@ import {
   isDue,
   normalizeFollowUpName,
   parseDateKey,
+  evaluateSilence,
+  needsFollowUp,
   planFollowUpReconcile,
   planQuietSync,
   planSuppressionRows,
@@ -21,17 +23,24 @@ import { FOLLOW_UP_AFTER_DAYS } from '@/lib/follow-up';
 const NOW = new Date('2026-09-01T12:00:00.000Z');
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000);
 
+/**
+ * A company both sides have been quiet on for 30 days, unless overridden.
+ * `silence` carries the two sides separately — see evaluateSilence.
+ */
 function quiet(overrides: Partial<QuietCompany> = {}): QuietCompany {
   return {
     companyId: 'c1',
     companyName: 'Acme',
-    lastContactAt: daysAgo(30),
+    silence: { lastOutboundAt: daysAgo(30), lastInboundAt: daysAgo(30) },
     relationshipStage: 'contacted',
     doNotContact: false,
     existing: null,
     ...overrides,
   };
 }
+
+/** Shorthand for "both sides last spoke n days ago". */
+const bothAt = (n: number) => ({ lastOutboundAt: daysAgo(n), lastInboundAt: daysAgo(n) });
 
 describe('dates', () => {
   it('keeps a calendar date on the calendar day it was written', () => {
@@ -78,20 +87,81 @@ describe('isDue', () => {
   });
 });
 
+describe('evaluateSilence: either side can go quiet', () => {
+  it('hides a company only when BOTH sides spoke inside the window', () => {
+    const s = evaluateSilence({ lastOutboundAt: daysAgo(2), lastInboundAt: daysAgo(3) }, NOW);
+    expect(s.weSilent).toBe(false);
+    expect(s.theySilent).toBe(false);
+    expect(needsFollowUp(s)).toBe(false);
+  });
+
+  it('shows a company we cold-emailed today that has never replied', () => {
+    // Never writing is the strongest form of silence, not an absence of
+    // evidence — Oatly and Impossible Foods are exactly this case.
+    const s = evaluateSilence({ lastOutboundAt: daysAgo(0), lastInboundAt: null }, NOW);
+    expect(s.weSilent).toBe(false);
+    expect(s.theySilent).toBe(true);
+    expect(s.theirQuietDays).toBeNull();
+    expect(needsFollowUp(s)).toBe(true);
+  });
+
+  it('shows a company that wrote to us and is still waiting on a reply', () => {
+    const s = evaluateSilence({ lastOutboundAt: daysAgo(40), lastInboundAt: daysAgo(20) }, NOW);
+    expect(s.weSilent).toBe(true);
+    expect(needsFollowUp(s)).toBe(true);
+    expect(s.waitingOn).toBe('us');
+  });
+
+  it('names whose move it is from whoever spoke last', () => {
+    expect(evaluateSilence({ lastOutboundAt: daysAgo(5), lastInboundAt: daysAgo(30) }, NOW).waitingOn)
+      .toBe('them');
+    expect(evaluateSilence({ lastOutboundAt: daysAgo(30), lastInboundAt: daysAgo(5) }, NOW).waitingOn)
+      .toBe('us');
+  });
+
+  it('counts each side separately, and the headline from the later of the two', () => {
+    const s = evaluateSilence({ lastOutboundAt: daysAgo(12), lastInboundAt: daysAgo(90) }, NOW);
+    expect(s.ourQuietDays).toBe(12);
+    expect(s.theirQuietDays).toBe(90);
+    expect(s.quietDays).toBe(12);
+  });
+
+  it('falls back to CRM activity when there is no mail, with no direction claimed', () => {
+    // 318 of 602 production companies. The activity date says a touch happened,
+    // not who made it, so it counts for both sides equally.
+    const s = evaluateSilence({ lastActivityAt: daysAgo(125) }, NOW);
+    expect(s.known).toBe(true);
+    expect(s.weSilent && s.theySilent).toBe(true);
+    expect(s.waitingOn).toBe('unknown');
+    expect(s.quietDays).toBe(125);
+  });
+
+  it('hides a company touched recently with no mail on record', () => {
+    const s = evaluateSilence({ lastActivityAt: daysAgo(3) }, NOW);
+    expect(needsFollowUp(s)).toBe(false);
+  });
+
+  it('knows nothing about a company nobody has ever touched', () => {
+    const s = evaluateSilence({}, NOW);
+    expect(s.known).toBe(false);
+    expect(needsFollowUp(s)).toBe(false);
+  });
+});
+
 describe('planQuietSync', () => {
   it('creates a row once a company passes the silence threshold', () => {
-    const action = planQuietSync(quiet({ lastContactAt: daysAgo(30) }), NOW);
-    expect(action).toEqual({ kind: 'create', companyId: 'c1', quietDays: 30 });
+    const action = planQuietSync(quiet({ silence: bothAt(30) }), NOW);
+    expect(action).toMatchObject({ kind: 'create', companyId: 'c1', quietDays: 30 });
   });
 
   it('leaves a company alone until the threshold is actually reached', () => {
     const justUnder = planQuietSync(
-      quiet({ lastContactAt: daysAgo(FOLLOW_UP_AFTER_DAYS - 1) }),
+      quiet({ silence: bothAt(FOLLOW_UP_AFTER_DAYS - 1) }),
       NOW,
     );
     expect(justUnder).toEqual({ kind: 'skip', companyId: 'c1', reason: 'still_warm' });
 
-    const exactly = planQuietSync(quiet({ lastContactAt: daysAgo(FOLLOW_UP_AFTER_DAYS) }), NOW);
+    const exactly = planQuietSync(quiet({ silence: bothAt(FOLLOW_UP_AFTER_DAYS) }), NOW);
     expect(exactly.kind).toBe('create');
   });
 
@@ -110,7 +180,7 @@ describe('planQuietSync', () => {
       quiet({ existing: { status: 'pending', source: 'quiet_detection', quietDays: 12 } }),
       NOW,
     );
-    expect(action).toEqual({ kind: 'refresh', companyId: 'c1', quietDays: 30 });
+    expect(action).toMatchObject({ kind: 'refresh', companyId: 'c1', quietDays: 30 });
   });
 
   it('does not rewrite a row whose counters are already right', () => {
@@ -153,7 +223,7 @@ describe('planQuietSync: already-cleared companies', () => {
     // because 20 days is still silence. Forever, every run.
     const touched = daysAgo(20);
     expect(
-      planQuietSync(quiet({ lastContactAt: touched, clearedThrough: touched }), NOW),
+      planQuietSync(quiet({ silence: bothAt(20), clearedThrough: daysAgo(20) }), NOW),
     ).toEqual({ kind: 'skip', companyId: 'c1', reason: 'already_cleared' });
   });
 
@@ -161,10 +231,10 @@ describe('planQuietSync: already-cleared companies', () => {
     // The stamp is a contact instant, not a clock reading, which is what makes
     // a later exchange re-open the company rather than seal it forever.
     const action = planQuietSync(
-      quiet({ lastContactAt: daysAgo(15), clearedThrough: daysAgo(40) }),
+      quiet({ silence: bothAt(15), clearedThrough: daysAgo(40) }),
       NOW,
     );
-    expect(action).toEqual({ kind: 'create', companyId: 'c1', quietDays: 15 });
+    expect(action).toMatchObject({ kind: 'create', companyId: 'c1', quietDays: 15 });
   });
 
   it('is unaffected when nothing was ever cleared', () => {
@@ -187,8 +257,11 @@ describe('planQuietSync: already-cleared companies', () => {
     // 318 of 602 production companies have no linked message at all. If the
     // caller passes lastActivityAt as the touch, the rules must treat it
     // exactly like a message — Nestlé and Ferrero are in that set.
-    const action = planQuietSync(quiet({ lastContactAt: daysAgo(120) }), NOW);
-    expect(action).toEqual({ kind: 'create', companyId: 'c1', quietDays: 120 });
+    const action = planQuietSync(
+      quiet({ silence: { lastActivityAt: daysAgo(120) } }),
+      NOW,
+    );
+    expect(action).toMatchObject({ kind: 'create', companyId: 'c1', quietDays: 120 });
   });
 });
 
@@ -286,19 +359,16 @@ describe('normalizeFollowUpName', () => {
 
 
 describe('planFollowUpReconcile', () => {
-  const RAISED = daysAgo(30).toISOString();
-
   const row = (over: Partial<FollowUpRowState> = {}): FollowUpRowState => ({
     source: 'quiet_detection',
     status: 'pending',
-    lastContactAt: RAISED,
     ...over,
   });
 
   const company = (over: Partial<FollowUpCompanyState> = {}): FollowUpCompanyState => ({
     relationshipStage: 'contacted',
     doNotContact: false,
-    lastContactAt: RAISED,
+    silence: bothAt(30),
     ...over,
   });
 
@@ -306,11 +376,11 @@ describe('planFollowUpReconcile', () => {
     expect(planFollowUpReconcile(row(), company(), NOW)).toEqual({ kind: 'keep' });
   });
 
-  it('drops a row once we have written to them again', () => {
+  it('drops a row once the conversation is genuinely two-way again', () => {
     // The reminder's whole purpose, discharged. The mailbox already knows;
     // nobody should have to tick it off by hand.
     expect(
-      planFollowUpReconcile(row(), company({ lastContactAt: daysAgo(2).toISOString() }), NOW),
+      planFollowUpReconcile(row(), company({ silence: bothAt(2) }), NOW),
     ).toEqual({ kind: 'resolve', reason: 'recontacted' });
   });
 
@@ -332,11 +402,29 @@ describe('planFollowUpReconcile', () => {
     });
   });
 
-  it('measures contact against the row, not against a fresh silence count', () => {
-    // Contacted 20 days ago is still "quiet" by the 10-day threshold, but it is
-    // movement since the row was raised 30 days ago, so the reminder is spent.
+  it('keeps a row while either side is still quiet, however recent the touch', () => {
+    // 20 days ago is movement, but both sides are still past the threshold, so
+    // the conversation has not actually resumed. Resolving here is what the
+    // old rule did, and it is why companies fell off the list while still
+    // being ignored.
+    expect(planFollowUpReconcile(row(), company({ silence: bothAt(20) }), NOW)).toEqual({
+      kind: 'keep',
+    });
+  });
+
+  it('resolves only once BOTH sides have spoken inside the window', () => {
+    // Us answering is not enough on its own: if they still have not replied the
+    // conversation is one-sided and still worth chasing.
     expect(
-      planFollowUpReconcile(row(), company({ lastContactAt: daysAgo(20).toISOString() }), NOW),
+      planFollowUpReconcile(
+        row(),
+        company({ silence: { lastOutboundAt: daysAgo(1), lastInboundAt: daysAgo(40) } }),
+        NOW,
+      ),
+    ).toEqual({ kind: 'keep' });
+
+    expect(
+      planFollowUpReconcile(row(), company({ silence: bothAt(2) }), NOW),
     ).toEqual({ kind: 'resolve', reason: 'recontacted' });
   });
 
@@ -347,7 +435,7 @@ describe('planFollowUpReconcile', () => {
       expect(
         planFollowUpReconcile(
           row({ source }),
-          company({ relationshipStage: 'lost', doNotContact: true, lastContactAt: NOW.toISOString() }),
+          company({ relationshipStage: 'lost', doNotContact: true, silence: bothAt(0) }),
           NOW,
         ),
       ).toEqual({ kind: 'keep' });
@@ -358,17 +446,17 @@ describe('planFollowUpReconcile', () => {
     expect(
       planFollowUpReconcile(
         row({ status: 'closed' }),
-        company({ lastContactAt: daysAgo(1).toISOString() }),
+        company({ silence: bothAt(1) }),
         NOW,
       ),
     ).toEqual({ kind: 'keep' });
   });
 
   it('keeps a row it cannot judge rather than guessing', () => {
-    expect(planFollowUpReconcile(row({ lastContactAt: null }), company(), NOW)).toEqual({
+    expect(planFollowUpReconcile(row(), company(), NOW)).toEqual({
       kind: 'keep',
     });
-    expect(planFollowUpReconcile(row(), company({ lastContactAt: null }), NOW)).toEqual({
+    expect(planFollowUpReconcile(row(), company({ silence: {} }), NOW)).toEqual({
       kind: 'keep',
     });
   });
