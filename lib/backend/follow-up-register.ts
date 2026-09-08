@@ -36,6 +36,7 @@ export interface FollowUpSyncReport {
 
 const emptySkips = (): Record<QuietSyncSkipReason, number> => ({
   still_warm: 0,
+  already_cleared: 0,
   stage_closed: 0,
   do_not_contact: 0,
   settled_by_hand: 0,
@@ -71,29 +72,41 @@ export async function runFollowUpSync(
     _max: { internalDate: true },
   });
 
-  const lastContact = new Map<string, Date>();
+  const lastMail = new Map<string, Date>();
   for (const row of latest) {
     const at = row._max.internalDate;
-    if (row.companyId && at) lastContact.set(row.companyId, at);
-  }
-  if (lastContact.size === 0) {
-    return { ok: true, scanned: 0, quiet: 0, created: 0, refreshed: 0, skipped: emptySkips() };
+    if (row.companyId && at) lastMail.set(row.companyId, at);
   }
 
-  const companyIds = [...lastContact.keys()];
+  // Every company, not just the ones with mail.
+  //
+  // Starting from the mailbox was the original mistake: on production 318 of
+  // 602 companies have no linked message at all — Nestlé, Ferrero, Sammontana,
+  // a fully-signed NDA at Grezzo Raw Chocolate — because their correspondence
+  // predates the sync window or was never attributed. None of them could ever
+  // appear on the follow-up list, however long they had been silent. For those
+  // the CRM's own lastActivityAt is the only record of a touch there is.
   const companies = await prisma.company.findMany({
-    where: { id: { in: companyIds } },
     select: {
       id: true,
       legalName: true,
       tradingName: true,
       website: true,
       relationshipStage: true,
+      lastActivityAt: true,
+      followUpClearedThrough: true,
       doNotContact: { select: { id: true } },
       followUp: { select: { id: true, status: true, source: true, quietDays: true } },
       contacts: { select: { email: true }, take: 1, orderBy: { isPrimary: "desc" } },
     },
   });
+
+  /** The later of the two signals, or null when neither knows anything. */
+  const lastTouchOf = (companyId: string, lastActivityAt: Date | null): Date | null => {
+    const mail = lastMail.get(companyId) ?? null;
+    if (mail && lastActivityAt) return mail > lastActivityAt ? mail : lastActivityAt;
+    return mail ?? lastActivityAt;
+  };
 
   const report: FollowUpSyncReport = {
     ok: true,
@@ -105,7 +118,9 @@ export async function runFollowUpSync(
   };
 
   for (const company of companies) {
-    const at = lastContact.get(company.id);
+    // A company nobody has ever touched is a prospecting problem, not a
+    // follow-up. 46 bare leads on production have neither signal.
+    const at = lastTouchOf(company.id, company.lastActivityAt);
     if (!at) continue;
 
     const name = company.tradingName || company.legalName;
@@ -116,6 +131,7 @@ export async function runFollowUpSync(
       // is the practical source of a domain. Same finding as the logo importer.
       domain: registrableDomainOf(company.website || company.contacts[0]?.email) || null,
       lastContactAt: at,
+      clearedThrough: company.followUpClearedThrough,
       relationshipStage: company.relationshipStage,
       doNotContact: company.doNotContact != null,
       existing: company.followUp
@@ -241,6 +257,7 @@ export async function runFollowUpReconcile(
   );
 
   const doomed: string[] = [];
+  const clearedThrough = new Map<string, Date>();
   for (const row of rows) {
     if (!row.company) continue;
     const action = planFollowUpReconcile(
@@ -255,10 +272,21 @@ export async function runFollowUpReconcile(
     if (action.kind === "resolve") {
       doomed.push(row.id);
       report.resolved[action.reason] += 1;
+      const at = lastContact.get(row.companyId!) ?? row.lastContactAt;
+      if (at) clearedThrough.set(row.companyId!, at);
     }
   }
 
   if (doomed.length > 0) {
+    // Record how far each company is cleared BEFORE dropping the rows, so a
+    // scan running immediately after cannot raise them again. The stamp is
+    // the contact instant, not the clock: a later conversation moves past it
+    // and the company becomes eligible again, which is the point.
+    for (const [companyId, at] of clearedThrough) {
+      await prisma.company
+        .update({ where: { id: companyId }, data: { followUpClearedThrough: at } })
+        .catch(() => undefined);
+    }
     const deleted = await prisma.followUp.deleteMany({ where: { id: { in: doomed } } });
     report.removed = deleted.count;
   }

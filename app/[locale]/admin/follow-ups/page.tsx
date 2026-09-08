@@ -6,7 +6,7 @@ import {
   CalendarClock,
   AlarmClock,
   PauseCircle,
-  CheckCircle2,
+  Snowflake,
   Eye,
   Pencil,
   Trash2,
@@ -491,7 +491,18 @@ export default function FollowUpsPage() {
           hint={t('statWaitingHint')}
           delay={0.1}
         />
-        <StatCard label={t('statContacted')} value={stats?.contacted ?? 0} icon={CheckCircle2} tone="success" delay={0.15} />
+        {/* Not "contacted": a resolved quiet-detection row is deleted, not parked,
+            so that count sits at zero forever and the card says nothing. The
+            useful fourth number is how much of the list is the outreach freeze
+            rather than detected silence — those behave completely differently. */}
+        <StatCard
+          label={t('statFrozen')}
+          value={stats?.bySource.suppression_list ?? 0}
+          icon={Snowflake}
+          tone="info"
+          hint={t('statFrozenHint')}
+          delay={0.15}
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

@@ -150,6 +150,7 @@ export const followUpRegisterService = {
       refreshed: 0,
       skipped: {
         still_warm: 0,
+        already_cleared: 0,
         stage_closed: 0,
         do_not_contact: 0,
         settled_by_hand: 0,

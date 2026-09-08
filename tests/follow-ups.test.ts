@@ -146,6 +146,52 @@ describe('planQuietSync', () => {
   });
 });
 
+describe('planQuietSync: already-cleared companies', () => {
+  it('refuses to re-raise a company that was settled and has not moved since', () => {
+    // The churn the two passes would otherwise produce: reconcile retires a row
+    // because we answered them 20 days ago, and this scan puts it straight back
+    // because 20 days is still silence. Forever, every run.
+    const touched = daysAgo(20);
+    expect(
+      planQuietSync(quiet({ lastContactAt: touched, clearedThrough: touched }), NOW),
+    ).toEqual({ kind: 'skip', companyId: 'c1', reason: 'already_cleared' });
+  });
+
+  it('raises it again once the conversation moves past the clear point', () => {
+    // The stamp is a contact instant, not a clock reading, which is what makes
+    // a later exchange re-open the company rather than seal it forever.
+    const action = planQuietSync(
+      quiet({ lastContactAt: daysAgo(15), clearedThrough: daysAgo(40) }),
+      NOW,
+    );
+    expect(action).toEqual({ kind: 'create', companyId: 'c1', quietDays: 15 });
+  });
+
+  it('is unaffected when nothing was ever cleared', () => {
+    expect(planQuietSync(quiet({ clearedThrough: null }), NOW).kind).toBe('create');
+    expect(planQuietSync(quiet({ clearedThrough: undefined }), NOW).kind).toBe('create');
+  });
+
+  it('still lets the human decisions win first', () => {
+    // Cleared or not, a lost company and a suppressed one are skipped for their
+    // own reasons — the clear check must not mask why.
+    expect(
+      planQuietSync(
+        quiet({ relationshipStage: 'lost', clearedThrough: daysAgo(30) }),
+        NOW,
+      ),
+    ).toMatchObject({ reason: 'stage_closed' });
+  });
+
+  it('covers a company whose only signal is CRM activity, not mail', () => {
+    // 318 of 602 production companies have no linked message at all. If the
+    // caller passes lastActivityAt as the touch, the rules must treat it
+    // exactly like a message — Nestlé and Ferrero are in that set.
+    const action = planQuietSync(quiet({ lastContactAt: daysAgo(120) }), NOW);
+    expect(action).toEqual({ kind: 'create', companyId: 'c1', quietDays: 120 });
+  });
+});
+
 describe('planSuppressionRows', () => {
   const campaign = '2026-10-11';
 

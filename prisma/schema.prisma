@@ -1176,6 +1176,14 @@ model Company {
   /// and skips anything inside the cooldown, so a metered plan is spent on
   /// companies nobody has looked up rather than on the same few repeatedly.
   enrichedAt                    DateTime?
+  /// How far through this company's history follow-ups are settled.
+  ///
+  /// Holds a CONTACT instant, not a clock reading: when the reconcile pass
+  /// retires a row it records the last contact it saw, and the sync refuses to
+  /// raise another until something newer than that happens. Without it the two
+  /// passes fight — reconcile drops a company we answered 20 days ago, and the
+  /// scan immediately puts it back because 20 days is still silence.
+  followUpClearedThrough        DateTime?
   nextAction                    Json?
   ownerUserId                   String
   supportingTeamUserIds         String[]

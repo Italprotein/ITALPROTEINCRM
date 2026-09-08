@@ -125,8 +125,21 @@ export interface QuietCompany {
   companyId: string;
   companyName: string;
   domain?: string | null;
-  /** Last message in EITHER direction — a reply of ours restarts the clock. */
+  /**
+   * The most recent touch, from whichever source knows about one.
+   *
+   * Usually the last message in either direction — a reply of ours restarts
+   * the clock. But on production 318 of 602 companies have no linked mail at
+   * all (Nestlé, Ferrero, a fully-signed NDA at Grezzo Raw Chocolate), and a
+   * pass that only reads the mailbox cannot see any of them. For those the
+   * CRM's own `lastActivityAt` is the only record of a touch there is.
+   */
   lastContactAt: Date | string;
+  /**
+   * How far follow-ups are already settled for this company — a contact
+   * instant, not a clock reading. See Company.followUpClearedThrough.
+   */
+  clearedThrough?: Date | string | null;
   relationshipStage: string;
   /** True when the company sits on the permanent do-not-contact register. */
   doNotContact: boolean;
@@ -140,6 +153,7 @@ export interface QuietCompany {
 
 export type QuietSyncSkipReason =
   | "still_warm"
+  | "already_cleared"
   | "stage_closed"
   | "do_not_contact"
   | "settled_by_hand"
@@ -180,6 +194,20 @@ export function planQuietSync(company: QuietCompany, now: Date = new Date()): Qu
     return { kind: "skip", companyId, reason: "stage_closed" };
   }
   if (company.doNotContact) return { kind: "skip", companyId, reason: "do_not_contact" };
+
+  // Already dealt with, and nothing has happened since.
+  //
+  // Without this the two passes fight each other: reconcile retires a row
+  // because we answered them 20 days ago, and the scan puts it straight back
+  // because 20 days is still longer than the threshold. The company would
+  // reappear on the list every single run, having been explicitly cleared.
+  if (company.clearedThrough) {
+    const cleared = new Date(company.clearedThrough).getTime();
+    const touched = new Date(company.lastContactAt).getTime();
+    if (Number.isFinite(cleared) && Number.isFinite(touched) && touched <= cleared) {
+      return { kind: "skip", companyId, reason: "already_cleared" };
+    }
+  }
 
   const existing = company.existing;
   if (!existing) return { kind: "create", companyId, quietDays };
