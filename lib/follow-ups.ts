@@ -267,6 +267,8 @@ export interface QuietCompany {
     status: FollowUpStatus;
     source: FollowUpSource;
     quietDays: number | null;
+    /** Null on rows written before the two-sided counts existed. */
+    waitingOn?: WaitingOn | null;
   } | null;
 }
 
@@ -338,7 +340,13 @@ export function planQuietSync(company: QuietCompany, now: Date = new Date()): Qu
   if ((FOLLOW_UP_SETTLED_STATUSES as readonly string[]).includes(existing.status)) {
     return { kind: "skip", companyId, reason: "settled_by_hand" };
   }
-  if (existing.quietDays === quietDays) return { kind: "skip", companyId, reason: "unchanged" };
+  // "Unchanged" has to mean every stored number, not just the headline one.
+  // Comparing quietDays alone left 376 rows carrying a correct day count and an
+  // empty `waitingOn` forever, because they were written before the column
+  // existed and the day count had not moved since.
+  const sameCounts =
+    existing.quietDays === quietDays && (existing.waitingOn ?? null) === silence.waitingOn;
+  if (sameCounts) return { kind: "skip", companyId, reason: "unchanged" };
 
   return { kind: "refresh", companyId, quietDays, silence };
 }

@@ -185,10 +185,35 @@ describe('planQuietSync', () => {
 
   it('does not rewrite a row whose counters are already right', () => {
     const action = planQuietSync(
-      quiet({ existing: { status: 'pending', source: 'quiet_detection', quietDays: 30 } }),
+      quiet({
+        existing: {
+          status: 'pending',
+          source: 'quiet_detection',
+          quietDays: 30,
+          waitingOn: 'them',
+        },
+      }),
       NOW,
     );
     expect(action).toEqual({ kind: 'skip', companyId: 'c1', reason: 'unchanged' });
+  });
+
+  it('refreshes a row that is missing the per-side detail', () => {
+    // Rows written before waitingOn existed carry a correct day count and an
+    // empty column. Comparing quietDays alone left 376 of them that way
+    // permanently, because the count had not moved since.
+    const action = planQuietSync(
+      quiet({
+        existing: {
+          status: 'pending',
+          source: 'quiet_detection',
+          quietDays: 30,
+          waitingOn: null,
+        },
+      }),
+      NOW,
+    );
+    expect(action).toMatchObject({ kind: 'refresh', companyId: 'c1', quietDays: 30 });
   });
 
   it('never drags a row somebody triaged back to pending', () => {

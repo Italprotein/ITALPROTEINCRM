@@ -119,7 +119,9 @@ export async function runFollowUpSync(
       lastActivityAt: true,
       followUpClearedThrough: true,
       doNotContact: { select: { id: true } },
-      followUp: { select: { id: true, status: true, source: true, quietDays: true } },
+      followUp: {
+        select: { id: true, status: true, source: true, quietDays: true, waitingOn: true },
+      },
       contacts: { select: { email: true }, take: 1, orderBy: { isPrimary: "desc" } },
     },
   });
@@ -157,6 +159,7 @@ export async function runFollowUpSync(
             status: company.followUp.status,
             source: company.followUp.source,
             quietDays: company.followUp.quietDays,
+            waitingOn: company.followUp.waitingOn,
           }
         : null,
     };
