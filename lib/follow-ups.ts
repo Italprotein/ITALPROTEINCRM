@@ -134,12 +134,10 @@ export function isDue(row: FollowUpRowLike, now: Date = new Date()): boolean {
  *     we have never written at all.
  *   · THEY are silent when their last message is, or when they never replied.
  *
- * A company appears when EITHER is true, and is invisible only when both sides
- * have spoken inside the window. That means cold outreach shows from the day it
- * is sent — they have never written, so they are silent — and stays until they
- * answer. On production that is 515 of 526 touched companies, which is the
- * intended reading: the list is "who is not talking to us", not "who did we
- * forget".
+ * Both flags are computed and stored, because they are what makes a row
+ * readable: "quiet for 90 days" means something very different when it is us
+ * who stopped writing. But the flags are description, not the test — see
+ * needsFollowUp for why appearing on "either side quiet" does not work.
  * ──────────────────────────────────────────────────────────────────────── */
 
 /** Who the conversation is waiting on, from who spoke last. */
@@ -241,9 +239,22 @@ export function evaluateSilence(input: SilenceInput, now: Date = new Date()): Si
   };
 }
 
-/** The rule itself: either side quiet puts the company on the list. */
+/**
+ * The rule: nobody has said anything for longer than the threshold.
+ *
+ * Measured on the conversation, not on each side independently. "Either side is
+ * quiet" reads well and is wrong in practice — a prospect who never replied is
+ * silent forever by that test, so every cold contact ever made stays on the
+ * list permanently. Tried on production, it put 515 of 526 companies on a page
+ * whose whole job is to be shorter than the company list.
+ *
+ * The ball is always in somebody's court. Whoever spoke last handed it over,
+ * and what matters is how long it has sat there — which is exactly the time
+ * since the last message in either direction. `weSilent` and `theySilent`
+ * survive as the *description* of the row (see waitingOn), not as the test.
+ */
 export function needsFollowUp(silence: Silence): boolean {
-  return silence.known && (silence.weSilent || silence.theySilent);
+  return silence.known && silence.quietDays >= FOLLOW_UP_AFTER_DAYS;
 }
 
 /* ────────────────────────────── The sync pass ────────────────────────────── */

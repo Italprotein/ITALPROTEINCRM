@@ -87,25 +87,42 @@ describe('isDue', () => {
   });
 });
 
-describe('evaluateSilence: either side can go quiet', () => {
-  it('hides a company only when BOTH sides spoke inside the window', () => {
+describe('evaluateSilence', () => {
+  it('hides a conversation that is actively running', () => {
     const s = evaluateSilence({ lastOutboundAt: daysAgo(2), lastInboundAt: daysAgo(3) }, NOW);
     expect(s.weSilent).toBe(false);
     expect(s.theySilent).toBe(false);
     expect(needsFollowUp(s)).toBe(false);
   });
 
-  it('shows a company we cold-emailed today that has never replied', () => {
-    // Never writing is the strongest form of silence, not an absence of
-    // evidence — Oatly and Impossible Foods are exactly this case.
+  it('does NOT list a company we cold-emailed today that has never replied', () => {
+    // They are silent in the "never wrote" sense, and the row still says so —
+    // but the ball has only been in their court since this morning. Listing on
+    // "either side quiet" put 515 of 526 companies on the page, because every
+    // prospect who never replied is silent forever by that test.
     const s = evaluateSilence({ lastOutboundAt: daysAgo(0), lastInboundAt: null }, NOW);
-    expect(s.weSilent).toBe(false);
     expect(s.theySilent).toBe(true);
     expect(s.theirQuietDays).toBeNull();
-    expect(needsFollowUp(s)).toBe(true);
+    expect(s.waitingOn).toBe('them');
+    expect(needsFollowUp(s)).toBe(false);
   });
 
-  it('shows a company that wrote to us and is still waiting on a reply', () => {
+  it('lists it once the ball has sat in their court past the threshold', () => {
+    const s = evaluateSilence({ lastOutboundAt: daysAgo(30), lastInboundAt: null }, NOW);
+    expect(needsFollowUp(s)).toBe(true);
+    expect(s.waitingOn).toBe('them');
+  });
+
+  it('does not list a company that wrote to us four days ago', () => {
+    // We owe them a reply and the row says so, but four days is not neglect.
+    const s = evaluateSilence({ lastOutboundAt: daysAgo(109), lastInboundAt: daysAgo(4) }, NOW);
+    expect(s.weSilent).toBe(true);
+    expect(s.waitingOn).toBe('us');
+    expect(s.ourQuietDays).toBe(109);
+    expect(needsFollowUp(s)).toBe(false);
+  });
+
+  it('lists a company we have owed a reply for longer than the threshold', () => {
     const s = evaluateSilence({ lastOutboundAt: daysAgo(40), lastInboundAt: daysAgo(20) }, NOW);
     expect(s.weSilent).toBe(true);
     expect(needsFollowUp(s)).toBe(true);
@@ -437,19 +454,23 @@ describe('planFollowUpReconcile', () => {
     });
   });
 
-  it('resolves only once BOTH sides have spoken inside the window', () => {
-    // Us answering is not enough on its own: if they still have not replied the
-    // conversation is one-sided and still worth chasing.
+  it('resolves as soon as anyone speaks, from either side', () => {
+    // The exact inverse of the scan: whoever broke the silence, the ball has
+    // been handed over and the clock restarted, so the reminder is spent.
     expect(
       planFollowUpReconcile(
         row(),
         company({ silence: { lastOutboundAt: daysAgo(1), lastInboundAt: daysAgo(40) } }),
         NOW,
       ),
-    ).toEqual({ kind: 'keep' });
+    ).toEqual({ kind: 'resolve', reason: 'recontacted' });
 
     expect(
-      planFollowUpReconcile(row(), company({ silence: bothAt(2) }), NOW),
+      planFollowUpReconcile(
+        row(),
+        company({ silence: { lastOutboundAt: daysAgo(40), lastInboundAt: daysAgo(1) } }),
+        NOW,
+      ),
     ).toEqual({ kind: 'resolve', reason: 'recontacted' });
   });
 

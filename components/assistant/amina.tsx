@@ -246,7 +246,10 @@ ${t('followUpsStillCreated', { count: result.tasks.length })}`
         onClick={() => setOpen(true)}
         aria-label={t('open')}
         className={cn(
-          'group fixed bottom-4 right-4 z-40 flex items-center gap-2 transition-all',
+          // Raised clear of the bottom-right of the page: the 80px mascot sat
+          // directly on top of the DataTable's pagination, so Next and Last
+          // could not be clicked on any list long enough to have pages.
+          'group fixed bottom-24 right-4 z-40 flex items-center gap-2 transition-all',
           'hover:-translate-y-1 active:translate-y-0',
           open && 'pointer-events-none translate-y-3 opacity-0',
         )}
